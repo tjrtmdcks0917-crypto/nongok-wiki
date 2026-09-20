@@ -150,3 +150,11 @@
  .help-quick{grid-template-columns:repeat(2,1fr);gap:7px}.help-quick a{padding:11px 7px}
  .help-section{padding-top:19px}.help-section h2{font-size:19px}.help-section h2>span{width:25px;height:25px;font-size:12px}
 }
+
+/* Polls */
+.poll-guide{border:1px solid #cfd6da;background:#f8fafb;padding:13px 15px;line-height:1.6;margin:10px 0 20px}
+.poll-create{border:1px solid var(--line);background:#fafafa;padding:18px;margin-bottom:24px}.poll-create h2{margin:0 0 12px;font-size:20px}.poll-create label{display:block;font-weight:700;margin:11px 0}.poll-create input,.poll-create textarea{display:block;margin-top:6px;background:#fff}.poll-create textarea{min-height:120px}
+.poll-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:18px;margin:0 0 16px}.poll-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;border-bottom:1px solid #eee;padding-bottom:12px;margin-bottom:14px}.poll-head h2{font-size:20px;margin:0 0 6px}.poll-head small{color:#777}.poll-head form{flex:0 0 auto}.poll-head button{margin:0}
+.poll-vote-form{margin-bottom:16px}.poll-choice{display:flex;align-items:center;gap:9px;border:1px solid #e1e3e5;border-radius:7px;padding:10px 11px;margin:7px 0;cursor:pointer}.poll-choice:hover{background:#fafafa}.poll-choice input{width:auto;margin:0}.poll-choice span{line-height:1.4}.poll-vote-form button{background:var(--green);color:#fff;border-color:#78993b;font-weight:700}
+.poll-login-note,.poll-voted-note{padding:9px 11px;background:#f7f7f7;border:1px solid #e2e2e2}.poll-results{margin-top:13px}.poll-result{margin:10px 0}.poll-result-label{display:flex;justify-content:space-between;gap:12px;font-size:13px}.poll-result-label b{white-space:nowrap}.poll-bar{height:9px;background:#eceff1;border-radius:999px;overflow:hidden;margin-top:5px}.poll-bar span{display:block;height:100%;background:#9caf6a}.poll-result.mine .poll-bar span{background:var(--green)}.poll-empty{padding:28px;text-align:center;border:1px dashed #c9cdd1;color:#777}
+@media(max-width:600px){.poll-card{padding:14px}.poll-head{display:block}.poll-head form{margin-top:10px}.poll-result-label{font-size:12px}.poll-create{padding:14px}}
