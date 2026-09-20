@@ -17,7 +17,7 @@
 {% endif %}
 {% if page.title == '시간표' %}
 <section class="timetable-live">
-  <div class="meal-live-head"><h2>논곡중학교 시간표</h2><span>나이스 시간표 · 컴시간알리미 과목/교사정보 참고 · {{ timetable_week }}</span></div>
+  <div class="meal-live-head"><h2>논곡중학교 시간표</h2><span>{{ timetable[0].source if timetable else "시간표" }} · {{ timetable_week }}</span></div>
   <form class="timetable-picker" method="get">
     <label>학년 <select name="grade">{% for g in range(1,4) %}<option value="{{g}}" {% if g==timetable_grade %}selected{% endif %}>{{g}}학년</option>{% endfor %}</select></label>
     <label>반 <select name="class">{% for c in range(1,11) %}<option value="{{c}}" {% if c==timetable_class %}selected{% endif %}>{{c}}반</option>{% endfor %}</select></label>
@@ -30,6 +30,7 @@
     </article>
   {% endfor %}</div>
   {% else %}<p>등록된 시간표가 없습니다.</p>{% endif %}
+  {% if timetable and timetable[0].source == "나이스 대체" %}<p class="meal-error">컴시간알리미 연결이 실패하여 현재 나이스 시간표를 대신 표시하고 있습니다. 이 경우 교사명과 기술/가정 구분이 제공되지 않을 수 있습니다.</p>{% endif %}
   <p class="timetable-note">월~토요일에는 이번 주 시간표를, 일요일에는 다음 주 시간표를 표시합니다. 컴시간알리미의 공개 시간표를 참고합니다.</p>
 </section>
 {% endif %}
