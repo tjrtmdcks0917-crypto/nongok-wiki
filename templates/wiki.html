@@ -26,12 +26,11 @@
   {% if timetable_error %}<p class="meal-error">{{timetable_error}}</p>{% elif timetable %}
   <div class="timetable-grid">{% for day in timetable %}
     <article class="timetable-day"><h3>{{ day.date.strftime('%m/%d') }} ({{day.weekday}})</h3>
-      {% for lesson in day.classes %}<div class="timetable-period"><b>{{loop.index}}교시</b><span>{{lesson.subject}}{% if lesson.teacher %}<small class="timetable-teacher">{{lesson.teacher}}</small>{% endif %}</span></div>{% else %}<p>수업 정보 없음</p>{% endfor %}
+      {% for lesson in day.classes %}<div class="timetable-period"><b>{{loop.index}}교시</b><span>{{lesson.subject}}{% if lesson.teacher %}<small class="timetable-teacher">{{lesson.teacher}}</small>{% endif %}</span></div>{% else %}<p>정보없음</p>{% endfor %}
     </article>
   {% endfor %}</div>
-  {% else %}<p>등록된 시간표가 없습니다.</p>{% endif %}
-  {% if timetable and timetable[0].source == "나이스 대체" %}<p class="meal-error">컴시간알리미 연결이 실패하여 현재 나이스 시간표를 대신 표시하고 있습니다. 이 경우 교사명과 기술/가정 구분이 제공되지 않을 수 있습니다.</p>{% endif %}
-  <p class="timetable-note">월~토요일에는 이번 주 시간표를, 일요일에는 다음 주 시간표를 표시합니다. 컴시간알리미의 공개 시간표를 참고합니다.</p>
+  {% else %}<p>정보없음</p>{% endif %}
+  <p class="timetable-note">시간표 정보는 컴시간알리미에서만 가져옵니다. 컴시간알리미에 정보가 없거나 연결에 실패하면 정보없음으로 표시합니다.</p>
 </section>
 {% endif %}
 <div class="wiki-body">{{content_html|safe}}</div><div class="meta">조회수 {{page.views}}</div>
