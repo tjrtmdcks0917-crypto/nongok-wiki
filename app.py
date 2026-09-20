@@ -205,21 +205,29 @@ def get_nongok_timetable(grade, class_num):
             by_date.setdefault(ymd, {})[perio] = subject
         weekdays = ["월", "화", "수", "목", "금"]
         comcigan = get_comcigan_class_timetable(grade, class_num, target)
-        timetable_source = "컴시간알리미" if any(comcigan.get(day) for day in weekdays) else "나이스 대체"
+        comcigan_ok = any(comcigan.get(day) for day in weekdays)
+        timetable_source = "컴시간알리미" if comcigan_ok else "나이스 대체"
         days = []
         for n, weekday in enumerate(weekdays):
             d = monday + timedelta(days=n)
             periods = by_date.get(d.strftime("%Y%m%d"), {})
             comci_periods = comcigan.get(weekday, []) if isinstance(comcigan, dict) else []
-            period_count = max(max(periods.keys(), default=0), len(comci_periods))
+            if comcigan_ok:
+                period_count = len(comci_periods)
+            else:
+                period_count = max(periods.keys(), default=0)
             classes = []
             for p in range(1, period_count + 1):
-                item = comci_periods[p - 1] if p - 1 < len(comci_periods) else None
-                if isinstance(item, dict):
-                    subject = (item.get("subject") or periods.get(p, "")).strip()
-                    teacher = (item.get("teacher") or "").strip()
-                    if teacher and "*" not in teacher:
-                        teacher = teacher[0] + "*" if len(teacher) > 1 else "*"
+                if comcigan_ok:
+                    item = comci_periods[p - 1] if p - 1 < len(comci_periods) else None
+                    if isinstance(item, dict):
+                        subject = (item.get("subject") or "").strip()
+                        teacher = (item.get("teacher") or "").strip()
+                        if teacher and "*" not in teacher:
+                            teacher = teacher[0] + "*" if len(teacher) > 1 else "*"
+                    else:
+                        subject = ""
+                        teacher = ""
                 else:
                     subject = periods.get(p, "")
                     teacher = ""
