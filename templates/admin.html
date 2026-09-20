@@ -35,7 +35,7 @@
 
   {% for u in users %}
   <div class="admin-member">
-    <div class="admin-member-head"><div><b>{{u.real_name or '이름 미등록'}}</b> <span class="member-id">@{{u.username}}</span></div><span class="approval-status">{{role_labels.get(u.role,u.role)}}</span></div>
+    <div class="admin-member-head"><div><b>{{u.real_name or '이름 미등록'}}</b> <span class="member-id">@{{u.username}}</span></div><span class="approval-status">{{role_labels.get(u.role,u.role)}}{% if u.is_graduate %} · 졸업생{% endif %}</span></div>
     <div class="member-details"><span>학번: {{u.student_no or '미등록'}}</span><span>학교: {{u.school_name or '미등록'}}</span><span>가입일: {{u.created_at}}</span></div>
 
     {% if u.can_manage %}

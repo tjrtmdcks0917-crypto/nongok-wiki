@@ -563,7 +563,9 @@ def inject():
     return {
         "current_user": user,
         "csrf": session.get("csrf"),
-        "can_create_school_posts": bool(user and user.get("school_name") == "논곡중학교"),
+        "can_create_school_posts": bool(
+            user and not user.get("is_graduate") and user.get("school_name") == "논곡중학교"
+        ),
         "can_open_admin": role_at_least(user, "moderator"),
         "can_manage_documents": role_at_least(user, "teacher"),
         "can_edit_notice": role_at_least(user, "teacher"),
@@ -596,7 +598,7 @@ def current_user():
         return None
     rows = query(
         "SELECT id, username, real_name, student_no, school_name, profile_name, profile_bio, "
-        "profile_status, profile_color, profile_emoji, role, account_status FROM users WHERE id = %s",
+        "profile_status, profile_color, profile_emoji, role, account_status, is_graduate FROM users WHERE id = %s",
         (uid,),
     )
     g.current_user_value = rows[0] if rows else None
@@ -627,7 +629,7 @@ def role_at_least(user, minimum_role):
 
 
 def _student_school_space_identity(user):
-    if not user or user.get("school_name") != "논곡중학교":
+    if not user or user.get("is_graduate") or user.get("school_name") != "논곡중학교":
         return None
     student_no = re.sub(r"\D", "", str(user.get("student_no") or ""))
     if re.fullmatch(r"[1-3]\d{4}", student_no):
@@ -2568,8 +2570,8 @@ def gallery():
 def gallery_new():
     check_csrf()
     user = current_user()
-    if user.get("school_name") != "논곡중학교":
-        flash("논곡갤러리 게시물 작성은 논곡중학교 재학생만 할 수 있습니다.", "warning")
+    if user.get("is_graduate") or user.get("school_name") != "논곡중학교":
+        flash("논곡갤러리 게시물 작성은 현재 논곡중학교 재학생만 할 수 있습니다.", "warning")
         return redirect(url_for("gallery"))
 
     title = request.form.get("title", "").strip()
@@ -2836,6 +2838,7 @@ def register():
     if request.method == "POST":
         check_csrf()
         real_name = request.form.get("real_name", "").strip()
+        is_graduate = request.form.get("is_graduate") == "1"
         student_no = request.form.get("student_no", "").strip()
         school_name = request.form.get("school_name", "").strip()
         username = request.form.get("username", "").strip()
@@ -2844,12 +2847,20 @@ def register():
         if not re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", real_name):
             flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
             return redirect(url_for("register"))
-        if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
-            flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
-            return redirect(url_for("register"))
-        if len(school_name) < 2 or len(school_name) > 80:
-            flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
-            return redirect(url_for("register"))
+        if is_graduate:
+            student_no = None
+            if school_name and len(school_name) > 80:
+                flash("현재 소속 학교 이름은 80자 이하로 입력해 주세요.", "warning")
+                return redirect(url_for("register"))
+            if not school_name:
+                school_name = "논곡중학교 졸업생"
+        else:
+            if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
+                flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
+                return redirect(url_for("register"))
+            if len(school_name) < 2 or len(school_name) > 80:
+                flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
+                return redirect(url_for("register"))
         if not re.fullmatch(r"[A-Za-z0-9가-힣_]{2,24}", username):
             flash("아이디는 2~24자의 한글/영문/숫자/밑줄만 사용할 수 있습니다.", "warning")
             return redirect(url_for("register"))
@@ -2859,18 +2870,19 @@ def register():
         if query("SELECT id FROM users WHERE username=%s", (username,)):
             flash("이미 사용 중인 아이디입니다.", "warning")
             return redirect(url_for("register"))
-        legacy_student_no = student_no[0] + "0" + student_no[1:]
-        if query(
-            "SELECT id FROM users WHERE student_no IN (%s,%s)",
-            (student_no, legacy_student_no),
-        ):
-            flash("이미 가입에 사용된 학번입니다.", "warning")
-            return redirect(url_for("register"))
+        if student_no:
+            legacy_student_no = student_no[0] + "0" + student_no[1:]
+            if query(
+                "SELECT id FROM users WHERE student_no IN (%s,%s)",
+                (student_no, legacy_student_no),
+            ):
+                flash("이미 가입에 사용된 학번입니다.", "warning")
+                return redirect(url_for("register"))
 
         execute(
-            """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,account_status,created_at)
-               VALUES (%s,%s,%s,%s,%s,'user','approved',CURRENT_TIMESTAMP)""",
-            (username, generate_password_hash(password), real_name, student_no, school_name),
+            """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,account_status,is_graduate,created_at)
+               VALUES (%s,%s,%s,%s,%s,'user','approved',%s,CURRENT_TIMESTAMP)""",
+            (username, generate_password_hash(password), real_name, student_no, school_name, is_graduate),
         )
         flash("회원가입이 완료되었습니다. 바로 로그인하실 수 있습니다.", "success")
         return redirect(url_for("login"))
@@ -2888,7 +2900,7 @@ def login():
             account = rows[0]
             session["user_id"] = account["id"]
             flash("로그인되었습니다.", "success")
-            if account["role"] != "admin" and (
+            if account["role"] != "admin" and not account.get("is_graduate") and (
                 not account.get("real_name")
                 or not account.get("student_no")
                 or not account.get("school_name")
@@ -2907,7 +2919,7 @@ def login():
 @require_login
 def identity_setup():
     user = current_user()
-    if user["role"] == "admin":
+    if user["role"] == "admin" or user.get("is_graduate"):
         return redirect(url_for("index"))
     if user.get("real_name") and user.get("student_no") and user.get("school_name"):
         return redirect(url_for("index"))
@@ -2983,7 +2995,7 @@ def _admin_page_data(member_q=""):
     )
     if member_q:
         users = query(
-            """SELECT id, username, real_name, student_no, school_name, role, account_status, created_at
+            """SELECT id, username, real_name, student_no, school_name, role, account_status, is_graduate, created_at
                FROM users
                WHERE COALESCE(real_name, '') ILIKE %s
                ORDER BY real_name ASC, created_at DESC

@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
     profile_emoji VARCHAR(8),
     role VARCHAR(16) NOT NULL DEFAULT 'user',
     account_status VARCHAR(16) NOT NULL DEFAULT 'approved',
+    is_graduate BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS wiki_pages (
@@ -191,7 +192,7 @@ CREATE TABLE IF NOT EXISTS site_visits (
 """
 
 BACKUP_TABLE_COLUMNS = {
-    "users": ["id", "username", "password_hash", "real_name", "student_no", "school_name", "profile_name", "profile_bio", "profile_status", "profile_color", "profile_emoji", "role", "account_status", "created_at"],
+    "users": ["id", "username", "password_hash", "real_name", "student_no", "school_name", "profile_name", "profile_bio", "profile_status", "profile_color", "profile_emoji", "role", "account_status", "is_graduate", "created_at"],
     "wiki_pages": ["id", "title", "content", "author_id", "created_at", "updated_at", "views", "protected", "deleted"],
     "revisions": ["id", "page_id", "title", "content", "author_id", "created_at"],
     "pending_document_edits": ["id", "page_id", "proposed_content", "submitter_id", "status", "reviewer_id", "created_at", "reviewed_at"],
@@ -281,6 +282,7 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43'")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_emoji VARCHAR(8)")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status VARCHAR(16) NOT NULL DEFAULT 'approved'")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_graduate BOOLEAN NOT NULL DEFAULT FALSE")
             conn.execute("ALTER TABLE gallery_posts ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
@@ -307,6 +309,8 @@ def init_db():
                 conn.execute("ALTER TABLE users ADD COLUMN profile_emoji VARCHAR(8)")
             if "account_status" not in columns:
                 conn.execute("ALTER TABLE users ADD COLUMN account_status VARCHAR(16) NOT NULL DEFAULT 'approved'")
+            if "is_graduate" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN is_graduate BOOLEAN NOT NULL DEFAULT 0")
             gallery_columns = {row[1] for row in conn.execute("PRAGMA table_info(gallery_posts)").fetchall()}
             if "views" not in gallery_columns:
                 conn.execute("ALTER TABLE gallery_posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0")
