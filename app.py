@@ -404,8 +404,53 @@ def inject():
         GROUP BY w.id, w.title, w.views
         ORDER BY daily_views DESC, w.views DESC LIMIT 10
     """)
-    return {"current_user": current_user(), "csrf": session.get("csrf"),
-            "global_recent": recent, "global_popular": popular, "global_daily": daily}
+    user = current_user()
+
+    latest_gallery = query(
+        "SELECT COALESCE(MAX(id),0) AS max_id FROM gallery_posts WHERE deleted=FALSE"
+    )[0]["max_id"]
+    latest_gallery = int(latest_gallery or 0)
+
+    if user:
+        seen_rows = query(
+            "SELECT last_seen_post_id FROM gallery_reads WHERE user_id=%s",
+            (user["id"],),
+        )
+        seen_gallery = int(seen_rows[0]["last_seen_post_id"] or 0) if seen_rows else 0
+    else:
+        seen_gallery = int(session.get("gallery_seen_post_id", 0) or 0)
+
+    gallery_unread = query(
+        "SELECT COUNT(*) AS c FROM gallery_posts WHERE deleted=FALSE AND id>%s",
+        (seen_gallery,),
+    )[0]["c"]
+    gallery_unread = int(gallery_unread or 0)
+
+    notice_rows = query(
+        "SELECT content, updated_at FROM homepage_sections WHERE section_key=%s",
+        ("news",),
+    )
+    site_notice = notice_rows[0]["content"] if notice_rows else "논곡위키 공개 베타 운영 중입니다.\n문서 편집과 토론 기능을 사용할 수 있습니다."
+    notice_updated_at = notice_rows[0]["updated_at"] if notice_rows else None
+    site_notice_new = False
+    if isinstance(notice_updated_at, datetime):
+        if notice_updated_at.tzinfo is None:
+            notice_updated_at = notice_updated_at.replace(tzinfo=timezone.utc)
+        site_notice_new = (
+            datetime.now(timezone.utc) - notice_updated_at.astimezone(timezone.utc)
+        ) <= timedelta(days=2)
+
+    return {
+        "current_user": user,
+        "csrf": session.get("csrf"),
+        "global_recent": recent,
+        "global_popular": popular,
+        "global_daily": daily,
+        "gallery_unread": gallery_unread,
+        "site_notice": site_notice,
+        "site_notice_new": site_notice_new,
+        "site_notice_updated_at": notice_updated_at,
+    }
 
 def current_user():
     uid = session.get("user_id")
@@ -838,9 +883,14 @@ def index():
         document_groups.append({"label": label, "items": items})
 
     # Titles that explicitly look like person-profile pages are grouped separately.
+    facility_subpages = [title for title in titles if title.startswith("학교 시설/")]
+    used.update(facility_subpages)
+
     person_items = [
         title for title in titles
-        if title not in used and any(key in title for key in ("인물", "교장", "교감", "선생님"))
+        if title not in used
+        and not title.startswith("학교 시설/")
+        and any(key in title for key in ("인물", "교장", "교감", "선생님"))
     ]
     used.update(person_items)
     document_groups.append({"label": "인물 문서 목록", "items": person_items})
@@ -1226,8 +1276,54 @@ def poll_toggle(poll_id):
     execute("UPDATE polls SET is_open=%s WHERE id=%s", (not bool(rows[0]["is_open"]), poll_id))
     return redirect(url_for("polls"))
 
+@app.route("/notices")
+def notices():
+    rows = query(
+        "SELECT content, updated_at FROM homepage_sections WHERE section_key=%s",
+        ("news",),
+    )
+    content = rows[0]["content"] if rows else "논곡위키 공개 베타 운영 중입니다.\n문서 편집과 토론 기능을 사용할 수 있습니다."
+    updated_at = rows[0]["updated_at"] if rows else None
+    is_new = False
+    if isinstance(updated_at, datetime):
+        if updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=timezone.utc)
+        is_new = (
+            datetime.now(timezone.utc) - updated_at.astimezone(timezone.utc)
+        ) <= timedelta(days=2)
+    return render_template(
+        "notices.html",
+        notice_content=content,
+        notice_updated_at=updated_at,
+        notice_is_new=is_new,
+    )
+
+
 @app.route("/gallery")
 def gallery():
+    latest_row = query(
+        "SELECT COALESCE(MAX(id),0) AS max_id FROM gallery_posts WHERE deleted=FALSE"
+    )[0]
+    latest_id = int(latest_row["max_id"] or 0)
+    user = current_user()
+    if user:
+        read_rows = query(
+            "SELECT user_id FROM gallery_reads WHERE user_id=%s",
+            (user["id"],),
+        )
+        if read_rows:
+            execute(
+                "UPDATE gallery_reads SET last_seen_post_id=%s, updated_at=CURRENT_TIMESTAMP WHERE user_id=%s",
+                (latest_id, user["id"]),
+            )
+        else:
+            execute(
+                "INSERT INTO gallery_reads(user_id,last_seen_post_id,updated_at) VALUES (%s,%s,CURRENT_TIMESTAMP)",
+                (user["id"], latest_id),
+            )
+    else:
+        session["gallery_seen_post_id"] = latest_id
+
     posts = query(
         """SELECT p.id, p.title, p.body, p.created_at, u.username,
                   COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name,
