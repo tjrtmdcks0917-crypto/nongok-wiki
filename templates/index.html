@@ -58,7 +58,15 @@
     <span>자주 쓰는 기능을 한곳에 모아뒀어.</span>
   </div>
   <div class="home-utility-grid">
-    <a href="{{url_for('search')}}"><b>🔎 문서 검색</b><span>원하는 문서를 빠르게 찾아보기</span></a>
+    <a href="{{url_for('wiki',title='급식')}}"><b>🍚 급식</b><span>오늘과 이번 주 급식 확인하기</span></a>
+    <a href="{{url_for('wiki',title='시간표')}}"><b>🗓️ 시간표</b><span>학년·반별 수업 시간표 확인하기</span></a>
+    {% if current_user and can_use_school_spaces %}
+      <a href="{{url_for('school_spaces')}}"><b>🏫 학급 게시판</b><span>내 학년·학급 게시판 들어가기</span></a>
+    {% elif current_user %}
+      <a href="{{url_for('school_spaces')}}"><b>🏫 학급 게시판</b><span>논곡중학교 학생 전용 공간</span></a>
+    {% else %}
+      <a href="{{url_for('login',next=url_for('school_spaces'))}}"><b>🏫 학급 게시판</b><span>로그인 후 내 학급 공간 이용하기</span></a>
+    {% endif %}
     <a href="{{url_for('all_pages')}}"><b>📚 모든 문서</b><span>전체 문서를 한 번에 보기</span></a>
     {% if current_user %}
       <a href="{{url_for('new_page')}}"><b>＋ 새 문서</b><span>새 위키 문서 만들기</span></a>
