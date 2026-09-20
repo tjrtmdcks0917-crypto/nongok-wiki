@@ -5,6 +5,8 @@
 <meta name="description" content="{% block meta_description %}논곡위키는 논곡중학교의 학교생활, 시설, 동아리, 행사 등 다양한 정보를 함께 기록하는 학생 위키입니다.{% endblock %}">
 <meta name="robots" content="{% block robots %}index,follow{% endblock %}">
 <meta name="google-site-verification" content="FzJshG76Im9f3Ko9zBdtmL_tBReHweJGT_ex7_48Fuo" />
+{% if naver_site_verification %}<meta name="naver-site-verification" content="{{ naver_site_verification }}">{% endif %}
+<link rel="alternate" type="application/rss+xml" title="논곡위키 RSS" href="{{ url_for('rss_xml', _external=True, _scheme='https') }}">
 <link rel="canonical" href="{% block canonical_url %}{{ request.base_url }}{% endblock %}">
 <meta property="og:site_name" content="논곡위키">
 <meta name="apple-mobile-web-app-title" content="논곡위키">

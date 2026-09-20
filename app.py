@@ -583,6 +583,7 @@ def inject():
         "daily_visit_stats": public["daily_visit_stats"],
         "daily_visit_total": public["daily_visit_total"],
         "daily_visit_date": public["daily_visit_date"],
+        "naver_site_verification": os.environ.get("NAVER_SITE_VERIFICATION", "").strip(),
     }
 
 
@@ -1342,8 +1343,31 @@ def seed():
         )
 @app.route("/robots.txt")
 def robots_txt():
-    body = "User-agent: *\nAllow: /\nSitemap: https://nongok-wiki.onrender.com/sitemap.xml\n"
-    return app.response_class(body, mimetype="text/plain")
+    body = """User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /account/
+Disallow: /login
+Disallow: /register
+Disallow: /notifications
+Disallow: /spaces
+Disallow: /gallery/image/
+
+User-agent: Yeti
+Allow: /
+Disallow: /admin
+Disallow: /account/
+Disallow: /login
+Disallow: /register
+Disallow: /notifications
+Disallow: /spaces
+Disallow: /gallery/image/
+
+Sitemap: https://nongok-wiki.onrender.com/sitemap.xml
+"""
+    response = app.response_class(body, mimetype="text/plain")
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
 
 @app.route("/sitemap.xml")
 def sitemap_xml():
@@ -1364,6 +1388,51 @@ def sitemap_xml():
             urls.append(f"<url><loc>{loc}</loc></url>")
     xml = '<?xml version="1.0" encoding="UTF-8"?>' + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(urls) + "</urlset>"
     return app.response_class(xml, mimetype="application/xml")
+
+
+@app.route("/rss.xml")
+def rss_xml():
+    pages = query(
+        """SELECT title, content, updated_at
+           FROM wiki_pages
+           WHERE deleted=FALSE
+           ORDER BY updated_at DESC
+           LIMIT 50"""
+    )
+    from urllib.parse import quote
+    from xml.sax.saxutils import escape as xml_escape
+
+    items = []
+    for page in pages:
+        title = xml_escape(str(page.get("title") or ""))
+        link = "https://nongok-wiki.onrender.com/wiki/" + quote(str(page.get("title") or ""), safe="")
+        raw_content = re.sub(r"\s+", " ", str(page.get("content") or "")).strip()
+        description = xml_escape(raw_content[:300])
+        updated = _as_utc_datetime(page.get("updated_at"))
+        pub_date = updated.strftime("%a, %d %b %Y %H:%M:%S +0000") if updated else ""
+        items.append(
+            "<item>"
+            f"<title>{title}</title>"
+            f"<link>{link}</link>"
+            f"<guid isPermaLink=\"true\">{link}</guid>"
+            f"<description>{description}</description>"
+            + (f"<pubDate>{pub_date}</pubDate>" if pub_date else "")
+            + "</item>"
+        )
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<rss version="2.0"><channel>'
+        '<title>논곡위키</title>'
+        '<link>https://nongok-wiki.onrender.com/</link>'
+        '<description>논곡중학교 학교생활과 공개 정보를 함께 기록하는 학생 위키입니다.</description>'
+        '<language>ko-KR</language>'
+        + "".join(items)
+        + "</channel></rss>"
+    )
+    response = app.response_class(xml, mimetype="application/rss+xml")
+    response.headers["Cache-Control"] = "public, max-age=900"
+    return response
 
 @app.route("/")
 def index():
