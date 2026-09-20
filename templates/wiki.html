@@ -17,7 +17,7 @@
 {% endif %}
 {% if page.title == '시간표' %}
 <section class="timetable-live">
-  <div class="meal-live-head"><h2>논곡중학교 시간표</h2><span>나이스 시간표 · 컴시간알리미 교사정보 참고 · {{ timetable_week }}</span></div>
+  <div class="meal-live-head"><h2>논곡중학교 시간표</h2><span>컴시간알리미 참고 · {{ timetable_week }}</span></div>
   <form class="timetable-picker" method="get">
     <label>학년 <select name="grade">{% for g in range(1,4) %}<option value="{{g}}" {% if g==timetable_grade %}selected{% endif %}>{{g}}학년</option>{% endfor %}</select></label>
     <label>반 <select name="class">{% for c in range(1,11) %}<option value="{{c}}" {% if c==timetable_class %}selected{% endif %}>{{c}}반</option>{% endfor %}</select></label>
@@ -26,7 +26,7 @@
   {% if timetable_error %}<p class="meal-error">{{timetable_error}}</p>{% elif timetable %}
   <div class="timetable-grid">{% for day in timetable %}
     <article class="timetable-day"><h3>{{ day.date.strftime('%m/%d') }} ({{day.weekday}})</h3>
-      {% for lesson in day.classes %}<div class="timetable-period"><b>{{loop.index}}교시</b><span>{{lesson.subject}}{% if lesson.teacher %}<small class="timetable-teacher">{{lesson.teacher}}</small>{% endif %}</span></div>{% else %}<p>수업 정보 없음</p>{% endfor %}
+      {% for subject in day.classes %}<div class="timetable-period"><b>{{loop.index}}교시</b><span>{{subject}}</span></div>{% else %}<p>수업 정보 없음</p>{% endfor %}
     </article>
   {% endfor %}</div>
   {% else %}<p>등록된 시간표가 없습니다.</p>{% endif %}
