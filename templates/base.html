@@ -23,6 +23,7 @@
 </div></header>
 <div class="site-grid"><main class="content">{% with messages=get_flashed_messages(with_categories=true) %}{% for category,msg in messages %}<div class="flash {{category}}">{{msg}}</div>{% endfor %}{% endwith %}{% block content %}{% endblock %}</main>
 <aside class="rail">
+<section class="railbox"><h3>모든 문서</h3><a href="{{url_for('all_pages')}}"><span>전체 문서 보기</span><small>가나다순 · 10개씩</small></a></section>
 <section class="railbox"><h3>최근 변경</h3>{% for p in global_recent %}<a href="{{url_for('wiki',title=p.title)}}"><span>{{p.title}}</span><small>12시간 {{p.hourly_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
 <section class="railbox"><h3>실시간 인기 문서</h3>{% for p in global_popular %}<a href="{{url_for('wiki',title=p.title)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>12시간 {{p.hourly_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
 <section class="railbox"><h3>일별 인기 글</h3>{% for p in global_daily %}<a href="{{url_for('wiki',title=p.title)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>24시간 {{p.daily_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
