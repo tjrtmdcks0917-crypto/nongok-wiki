@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}NOGOK Wiki{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%2730%27 fill=%27%233d6829%27 stroke=%27%231c4381%27 stroke-width=%273%27/%3E%3Crect x=%2713%27 y=%2720%27 width=%2738%27 height=%2726%27 rx=%271%27 fill=%27white%27 stroke=%27%23c39a22%27 stroke-width=%272%27/%3E%3Cpath d=%27M32 20v26M13 33h38%27 stroke=%27%23333%27 stroke-width=%273%27/%3E%3Ctext x=%2722.5%27 y=%2731%27 font-size=%2710%27 text-anchor=%27middle%27 fill=%27%23111%27%3E논%3C/text%3E%3Ctext x=%2741.5%27 y=%2731%27 font-size=%2710%27 text-anchor=%27middle%27 fill=%27%23111%27%3E곡%3C/text%3E%3C/svg%3E"></head>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='nongok-favicon.svg', v='1') }}"></head>
 <body>
 <header class="top"><div class="top-inner">
 <a class="logo nongok-logo-link" href="{{ url_for('index') }}"><img class="nongok-header-logo" src="{{ url_for('static', filename='nongok-logo.svg', v='7') }}" alt="NONGOK"></a>
