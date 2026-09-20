@@ -35,7 +35,26 @@ def before():
 
 @app.context_processor
 def inject():
-    return {"current_user": current_user(), "csrf": session.get("csrf"), "global_recent": query("SELECT title, updated_at FROM wiki_pages WHERE deleted=FALSE ORDER BY updated_at DESC LIMIT 10"), "global_popular": query("SELECT title, views FROM wiki_pages WHERE deleted=FALSE ORDER BY views DESC, updated_at DESC LIMIT 10")}
+    recent = query("""
+        SELECT w.title, w.updated_at, w.views,
+               (SELECT COUNT(*) FROM page_views v WHERE v.page_id=w.id AND v.viewed_at >= CURRENT_TIMESTAMP - INTERVAL '1 hour') AS hourly_views
+        FROM wiki_pages w WHERE w.deleted=FALSE ORDER BY w.updated_at DESC LIMIT 10
+    """)
+    popular = query("""
+        SELECT w.title, w.views,
+               (SELECT COUNT(*) FROM page_views v WHERE v.page_id=w.id AND v.viewed_at >= CURRENT_TIMESTAMP - INTERVAL '1 hour') AS hourly_views
+        FROM wiki_pages w WHERE w.deleted=FALSE ORDER BY hourly_views DESC, w.views DESC LIMIT 10
+    """)
+    daily = query("""
+        SELECT w.title, w.views, COUNT(v.id) AS daily_views
+        FROM wiki_pages w LEFT JOIN page_views v
+          ON v.page_id=w.id AND v.viewed_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+        WHERE w.deleted=FALSE
+        GROUP BY w.id, w.title, w.views
+        ORDER BY daily_views DESC, w.views DESC LIMIT 10
+    """)
+    return {"current_user": current_user(), "csrf": session.get("csrf"),
+            "global_recent": recent, "global_popular": popular, "global_daily": daily}
 
 def current_user():
     uid = session.get("user_id")
@@ -189,6 +208,7 @@ def wiki(title):
         return render_template("not_found.html", title=title), 404
     page = rows[0]
     execute("UPDATE wiki_pages SET views=views+1 WHERE id=%s", (page["id"],))
+    execute("INSERT INTO page_views(page_id, viewed_at) VALUES (%s, CURRENT_TIMESTAMP)", (page["id"],))
     discussions = query(
         """SELECT d.*, u.username FROM discussions d
            LEFT JOIN users u ON u.id=d.user_id
