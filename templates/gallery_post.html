@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{post.title}} - 논곡갤러리{% endblock %}
 {% block meta_description %}논곡갤러리 게시물입니다.{% endblock %}
+{% block robots %}noindex,nofollow,noimageindex{% endblock %}
 {% block content %}
 <article class="document gallery-post-page">
   <div class="doc-title">
@@ -14,9 +15,8 @@
     </div>
   </div>
 
-  <div class="gallery-author"><b>{{post.username}}</b><span>{{post.created_text}}</span></div>
-  <div class="gallery-post-body">{{post.body|e|replace('
-','<br>'|safe)}}</div>
+  <div class="gallery-author"><b>{{post.display_name}}</b><span>{{post.created_text}}</span></div>
+  <div class="gallery-post-body">{{post.body|e|replace('\\n','<br>'|safe)}}</div>
 
   {% if images %}
   <div class="gallery-images{% if images|length == 1 %} single{% endif %}">
@@ -33,25 +33,24 @@
     {% if current_user %}
     <form class="gallery-comment-form" method="post" action="{{url_for('gallery_comment',post_id=post.id)}}">
       <input type="hidden" name="csrf" value="{{csrf}}">
-      <textarea name="body" maxlength="1000" required placeholder="{{current_user.username}} 계정으로 댓글을 작성합니다."></textarea>
+      <textarea name="body" maxlength="1000" required placeholder="{{current_user.real_name or current_user.username}} 이름으로 댓글을 작성합니다."></textarea>
       <button type="submit">댓글 작성</button>
     </form>
     {% else %}
-    <p class="gallery-login"><a href="{{url_for('login',next=url_for('gallery_post',post_id=post.id))}}">로그인</a>하면 계정명이 공개되는 댓글을 작성할 수 있습니다.</p>
+    <p class="gallery-login"><a href="{{url_for('login',next=url_for('gallery_post',post_id=post.id))}}">로그인</a>하면 이름이 표시되는 댓글을 작성할 수 있습니다.</p>
     {% endif %}
 
     <div class="gallery-comment-list">
     {% for comment in comments %}
       <article class="gallery-comment">
-        <div><b>{{comment.username}}</b><small>{{comment.created_text}}</small>
+        <div><b>{{comment.display_name}}</b><small>{{comment.created_text}}</small>
         {% if current_user and (current_user.id == comment.user_id or current_user.role == 'admin') %}
           <form method="post" action="{{url_for('gallery_delete_comment',comment_id=comment.id)}}" class="inline-form" onsubmit="return confirm('이 댓글을 삭제할까요?');">
             <input type="hidden" name="csrf" value="{{csrf}}"><button type="submit">삭제</button>
           </form>
         {% endif %}
         </div>
-        <p>{{comment.body|e|replace('
-','<br>'|safe)}}</p>
+        <p>{{comment.body|e|replace('\\n','<br>'|safe)}}</p>
       </article>
     {% else %}
       <p class="gallery-empty-comment">아직 댓글이 없습니다.</p>
