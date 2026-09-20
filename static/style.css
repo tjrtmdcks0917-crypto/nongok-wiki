@@ -238,3 +238,7 @@
  .home-doc-toggle strong{font-size:16px}
  .home-doc-links{justify-content:flex-start;padding:10px 12px 14px;gap:6px 10px}
 }
+
+.school-login-check{display:block!important;border:1px solid #cfd8c0;background:#f8fbf2;border-radius:8px;padding:13px 14px;margin:10px 0 16px}
+.school-login-check>b{display:block;margin-bottom:8px;color:#58751e}
+.school-login-check label{margin-top:0}
