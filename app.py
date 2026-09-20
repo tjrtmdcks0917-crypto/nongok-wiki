@@ -181,6 +181,10 @@ def edit(title):
             flash("제목과 내용을 입력해 주세요.", "warning")
             return redirect(request.url)
         user = current_user()
+        if new_title == "논곡위키:대문" and user["role"] != "admin":
+            abort(403)
+        if page and page["title"] == "논곡위키:대문" and user["role"] != "admin":
+            abort(403)
         if page and page["protected"] and user["role"] != "admin":
             abort(403)
         if page:
