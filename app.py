@@ -2025,8 +2025,7 @@ def admin_reset_password(user_id):
         flash("관리자 계정의 비밀번호는 회원 관리 화면에서 초기화할 수 없습니다.", "warning")
         return redirect(url_for("admin"))
 
-    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
-    temporary_password = "".join(secrets.choice(alphabet) for _ in range(12))
+    temporary_password = "pw12345"
     execute(
         "UPDATE users SET password_hash=%s WHERE id=%s",
         (generate_password_hash(temporary_password), user_id),
