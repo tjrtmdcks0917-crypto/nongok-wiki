@@ -16,7 +16,7 @@
   </div>
 
   <div class="gallery-author"><b>{{post.display_name}}</b><span>{{post.created_text}}</span></div>
-  <div class="gallery-post-body">{{post.body|e|replace('\\n','<br>'|safe)}}</div>
+  <div class="gallery-post-body">{{post.body|e|replace('\n','<br>'|safe)}}</div>
 
   {% if images %}
   <div class="gallery-images{% if images|length == 1 %} single{% endif %}">
@@ -50,7 +50,7 @@
           </form>
         {% endif %}
         </div>
-        <p>{{comment.body|e|replace('\\n','<br>'|safe)}}</p>
+        <p>{{comment.body|e|replace('\n','<br>'|safe)}}</p>
       </article>
     {% else %}
       <p class="gallery-empty-comment">아직 댓글이 없습니다.</p>
