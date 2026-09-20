@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}공지사항 - 논곡위키{% endblock %}
+{% block meta_description %}논곡위키 관리자가 작성한 공지사항입니다.{% endblock %}
+{% block content %}
+<article class="document notice-page">
+  <div class="doc-title">
+    <h1>공지사항{% if notice_is_new %}<span class="notice-new-label">NEW</span>{% endif %}</h1>
+    <div class="doc-tools">
+      <a href="{{url_for('index')}}">대문</a>
+      {% if current_user and current_user.role == 'admin' %}
+      <a href="{{url_for('edit_homepage_section',section_key='news')}}">공지 편집</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="notice-card{% if notice_is_new %} fresh{% endif %}">
+    <div class="notice-meta">
+      관리자 공지
+      {% if notice_updated_at %} · {{notice_updated_at}}{% endif %}
+      {% if notice_is_new %} · 등록 후 48시간 이내{% endif %}
+    </div>
+    <div class="notice-body">{{notice_content|e|replace('\n','<br>'|safe)}}</div>
+  </div>
+
+  <p class="notice-help">새 공지는 등록 후 48시간 동안 대문과 상단 메뉴에서 더 크게 강조됩니다.</p>
+</article>
+{% endblock %}
