@@ -175,6 +175,14 @@ def get_comcigan_class_timetable(grade, class_num):
     start_date, raw_week_label = _parse_comci_week_label(raw)
     times = [str(x).strip() for x in (raw.get("일과시간") or [])[:8]]
 
+    raw_counts = {}
+    raw_rows = {}
+    for day_pos, weekday in enumerate(weekdays):
+        row = current_class[day_pos + 1] if day_pos + 1 < len(current_class) else []
+        cells = list(row[1:]) if isinstance(row, list) else []
+        raw_counts[weekday] = sum(1 for value in cells if int(value or 0) != 0)
+        raw_rows[weekday] = [int(value or 0) for value in cells[:8]]
+
     return {
         "days": result,
         "times": times,
@@ -186,6 +194,9 @@ def get_comcigan_class_timetable(grade, class_num):
             "subject": subject_key,
             "teacher": teacher_key,
         },
+        "raw_counts": raw_counts,
+        "raw_rows": raw_rows,
+        "day_count": day_count,
     }
 
 
@@ -225,6 +236,9 @@ def get_nongok_timetable(grade, class_num):
             "debug": {
                 "raw_week": live.get("raw_week_label"),
                 "source_keys": live.get("source_keys"),
+                "day_count": live.get("day_count"),
+                "raw_counts": live.get("raw_counts"),
+                "raw_rows": live.get("raw_rows"),
             },
         }
     except Exception as e:
