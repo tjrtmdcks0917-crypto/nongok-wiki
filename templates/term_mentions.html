@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{term}} 관련 문서 - 논곡위키{% endblock %}
+{% block meta_description %}논곡위키에서 {{term}} 단어가 나오는 문서를 모아봅니다.{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<article class="document person-index-page">
+  <div class="doc-title">
+    <h1>{{term}}</h1>
+    <div class="doc-tools"><a href="{{url_for('search',q=term)}}">전체 검색</a></div>
+  </div>
+
+  <div class="term-index-intro">
+    <b>‘{{term}}’</b> 단어가 반복해서 나오는 문서를 한곳에 모았습니다.
+  </div>
+
+  <h2 class="section">관련 문서 <span class="person-index-count">{{pages|length}}</span></h2>
+  <div class="person-document-list">
+    {% for page in pages %}
+    <a class="person-document-card" href="{{page.url}}">
+      <div>
+        <b>{{page.title}}</b>
+        <span>{{page.snippet}}</span>
+      </div>
+      <small>{% if page.is_home %}대문{% else %}조회 {{page.views}}{% endif %}</small>
+    </a>
+    {% else %}
+    <div class="person-index-empty">이 단어가 포함된 문서가 없습니다.</div>
+    {% endfor %}
+  </div>
+</article>
+{% endblock %}

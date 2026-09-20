@@ -33,8 +33,10 @@ TIMETABLE_CACHE = {}
 # visitor-stat and person-name queries on every page refresh.
 PUBLIC_CONTEXT_CACHE = {"expires": 0.0, "data": None}
 PERSON_NAMES_CACHE = {"expires": 0.0, "names": None}
+REPEATED_TERMS_CACHE = {"expires": 0.0, "terms": None}
 PUBLIC_CONTEXT_TTL = 12
 PERSON_NAMES_TTL = 30
+REPEATED_TERMS_TTL = 45
 
 def _masked_teacher_name(value):
     name = str(value or "").strip()
@@ -482,7 +484,7 @@ def _public_context_data():
         and datetime.now(timezone.utc) - notice_dt <= timedelta(hours=48)
     )
     site_notice = notice_content if site_notice_active else ""
-    site_notice_html = _link_person_names(str(escape(site_notice))).replace("\n", "<br>") if site_notice else ""
+    site_notice_html = _link_document_mentions(str(escape(site_notice))).replace("\n", "<br>") if site_notice else ""
 
     now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
     today_key = now_kst.strftime("%Y-%m-%d")
@@ -622,6 +624,17 @@ PERSON_NAME_STOPWORDS = {
 }
 HOME_OPERATOR_NAMES = {"석승찬", "김현우"}
 
+# Words that would create noisy links rather than useful topic groupings.
+REPEATED_TERM_STOPWORDS = {
+    "논곡", "논곡중학교", "학교", "중학교", "문서", "문서입니다", "내용", "관련", "정보",
+    "학생", "교직원", "개인", "개인정보", "작성", "작성하지", "주세요", "있습니다", "있어",
+    "있고", "있는", "대한", "관한", "위한", "통해", "함께", "공개", "경우", "수업",
+    "학교생활", "공간", "장소", "기억", "확인", "자유롭게", "정리", "기록", "시설",
+    "사용", "이용", "해당", "현재", "등은", "등을", "등의", "에서", "으로", "에게",
+    "그리고", "하지만", "또한", "때문", "대한", "이름", "사람", "페이지", "위키",
+    "nongok", "wiki", "https", "http",
+}
+
 
 def _known_person_names():
     """Find names explicitly used as people in wiki documents or on the homepage."""
@@ -714,9 +727,101 @@ def _link_person_names(safe_text):
     return safe_text
 
 
+def _known_repeated_terms():
+    """Return useful words that appear in at least two different public pages."""
+    now = time.time()
+    cached = REPEATED_TERMS_CACHE.get("terms")
+    if cached is not None and now < REPEATED_TERMS_CACHE.get("expires", 0):
+        return cached
+
+    rows = query("SELECT title, content FROM wiki_pages WHERE deleted=FALSE")
+    homepage_rows = query("SELECT content FROM homepage_sections")
+    doc_counts = {}
+    person_names = set(_known_person_names())
+
+    sources = [
+        f"{row.get('title') or ''}\n{row.get('content') or ''}"
+        for row in rows
+    ]
+    # Treat the editable homepage text as one additional source.
+    home_text = "\n".join(str(row.get("content") or "") for row in homepage_rows)
+    if home_text.strip():
+        sources.append(home_text)
+
+    token_pattern = re.compile(r"[가-힣]{2,12}|[A-Za-z][A-Za-z0-9_-]{2,23}")
+    for source in sources:
+        source_terms = set()
+        for raw in token_pattern.findall(source):
+            term = raw.lower() if re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", raw) else raw
+            if term in REPEATED_TERM_STOPWORDS or term in person_names:
+                continue
+            if term.isdigit():
+                continue
+            # Filter common Korean endings that otherwise dominate auto-linking.
+            if len(term) <= 2 and term.endswith(("은", "는", "이", "가", "을", "를", "에", "의")):
+                continue
+            source_terms.add(term)
+        for term in source_terms:
+            doc_counts[term] = doc_counts.get(term, 0) + 1
+
+    # Cap the linker set so a large wiki does not create an enormous regex.
+    terms = [
+        term for term, count in sorted(
+            doc_counts.items(),
+            key=lambda item: (-item[1], -len(item[0]), item[0]),
+        )
+        if count >= 2
+    ][:180]
+
+    REPEATED_TERMS_CACHE["terms"] = terms
+    REPEATED_TERMS_CACHE["expires"] = now + REPEATED_TERMS_TTL
+    return terms
+
+
+def _link_repeated_terms(html_text):
+    terms = _known_repeated_terms()
+    if not terms:
+        return html_text
+
+    placeholders = []
+
+    # Protect every already-generated link, including person links and wiki links.
+    def protect_link(match):
+        token = f"@@NONGOK_EXISTING_LINK_{len(placeholders)}@@"
+        placeholders.append(match.group(0))
+        return token
+
+    protected = re.sub(
+        r"<a\b[^>]*>.*?</a>",
+        protect_link,
+        html_text,
+        flags=re.IGNORECASE,
+    )
+
+    # Longest terms first prevents a short term from splitting a more useful phrase.
+    ordered = sorted(terms, key=lambda value: (-len(value), value))
+    pattern = re.compile(
+        r"(?<![가-힣A-Za-z0-9])(" + "|".join(map(re.escape, ordered)) + r")(?![가-힣A-Za-z0-9])",
+        re.IGNORECASE,
+    )
+    protected = pattern.sub(
+        lambda m: f'<a class="term-mention" href="{url_for("term_mentions", term=m.group(1))}">{m.group(1)}</a>',
+        protected,
+    )
+
+    for index, html in enumerate(placeholders):
+        protected = protected.replace(f"@@NONGOK_EXISTING_LINK_{index}@@", html)
+    return protected
+
+
+def _link_document_mentions(text):
+    linked = _link_person_names(text)
+    return _link_repeated_terms(linked)
+
+
 def render_wiki(text):
     safe = str(escape(text or ""))
-    safe = _link_person_names(safe)
+    safe = _link_document_mentions(safe)
 
     # NamuWiki-style headings with automatic section numbering.
     # == 큰 제목 ==  -> 1. 큰 제목
@@ -1081,7 +1186,7 @@ def index():
     sections = defaults.copy()
     sections.update({row["section_key"]: row["content"] for row in rows})
     sections_html = {
-        key: _link_person_names(str(escape(value))).replace("\n", "<br>")
+        key: _link_document_mentions(str(escape(value))).replace("\n", "<br>")
         for key, value in sections.items()
     }
 
@@ -1204,6 +1309,77 @@ def edit_homepage_section(section_key):
         flash(f'{labels[section_key]} 내용을 저장했습니다.', "success")
         return redirect(url_for("index"))
     return render_template("homepage_edit.html", section_key=section_key, section_label=labels[section_key], content=content)
+
+@app.route("/term/<term>")
+def term_mentions(term):
+    term = re.sub(r"\s+", " ", str(term or "").strip())[:40]
+    if not re.fullmatch(r"[가-힣A-Za-z][가-힣A-Za-z0-9 _.-]{1,39}", term):
+        abort(404)
+
+    known_terms = _known_repeated_terms()
+    canonical = next((item for item in known_terms if item.lower() == term.lower()), None)
+    if not canonical:
+        abort(404)
+    term = canonical
+
+    like = f"%{term}%"
+    rows = query(
+        """SELECT title, content, updated_at, views
+           FROM wiki_pages
+           WHERE deleted=FALSE AND (title ILIKE %s OR content ILIKE %s)
+           ORDER BY
+             CASE WHEN title ILIKE %s THEN 0 ELSE 1 END,
+             updated_at DESC,
+             title ASC
+           LIMIT 100""",
+        (like, like, like),
+    )
+
+    pages = []
+    for row in rows:
+        compact = re.sub(r"\s+", " ", str(row.get("content") or ""))
+        pos = compact.lower().find(term.lower())
+        if pos >= 0:
+            start = max(0, pos - 65)
+            end = min(len(compact), pos + len(term) + 95)
+            snippet = compact[start:end]
+            if start > 0:
+                snippet = "…" + snippet
+            if end < len(compact):
+                snippet += "…"
+        else:
+            snippet = "문서 제목에 이 단어가 포함되어 있습니다."
+        row["snippet"] = snippet
+        row["url"] = url_for("wiki", title=row["title"])
+        row["is_home"] = False
+        pages.append(row)
+
+    homepage_rows = query("SELECT content FROM homepage_sections ORDER BY section_key")
+    home_text = " ".join(str(row.get("content") or "") for row in homepage_rows)
+    home_compact = re.sub(r"\s+", " ", home_text)
+    home_pos = home_compact.lower().find(term.lower())
+    if home_pos >= 0:
+        start = max(0, home_pos - 65)
+        end = min(len(home_compact), home_pos + len(term) + 95)
+        snippet = home_compact[start:end]
+        if start > 0:
+            snippet = "…" + snippet
+        if end < len(home_compact):
+            snippet += "…"
+        pages.insert(0, {
+            "title": "논곡위키:대문",
+            "snippet": snippet,
+            "views": 0,
+            "url": url_for("index"),
+            "is_home": True,
+        })
+
+    return render_template(
+        "term_mentions.html",
+        term=term,
+        pages=pages,
+    )
+
 
 @app.route("/person/<name>")
 def person_mentions(name):

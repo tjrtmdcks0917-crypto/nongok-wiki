@@ -435,3 +435,9 @@
   .person-document-card{gap:10px;padding:13px 6px}
   .person-document-card small{font-size:10px}
 }
+
+
+/* Repeated keyword links */
+.term-mention{color:#5367c7;text-decoration:none;border-bottom:1px dashed #8994c9}
+.term-mention:hover{background:#f2f4ff;text-decoration:none;border-bottom-style:solid}
+.term-index-intro{margin:14px 0 24px;padding:14px 16px;border:1px solid #d7dce8;border-left:4px solid #7180ca;background:#fafbff;line-height:1.65}
