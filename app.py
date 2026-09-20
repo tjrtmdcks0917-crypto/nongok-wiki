@@ -563,12 +563,7 @@ def inject():
     return {
         "current_user": user,
         "csrf": session.get("csrf"),
-        "can_create_school_posts": bool(
-            user and (
-                user.get("is_graduate")
-                or user.get("school_name") == "논곡중학교"
-            )
-        ),
+        "can_create_school_posts": bool(user),
         "can_open_admin": role_at_least(user, "moderator"),
         "can_manage_documents": role_at_least(user, "teacher"),
         "can_edit_notice": role_at_least(user, "teacher"),
@@ -2625,9 +2620,6 @@ def gallery():
 def gallery_new():
     check_csrf()
     user = current_user()
-    if not user.get("is_graduate") and user.get("school_name") != "논곡중학교":
-        flash("논곡갤러리 게시물 작성은 논곡중학교 재학생 또는 졸업생만 할 수 있습니다.", "warning")
-        return redirect(url_for("gallery"))
 
     title = request.form.get("title", "").strip()
     body = request.form.get("body", "").strip()
