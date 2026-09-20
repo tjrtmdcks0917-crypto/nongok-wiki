@@ -23,13 +23,14 @@
 
 <section class="home-doc-directory">
   <h2>논곡위키 문서 목록</h2>
+
   {% for group in document_groups %}
-  <details class="home-doc-group">
-    <summary>
+  <div class="home-doc-group">
+    <button class="home-doc-toggle" type="button" aria-expanded="false" aria-controls="home-doc-panel-{{loop.index}}" onclick="toggleHomeDocs(this)">
       <strong>{{group.label}}</strong>
-      <span class="home-toggle"><span class="open-text">[ 펼치기 ]</span><span class="close-text">[ 접기 ]</span></span>
-    </summary>
-    <div class="home-doc-links">
+      <span class="home-doc-control"><span class="arrow">▶</span> [ 펼치기 · 접기 ]</span>
+    </button>
+    <div class="home-doc-links" id="home-doc-panel-{{loop.index}}" hidden>
       {% for title in group.items %}
         <a href="{{url_for('wiki',title=title)}}">{{title}}</a>
       {% else %}
@@ -41,14 +42,15 @@
         <a href="{{url_for('polls')}}">투표</a>
       {% endif %}
     </div>
-  </details>
+  </div>
   {% endfor %}
-  <details class="home-doc-group home-doc-all">
-    <summary>
+
+  <div class="home-doc-group home-doc-all">
+    <button class="home-doc-toggle" type="button" aria-expanded="false" aria-controls="home-doc-panel-all" onclick="toggleHomeDocs(this)">
       <strong>논곡위키 전체 문서 목록</strong>
-      <span class="home-toggle"><span class="open-text">[ 펼치기 ]</span><span class="close-text">[ 접기 ]</span></span>
-    </summary>
-    <div class="home-doc-links">
+      <span class="home-doc-control"><span class="arrow">▶</span> [ 펼치기 · 접기 ]</span>
+    </button>
+    <div class="home-doc-links" id="home-doc-panel-all" hidden>
       {% for title in all_document_titles %}
         <a href="{{url_for('wiki',title=title)}}">{{title}}</a>
       {% else %}
@@ -58,8 +60,20 @@
       <a href="{{url_for('polls')}}">투표</a>
       <a href="{{url_for('all_pages')}}">모든 문서 페이지</a>
     </div>
-  </details>
+  </div>
 </section>
+
+<script>
+function toggleHomeDocs(button){
+  const panelId = button.getAttribute('aria-controls');
+  const panel = document.getElementById(panelId);
+  const expanded = button.getAttribute('aria-expanded') === 'true';
+  button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+  panel.hidden = expanded;
+  const arrow = button.querySelector('.arrow');
+  if (arrow) arrow.textContent = expanded ? '▶' : '▼';
+}
+</script>
 <div class="toc"><b>목차</b><a href="#notice">1. 유의사항</a><a href="#news">2. 공지사항</a><a href="#feedback">3. 피드백</a><a href="#supporters">4. 후원자</a></div>
 <h2 class="section" id="notice">1. 유의사항 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='notice')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections.notice|e|replace('\n', '<br>'|safe) }}</div>
 <h2 class="section" id="news">2. 공지사항 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='news')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections.news|e|replace('\n', '<br>'|safe) }}</div>
