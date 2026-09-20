@@ -5,3 +5,13 @@
 .nongok-header-logo{display:block;width:140px;height:42px;object-fit:contain;object-position:left center;filter:brightness(0) invert(1)}
 .nongok-main-logo{display:block;width:min(720px,92%);height:auto;margin:0 auto 30px}
 @media(max-width:950px){.nongok-header-logo{width:112px}.nongok-main-logo{width:min(520px,96%)}}
+
+/* Simple login / sign-up flow */
+.auth-page{max-width:470px;margin:42px auto 80px}
+.auth-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px 32px;box-shadow:0 8px 28px #0000000a}
+.auth-head{text-align:center;margin-bottom:25px}.auth-head h1{font-size:28px;margin:0 0 8px}.auth-head p{margin:0;color:#666;line-height:1.6}
+.auth-form label{display:block;margin:17px 0 7px;font-weight:700}.auth-form input{height:46px;border:1px solid #c7cbd0;border-radius:8px;padding:0 13px;background:#fff}.auth-form input:focus{outline:2px solid #87aa4360;border-color:#87aa43}
+.field-help{font-size:12px;color:#777;margin-top:6px}.password-wrap{position:relative}.password-wrap input{padding-right:62px}.show-password{position:absolute;right:6px;top:5px;height:36px;margin:0;padding:0 10px;border:0;background:transparent;color:#6571cc;font-weight:700}
+.auth-submit{width:100%;height:47px;margin-top:24px;border:0;border-radius:8px;background:#87aa43;color:#fff;font-size:16px;font-weight:700}.auth-submit:hover{background:#78993b}
+.auth-switch{text-align:center;border-top:1px solid #eee;margin-top:24px;padding-top:20px;color:#666}.auth-switch a{font-weight:700}
+@media(max-width:600px){.auth-page{margin:18px auto 50px}.auth-card{padding:24px 20px;border-radius:10px}}
