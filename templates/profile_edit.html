@@ -43,5 +43,22 @@
 
     <button class="social-btn profile-save" type="submit">프로필 저장</button>
   </form>
+
+  {% if current_user.role != 'admin' %}
+  <section class="account-withdraw-box">
+    <h2>계정 탈퇴</h2>
+    <p>탈퇴하면 이름, 학번, 학교, 프로필 정보와 로그인 정보가 삭제됩니다. 기존에 작성한 위키 기록, 게시물, 댓글은 사이트 기록 보존을 위해 <b>탈퇴 사용자</b> 이름으로 남습니다.</p>
+    <form method="post" action="{{url_for('account_withdraw')}}" onsubmit="return confirm('계정을 탈퇴하면 되돌릴 수 없습니다. 정말 탈퇴하시겠습니까?');">
+      <input type="hidden" name="csrf" value="{{csrf}}">
+      <label>현재 비밀번호
+        <input type="password" name="withdraw_password" autocomplete="current-password" required>
+      </label>
+      <label>확인을 위해 <b>탈퇴</b> 입력
+        <input type="text" name="confirm_withdraw" autocomplete="off" placeholder="탈퇴" required>
+      </label>
+      <button class="account-withdraw-button" type="submit">계정 탈퇴</button>
+    </form>
+  </section>
+  {% endif %}
 </article>
 {% endblock %}

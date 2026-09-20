@@ -700,6 +700,32 @@ def can_manage_member(actor, target):
     return False
 
 
+def _withdraw_user_account(user_id):
+    replacement_username = f"withdrawn_{user_id}_{secrets.token_hex(4)}"
+    replacement_password = generate_password_hash(secrets.token_urlsafe(32))
+    execute(
+        """UPDATE users
+           SET username=%s,
+               password_hash=%s,
+               real_name='탈퇴 사용자',
+               student_no=NULL,
+               school_name=NULL,
+               profile_name=NULL,
+               profile_bio=NULL,
+               profile_status=NULL,
+               profile_color='#87aa43',
+               profile_emoji=NULL,
+               role='user',
+               account_status='withdrawn',
+               is_graduate=FALSE,
+               graduation_year=NULL
+           WHERE id=%s""",
+        (replacement_username, replacement_password, user_id),
+    )
+    execute("DELETE FROM follows WHERE follower_id=%s OR following_id=%s", (user_id, user_id))
+    execute("DELETE FROM notifications WHERE user_id=%s", (user_id,))
+
+
 def log_admin_action(action, target_type="", target_id=None, detail=""):
     actor = current_user()
     if not actor or not role_at_least(actor, "moderator"):
@@ -2353,6 +2379,31 @@ def profile_edit():
     return render_template("profile_edit.html", profile=user)
 
 
+@app.route("/account/withdraw", methods=["POST"])
+@require_login
+def account_withdraw():
+    check_csrf()
+    user = current_user()
+    if user["role"] == "admin":
+        flash("최고관리자 계정은 직접 탈퇴할 수 없습니다.", "warning")
+        return redirect(url_for("profile_edit"))
+
+    if request.form.get("confirm_withdraw", "").strip() != "탈퇴":
+        flash("계정 탈퇴를 진행하려면 확인란에 ‘탈퇴’를 입력해 주세요.", "warning")
+        return redirect(url_for("profile_edit"))
+
+    password = request.form.get("withdraw_password", "")
+    rows = query("SELECT password_hash FROM users WHERE id=%s", (user["id"],))
+    if not rows or not check_password_hash(rows[0]["password_hash"], password):
+        flash("현재 비밀번호가 올바르지 않습니다.", "warning")
+        return redirect(url_for("profile_edit"))
+
+    _withdraw_user_account(user["id"])
+    session.clear()
+    flash("계정 탈퇴가 완료되었습니다. 기존 작성 기록은 ‘탈퇴 사용자’로 익명화되어 유지됩니다.", "success")
+    return redirect(url_for("index"))
+
+
 @app.route("/profile/<username>/follow", methods=["POST"])
 @require_login
 def profile_follow(username):
@@ -3097,6 +3148,32 @@ def admin_reset_password(user_id):
         can_change_roles=actor["role"] == "admin",
         can_review_official=True,
     )
+
+
+@app.route("/admin/user/<int:user_id>/withdraw", methods=["POST"])
+@require_admin
+def admin_user_withdraw(user_id):
+    check_csrf()
+    rows = query(
+        "SELECT id, username, role, account_status FROM users WHERE id=%s",
+        (user_id,),
+    )
+    if not rows:
+        abort(404)
+    target = rows[0]
+    if target["role"] == "admin":
+        abort(403)
+    if target.get("account_status") == "withdrawn":
+        flash("이미 탈퇴 처리된 계정입니다.", "warning")
+        return redirect(url_for("admin"))
+
+    original_username = target["username"]
+    _withdraw_user_account(user_id)
+    log_admin_action("회원 강제 탈퇴", "user", user_id, f"@{original_username}")
+    flash(f"@{original_username} 계정을 탈퇴 처리했습니다.", "success")
+
+    member_q = request.form.get("member_q", "").strip()[:30]
+    return redirect(url_for("admin", member_q=member_q) if member_q else url_for("admin"))
 
 
 @app.route("/admin/user/<int:user_id>/role", methods=["POST"])

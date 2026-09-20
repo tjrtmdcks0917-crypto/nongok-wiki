@@ -581,3 +581,14 @@
 /* Graduate registration */
 .graduate-check{display:flex!important;align-items:center;gap:8px;margin-top:14px;font-weight:700}
 .graduate-check input{width:auto!important;margin:0!important}
+
+
+/* Account withdrawal */
+.account-withdraw-box{margin-top:26px;padding:16px;border:1px solid #d8b5b5;border-radius:9px;background:#fff8f8}
+.account-withdraw-box h2{margin:0 0 8px;color:#8e3636}
+.account-withdraw-box p{margin:0 0 14px;color:#666;font-size:12px;line-height:1.65}
+.account-withdraw-box form{margin:0}
+.account-withdraw-box label{display:block;margin:9px 0;font-weight:700}
+.account-withdraw-box input{display:block;margin-top:5px;background:#fff}
+.account-withdraw-button,.admin-withdraw-account{border-color:#b76565!important;background:#fff!important;color:#983e3e!important;font-weight:700}
+.account-withdraw-button{margin-top:10px}
