@@ -24,6 +24,37 @@ RATE_WINDOW = 60
 RATE_MAX = 60
 
 MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
+TIMETABLE_CACHE = {}
+
+def get_nongok_timetable(grade, class_num):
+    key = (grade, class_num)
+    now = time.time()
+    cached = TIMETABLE_CACHE.get(key)
+    if cached and cached["expires"] > now:
+        return cached["days"], cached["error"], cached["week_label"]
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    target = today + timedelta(days=1) if today.weekday() == 6 else today
+    try:
+        from comci import search_schools, get_timetable
+        schools = search_schools("논곡중학교")
+        school = next((x for x in schools if x.get("school_name") == "논곡중학교" and "인천" in str(x.get("region", ""))), None)
+        if not school:
+            raise RuntimeError("컴시간에서 논곡중학교를 찾지 못했습니다.")
+        kwargs = {"grade": grade, "class_num": class_num}
+        if today.weekday() == 6:
+            kwargs["date_index"] = 1
+        table = get_timetable(school["school_code"], **kwargs)
+        weekdays = ["월", "화", "수", "목", "금"]
+        days = [{"weekday": d, "classes": table.get(d, [])} for d in weekdays]
+        monday = target - timedelta(days=target.weekday())
+        friday = monday + timedelta(days=4)
+        label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
+        TIMETABLE_CACHE[key] = {"expires": now + 300, "days": days, "error": None, "week_label": label}
+    except Exception as e:
+        app.logger.warning("Comcigan timetable fetch failed: %s", e)
+        TIMETABLE_CACHE[key] = {"expires": now + 60, "days": [], "error": "시간표 정보를 불러오지 못했습니다.", "week_label": ""}
+    c = TIMETABLE_CACHE[key]
+    return c["days"], c["error"], c["week_label"]
 
 def get_nongok_meals():
     """Fetch this week's Nongok Middle School lunches from NEIS; cache for 30 min."""
@@ -313,8 +344,19 @@ def wiki(title):
     meals, meal_error = ([], None)
     if page["title"] in ("급식", "학교생활"):
         meals, meal_error = get_nongok_meals()
+    timetable, timetable_error, timetable_week = ([], None, "")
+    timetable_grade, timetable_class = (2, 1)
+    if page["title"] == "시간표":
+        try:
+            timetable_grade = min(3, max(1, int(request.args.get("grade", "2"))))
+            timetable_class = min(20, max(1, int(request.args.get("class", "1"))))
+        except ValueError:
+            timetable_grade, timetable_class = (2, 1)
+        timetable, timetable_error, timetable_week = get_nongok_timetable(timetable_grade, timetable_class)
     return render_template("wiki.html", page=page, content_html=render_wiki(page["content"]), discussions=discussions,
-                           meals=meals, meal_error=meal_error)
+                           meals=meals, meal_error=meal_error, timetable=timetable,
+                           timetable_error=timetable_error, timetable_week=timetable_week,
+                           timetable_grade=timetable_grade, timetable_class=timetable_class)
 
 @app.route("/edit/<path:title>", methods=["GET", "POST"])
 @require_login
