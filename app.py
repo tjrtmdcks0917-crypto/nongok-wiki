@@ -37,16 +37,32 @@ def before():
 def inject():
     recent = query("""
         SELECT w.title, w.updated_at, w.views,
-               (SELECT COUNT(*) FROM page_views v WHERE v.page_id=w.id AND v.viewed_at >= CURRENT_TIMESTAMP - INTERVAL '12 hours') AS hourly_views
+               CASE
+                 WHEN (SELECT MIN(viewed_at) FROM page_views) IS NULL
+                   OR (SELECT MIN(viewed_at) FROM page_views) >= CURRENT_TIMESTAMP - INTERVAL '12 hours'
+                 THEN w.views
+                 ELSE (SELECT COUNT(*) FROM page_views v WHERE v.page_id=w.id AND v.viewed_at >= CURRENT_TIMESTAMP - INTERVAL '12 hours')
+               END AS hourly_views
         FROM wiki_pages w WHERE w.deleted=FALSE ORDER BY w.updated_at DESC LIMIT 10
     """)
     popular = query("""
         SELECT w.title, w.views,
-               (SELECT COUNT(*) FROM page_views v WHERE v.page_id=w.id AND v.viewed_at >= CURRENT_TIMESTAMP - INTERVAL '12 hours') AS hourly_views
+               CASE
+                 WHEN (SELECT MIN(viewed_at) FROM page_views) IS NULL
+                   OR (SELECT MIN(viewed_at) FROM page_views) >= CURRENT_TIMESTAMP - INTERVAL '12 hours'
+                 THEN w.views
+                 ELSE (SELECT COUNT(*) FROM page_views v WHERE v.page_id=w.id AND v.viewed_at >= CURRENT_TIMESTAMP - INTERVAL '12 hours')
+               END AS hourly_views
         FROM wiki_pages w WHERE w.deleted=FALSE ORDER BY hourly_views DESC, w.views DESC LIMIT 10
     """)
     daily = query("""
-        SELECT w.title, w.views, COUNT(v.id) AS daily_views
+        SELECT w.title, w.views,
+               CASE
+                 WHEN (SELECT MIN(viewed_at) FROM page_views) IS NULL
+                   OR (SELECT MIN(viewed_at) FROM page_views) >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                 THEN w.views
+                 ELSE COUNT(v.id)
+               END AS daily_views
         FROM wiki_pages w LEFT JOIN page_views v
           ON v.page_id=w.id AND v.viewed_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
         WHERE w.deleted=FALSE
