@@ -126,3 +126,27 @@
  .timetable-table .lesson-cell span{margin-top:2px;font-size:9px;line-height:1.1;letter-spacing:-.3px}
  .timetable-note{font-size:10px;line-height:1.35;margin-top:7px}
 }
+
+/* Help page — onboarding layout inspired by the reference wiki, adapted for NONGOK Wiki */
+.help-intro{display:flex;align-items:center;gap:18px;border:1px solid #bfc7cf;background:#f8fafb;padding:22px 24px;margin:18px 0}
+.help-intro-mark{width:54px;height:54px;flex:0 0 54px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-size:30px;font-weight:800}
+.help-intro h2{margin:0 0 7px;font-size:24px}.help-intro p{margin:0;color:#555;line-height:1.65}
+.help-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 28px}
+.help-quick a{border:1px solid var(--line);background:#fff;padding:15px 14px;color:var(--text);text-align:center}
+.help-quick a:hover{border-color:var(--green);text-decoration:none;background:#f8fbf2}
+.help-quick b,.help-quick span{display:block}.help-quick b{font-size:16px}.help-quick span{font-size:12px;color:#777;margin-top:5px}
+.help-section{scroll-margin-top:82px;border-top:1px solid #ddd;padding:24px 2px 4px;margin-top:4px}
+.help-section h2{font-size:22px;margin:0 0 13px;display:flex;align-items:center;gap:9px}
+.help-section h2>span{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#edf3df;color:#58751e;font-size:14px}
+.help-section p{line-height:1.8;margin:8px 0 14px}.help-links{display:flex;gap:7px;flex-wrap:wrap}
+.help-links a{border:1px solid #ccd2d7;border-radius:18px;padding:6px 11px;background:#fafafa}
+.help-status{padding:12px 14px;border:1px solid #cfd7c0;background:#f7faef}.help-actions{display:flex;gap:8px}.help-actions .button{margin:0}
+.help-example{background:#f6f7f8;border:1px solid #d7dadd;padding:14px 16px;margin:14px 0}
+.help-example>b{display:block;margin-bottom:8px}.help-example code{display:block;background:#fff;border:1px solid #e0e2e5;padding:7px 9px;margin-top:5px;font-family:Consolas,monospace}
+.help-small{font-size:13px;color:#666}.help-main-button{display:inline-block;padding:9px 14px;border:1px solid #657d31;background:#87aa43;color:#fff;font-weight:700}
+.help-main-button:hover{text-decoration:none;background:#769735}.help-rule ul{padding-left:22px;line-height:1.8}.help-rule li{margin:7px 0}
+@media(max-width:650px){
+ .help-intro{padding:16px;gap:12px}.help-intro-mark{width:44px;height:44px;flex-basis:44px;font-size:24px}.help-intro h2{font-size:19px}
+ .help-quick{grid-template-columns:repeat(2,1fr);gap:7px}.help-quick a{padding:11px 7px}
+ .help-section{padding-top:19px}.help-section h2{font-size:19px}.help-section h2>span{width:25px;height:25px;font-size:12px}
+}
