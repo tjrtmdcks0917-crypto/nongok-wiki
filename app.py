@@ -279,6 +279,24 @@ def new_page():
         return redirect(url_for("wiki", title=title))
     return render_template("edit.html", page=None, title="")
 
+@app.route("/all-pages")
+def all_pages():
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        page = 1
+    per_page = 10
+    total = query("SELECT COUNT(*) AS c FROM wiki_pages WHERE deleted=FALSE")[0]["c"]
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+    offset = (page - 1) * per_page
+    pages = query(
+        "SELECT title, updated_at, views FROM wiki_pages WHERE deleted=FALSE ORDER BY title ASC LIMIT %s OFFSET %s",
+        (per_page, offset),
+    )
+    return render_template("all_pages.html", pages=pages, page=page, total_pages=total_pages, total=total)
+
 @app.route("/search")
 def search():
     q = request.args.get("q", "").strip()
