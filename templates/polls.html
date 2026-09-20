@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}투표 - NONGOK Wiki{% endblock %}
+{% block meta_description %}논곡위키 투표 페이지입니다. 논곡중학교 학생 위키에서 진행 중인 투표에 참여하고 결과를 확인할 수 있습니다.{% endblock %}
+{% block content %}
+<article class="document poll-page">
+  <div class="doc-title"><h1>투표</h1><div class="doc-tools"><a href="{{url_for('index')}}">대문</a></div></div>
+  <div class="poll-guide">논곡위키에서 진행되는 투표입니다. 로그인한 사용자는 각 투표에 한 번만 참여할 수 있습니다.</div>
+
+  {% if current_user and current_user.role == 'admin' %}
+  <section class="poll-create">
+    <h2>새 투표 만들기</h2>
+    <form method="post" action="{{url_for('poll_create')}}">
+      <input type="hidden" name="csrf" value="{{csrf}}">
+      <label>질문<input name="question" maxlength="200" placeholder="예: 다음 학교생활 문서 중 먼저 보완할 항목은?" required></label>
+      <label>선택지<textarea name="options" maxlength="1300" placeholder="한 줄에 선택지 하나씩 입력하세요.&#10;급식&#10;시간표&#10;동아리" required></textarea></label>
+      <button type="submit">투표 만들기</button>
+    </form>
+  </section>
+  {% endif %}
+
+  <section class="poll-list">
+  {% for poll in polls %}
+    <article class="poll-card">
+      <div class="poll-head">
+        <div><h2>{{poll.question}}</h2><small>{{'진행 중' if poll.is_open else '종료됨'}} · 참여 {{poll.total_votes}}명{% if poll.creator %} · {{poll.creator}}{% endif %}</small></div>
+        {% if current_user and current_user.role == 'admin' %}
+        <form method="post" action="{{url_for('poll_toggle',poll_id=poll.id)}}">
+          <input type="hidden" name="csrf" value="{{csrf}}">
+          <button type="submit">{{'투표 종료' if poll.is_open else '다시 열기'}}</button>
+        </form>
+        {% endif %}
+      </div>
+
+      {% if current_user and poll.is_open and not poll.voted_option %}
+      <form class="poll-vote-form" method="post" action="{{url_for('poll_vote',poll_id=poll.id)}}">
+        <input type="hidden" name="csrf" value="{{csrf}}">
+        {% for option in poll.options %}
+        <label class="poll-choice"><input type="radio" name="option_id" value="{{option.id}}" required><span>{{option.option_text}}</span></label>
+        {% endfor %}
+        <button type="submit">투표하기</button>
+      </form>
+      {% else %}
+        {% if not current_user and poll.is_open %}<p class="poll-login-note"><a href="{{url_for('login',next=url_for('polls'))}}">로그인</a>하면 투표할 수 있습니다.</p>{% endif %}
+        {% if poll.voted_option %}<p class="poll-voted-note">이 투표에 참여했습니다.</p>{% endif %}
+      {% endif %}
+
+      <div class="poll-results">
+      {% for option in poll.options %}
+        <div class="poll-result{% if poll.voted_option == option.id %} mine{% endif %}">
+          <div class="poll-result-label"><span>{{option.option_text}}</span><b>{{option.votes}}표 · {{option.percent}}%</b></div>
+          <div class="poll-bar"><span style="width:{{option.percent}}%"></span></div>
+        </div>
+      {% endfor %}
+      </div>
+    </article>
+  {% else %}
+    <div class="poll-empty">아직 등록된 투표가 없습니다.</div>
+  {% endfor %}
+  </section>
+</article>
+{% endblock %}
