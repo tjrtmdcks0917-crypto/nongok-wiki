@@ -137,13 +137,12 @@ CREATE TABLE IF NOT EXISTS follows (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (follower_id, following_id)
 );
-CREATE TABLE IF NOT EXISTS direct_messages (
+CREATE TABLE IF NOT EXISTS site_visits (
     id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    sender_id INTEGER NOT NULL,
-    receiver_id INTEGER NOT NULL,
-    body TEXT NOT NULL,
-    read_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    visit_date VARCHAR(10) NOT NULL,
+    visitor_key VARCHAR(64) NOT NULL,
+    first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (visit_date, visitor_key)
 );
 """
 

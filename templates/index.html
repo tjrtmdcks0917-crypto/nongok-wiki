@@ -71,7 +71,6 @@
     <a href="{{url_for('polls')}}"><b>🗳️ 투표</b><span>투표 만들기와 참여하기</span></a>
     {% if current_user %}
       <a href="{{url_for('members')}}"><b>👥 친구 찾기</b><span>회원 프로필과 팔로우 보기</span></a>
-      <a href="{{url_for('messages')}}"><b>✉️ 쪽지{% if unread_messages %} <em>({{unread_messages}})</em>{% endif %}</b><span>1:1 메시지 확인하기</span></a>
       <a href="{{url_for('user_profile',username=current_user.username)}}"><b>🙂 내 프로필</b><span>내 프로필 확인하고 꾸미기</span></a>
     {% endif %}
   </div>

@@ -5,9 +5,9 @@
 <article class="document social-page">
   <div class="doc-title">
     <h1>친구 찾기</h1>
-    <div class="doc-tools"><a href="{{url_for('messages')}}">쪽지</a><a href="{{url_for('user_profile',username=current_user.username)}}">내 프로필</a></div>
+    <div class="doc-tools"><a href="{{url_for('user_profile',username=current_user.username)}}">내 프로필</a></div>
   </div>
-  <p class="social-guide">논곡위키 회원의 프로필을 보고 팔로우하거나 1:1 쪽지를 보낼 수 있어. 프로필에는 연락처·주소·학번처럼 사적인 정보는 올리지 말아 줘.</p>
+  <p class="social-guide">논곡위키 회원의 프로필을 보고 팔로우할 수 있어. 프로필에는 연락처·주소·학번처럼 사적인 정보는 올리지 말아 줘.</p>
 
   <div class="member-grid">
   {% for member in members %}
@@ -27,7 +27,6 @@
             <input type="hidden" name="csrf" value="{{csrf}}">
             <button class="social-btn{% if member.id in viewer_following %} secondary{% endif %}" type="submit">{{'팔로잉' if member.id in viewer_following else '팔로우'}}</button>
           </form>
-          <a class="social-btn secondary" href="{{url_for('direct_message',username=member.username)}}">메시지</a>
         {% endif %}
       </div>
     </section>

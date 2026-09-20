@@ -368,6 +368,25 @@ def before():
     if "csrf" not in session:
         session["csrf"] = secrets.token_urlsafe(24)
 
+    # Count one browser once per Korea-calendar day. Skip static/media/API requests.
+    if (
+        request.method == "GET"
+        and request.endpoint not in {"static", "gallery_image"}
+        and not request.path.startswith("/api/")
+    ):
+        visitor_key = session.get("daily_visitor_key")
+        if not visitor_key:
+            visitor_key = secrets.token_hex(16)
+            session["daily_visitor_key"] = visitor_key
+        now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
+        visit_date = now_kst.strftime("%Y-%m-%d")
+        execute(
+            """INSERT INTO site_visits(visit_date, visitor_key, first_seen_at)
+               VALUES (%s,%s,%s)
+               ON CONFLICT(visit_date, visitor_key) DO NOTHING""",
+            (visit_date, visitor_key, datetime.now(timezone.utc).replace(tzinfo=None)),
+        )
+
 def _as_utc_datetime(value):
     if isinstance(value, datetime):
         return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
@@ -460,12 +479,31 @@ def inject():
     site_notice = notice_content if site_notice_active else ""
     site_notice_new = site_notice_active
 
-    unread_messages = 0
-    if user:
-        unread_messages = int(query(
-            "SELECT COUNT(*) AS c FROM direct_messages WHERE receiver_id=%s AND read_at IS NULL",
-            (user["id"],),
-        )[0]["c"] or 0)
+    now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
+    today_key = now_kst.strftime("%Y-%m-%d")
+    visit_rows = query(
+        "SELECT first_seen_at FROM site_visits WHERE visit_date=%s ORDER BY first_seen_at ASC",
+        (today_key,),
+    )
+    first_seen_hours = []
+    for visit in visit_rows:
+        visit_dt = _as_utc_datetime(visit.get("first_seen_at"))
+        if visit_dt:
+            first_seen_hours.append(visit_dt.astimezone(ZoneInfo("Asia/Seoul")).hour)
+
+    total_visitors = len(first_seen_hours)
+    daily_visit_stats = []
+    for hour in range(25):
+        if hour == 24:
+            count = total_visitors
+        else:
+            count = sum(1 for seen_hour in first_seen_hours if seen_hour <= hour)
+        daily_visit_stats.append({
+            "hour": hour,
+            "count": count,
+            "future": hour > now_kst.hour and hour < 24,
+            "height": 8 if total_visitors == 0 else max(8, round((count / total_visitors) * 100)),
+        })
 
     return {
         "current_user": user,
@@ -479,7 +517,9 @@ def inject():
         "site_notice_active": site_notice_active,
         "site_notice_new": site_notice_new,
         "site_notice_updated_at": notice_updated_at,
-        "unread_messages": unread_messages,
+        "daily_visit_stats": daily_visit_stats,
+        "daily_visit_total": total_visitors,
+        "daily_visit_date": today_key,
     }
 
 def current_user():
@@ -1370,96 +1410,6 @@ def profile_follow(username):
             (viewer["id"], target_id),
         )
     return redirect(url_for("user_profile", username=username))
-
-
-@app.route("/messages")
-@require_login
-def messages():
-    user = current_user()
-    rows = query(
-        """SELECT m.id, m.sender_id, m.receiver_id, m.body, m.read_at, m.created_at,
-                  s.username AS sender_username, r.username AS receiver_username
-           FROM direct_messages m
-           JOIN users s ON s.id=m.sender_id
-           JOIN users r ON r.id=m.receiver_id
-           WHERE m.sender_id=%s OR m.receiver_id=%s
-           ORDER BY m.created_at DESC, m.id DESC
-           LIMIT 500""",
-        (user["id"], user["id"]),
-    )
-    conversations = []
-    seen = set()
-    for row in rows:
-        partner_id = row["receiver_id"] if row["sender_id"] == user["id"] else row["sender_id"]
-        if partner_id in seen:
-            continue
-        seen.add(partner_id)
-        partner_rows = query(
-            """SELECT id, username, profile_name, profile_status, profile_color, profile_emoji
-               FROM users WHERE id=%s""",
-            (partner_id,),
-        )
-        if not partner_rows:
-            continue
-        unread = int(query(
-            """SELECT COUNT(*) AS c FROM direct_messages
-               WHERE sender_id=%s AND receiver_id=%s AND read_at IS NULL""",
-            (partner_id, user["id"]),
-        )[0]["c"] or 0)
-        row["created_text"] = _gallery_time_text(row.get("created_at"))
-        conversations.append({
-            "partner": partner_rows[0],
-            "last": row,
-            "unread": unread,
-        })
-    return render_template("messages.html", conversations=conversations)
-
-
-@app.route("/messages/<username>", methods=["GET", "POST"])
-@require_login
-def direct_message(username):
-    user = current_user()
-    target_rows = query(
-        """SELECT id, username, profile_name, profile_status, profile_color, profile_emoji
-           FROM users WHERE username=%s""",
-        (username,),
-    )
-    if not target_rows:
-        abort(404)
-    target = target_rows[0]
-    if target["id"] == user["id"]:
-        return redirect(url_for("messages"))
-
-    if request.method == "POST":
-        check_csrf()
-        body = request.form.get("body", "").strip()
-        if not body or len(body) > 1000:
-            flash("메시지는 1~1000자로 작성해 주세요.", "warning")
-            return redirect(url_for("direct_message", username=username))
-        execute(
-            """INSERT INTO direct_messages(sender_id,receiver_id,body,read_at,created_at)
-               VALUES (%s,%s,%s,NULL,CURRENT_TIMESTAMP)""",
-            (user["id"], target["id"], body),
-        )
-        return redirect(url_for("direct_message", username=username))
-
-    execute(
-        """UPDATE direct_messages SET read_at=CURRENT_TIMESTAMP
-           WHERE sender_id=%s AND receiver_id=%s AND read_at IS NULL""",
-        (target["id"], user["id"]),
-    )
-    thread = query(
-        """SELECT m.id, m.sender_id, m.receiver_id, m.body, m.read_at, m.created_at
-           FROM direct_messages m
-           WHERE (m.sender_id=%s AND m.receiver_id=%s)
-              OR (m.sender_id=%s AND m.receiver_id=%s)
-           ORDER BY m.created_at ASC, m.id ASC
-           LIMIT 300""",
-        (user["id"], target["id"], target["id"], user["id"]),
-    )
-    for message in thread:
-        message["created_text"] = _gallery_time_text(message.get("created_at"))
-    return render_template("direct_message.html", target=target, thread=thread)
 
 
 @app.route("/polls")

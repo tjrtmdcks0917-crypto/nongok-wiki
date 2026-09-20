@@ -16,7 +16,6 @@
               <input type="hidden" name="csrf" value="{{csrf}}">
               <button class="social-btn{% if is_following %} secondary{% endif %}" type="submit">{{'팔로잉' if is_following else '팔로우'}}</button>
             </form>
-            <a class="social-btn secondary" href="{{url_for('direct_message',username=profile.username)}}">메시지</a>
           {% endif %}
         </div>
       </div>
