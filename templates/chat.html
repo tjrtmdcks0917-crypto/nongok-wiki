@@ -18,9 +18,11 @@
 <script>
 (() => {
  const box=document.getElementById('chatMessages'), form=document.getElementById('chatForm'), input=document.getElementById('chatInput');
- let last=0, first=true;
+ let last=0, first=true, loading=false;
  const esc=s=>{const d=document.createElement('div');d.textContent=s;return d.innerHTML};
  async function load(){
+  if(loading) return;
+  loading=true;
   try{
    const r=await fetch('{{ url_for("chat_messages") }}?after='+last,{cache:'no-store'});
    const data=await r.json();
@@ -33,7 +35,7 @@
     box.appendChild(el);
    }
    if(data.messages.length) box.scrollTop=box.scrollHeight;
-  }catch(e){}
+  }catch(e){} finally { loading=false; }
  }
  if(form) form.addEventListener('submit',async e=>{
   e.preventDefault(); const body=input.value.trim(); if(!body)return;
