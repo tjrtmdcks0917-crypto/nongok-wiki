@@ -242,3 +242,12 @@
 .school-login-check{display:block!important;border:1px solid #cfd8c0;background:#f8fbf2;border-radius:8px;padding:13px 14px;margin:10px 0 16px}
 .school-login-check>b{display:block;margin-bottom:8px;color:#58751e}
 .school-login-check label{margin-top:0}
+
+/* Admin member profiles */
+.admin-member{border-top:1px solid #e1e3e5;padding:13px 2px}
+.admin-member:first-of-type{margin-top:8px}
+.admin-member>div:first-child{font-size:15px;margin-bottom:7px}
+.member-id{color:#777;font-size:12px;font-weight:400}
+.member-details{display:flex;flex-wrap:wrap;gap:6px 8px}
+.member-details span{display:inline-block;border:1px solid #e0e3e5;background:#fafafa;border-radius:6px;padding:5px 8px;font-size:12px;color:#555}
+@media(max-width:600px){.member-details{display:grid;grid-template-columns:1fr}.member-details span{width:100%}}
