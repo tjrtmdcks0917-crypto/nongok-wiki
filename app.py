@@ -62,7 +62,9 @@ def get_nongok_timetable(grade, class_num):
         school = next((x for x in exact if x.get("region") == "인천"), None)
         if not school:
             raise RuntimeError(f"인천 논곡중학교 검색 실패: {schools!r}")
-        code = int(school["school_code"])
+        # Comcigan school codes may be encoded strings such as "\\u003E21009".
+        # The client expects that value unchanged and parses it internally.
+        code = school["school_code"]
 
         errors = []
         table = None
