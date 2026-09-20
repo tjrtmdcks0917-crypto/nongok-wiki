@@ -30,9 +30,20 @@
 <section class="card">
   <h2>회원 정보</h2>
   <p class="hint">
-    기존 비밀번호는 단방향 해시로 저장되어 관리자도 볼 수 없습니다.
-    비밀번호를 잊은 회원에게는 아래에서 새 임시 비밀번호를 설정해 주세요.
+    기존 비밀번호는 관리자도 볼 수 없습니다. 비밀번호를 잊은 회원은
+    <b>비밀번호 초기화</b> 버튼을 누르면 랜덤 임시 비밀번호가 자동으로 생성됩니다.
   </p>
+
+  {% if reset_result %}
+  <div class="admin-reset-result">
+    <div>
+      <b>@{{reset_result.username}} 임시 비밀번호</b>
+      <code id="generated-temp-password">{{reset_result.temporary_password}}</code>
+      <small>이 화면에서만 확인할 수 있어. 사용자에게 전달한 뒤 새 비밀번호로 바꾸게 해줘.</small>
+    </div>
+    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('generated-temp-password').textContent);this.textContent='복사됨'">복사</button>
+  </div>
+  {% endif %}
 
   {% for u in users %}
   <div class="admin-member">
@@ -49,9 +60,7 @@
     {% if u.role != 'admin' %}
     <form class="admin-password-reset" method="post" action="{{ url_for('admin_reset_password', user_id=u.id) }}">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <input type="password" name="new_password" minlength="6" autocomplete="new-password" placeholder="새 임시 비밀번호 (6자 이상)" required>
-      <input type="password" name="new_password_confirm" minlength="6" autocomplete="new-password" placeholder="임시 비밀번호 확인" required>
-      <button type="submit" onclick="return confirm('@{{u.username}} 계정의 비밀번호를 재설정할까요?');">임시 비밀번호로 재설정</button>
+      <button type="submit" onclick="return confirm('@{{u.username}} 계정의 비밀번호를 초기화할까요? 기존 비밀번호로는 더 이상 로그인할 수 없습니다.');">비밀번호 초기화</button>
     </form>
     {% endif %}
   </div>

@@ -1992,17 +1992,26 @@ def report():
     flash("신고가 접수되었습니다.", "success")
     return redirect(request.referrer or url_for("index"))
 
-@app.route("/admin")
-@require_admin
-def admin():
+def _admin_page_data():
     reports = query(
         """SELECT r.*, w.title, u.username FROM reports r
            LEFT JOIN wiki_pages w ON w.id=r.page_id
            LEFT JOIN users u ON u.id=r.user_id
            ORDER BY r.created_at DESC LIMIT 100"""
     )
-    users = query("SELECT id, username, real_name, student_no, school_name, role, created_at FROM users ORDER BY created_at DESC LIMIT 100")
-    return render_template("admin.html", reports=reports, users=users)
+    users = query(
+        "SELECT id, username, real_name, student_no, school_name, role, created_at "
+        "FROM users ORDER BY created_at DESC LIMIT 100"
+    )
+    return reports, users
+
+
+@app.route("/admin")
+@require_admin
+def admin():
+    reports, users = _admin_page_data()
+    return render_template("admin.html", reports=reports, users=users, reset_result=None)
+
 
 @app.route("/admin/user/<int:user_id>/reset-password", methods=["POST"])
 @require_admin
@@ -2013,27 +2022,26 @@ def admin_reset_password(user_id):
         abort(404)
     target = rows[0]
     if target["role"] == "admin":
-        flash("관리자 계정의 비밀번호는 회원 관리 화면에서 재설정할 수 없습니다.", "warning")
+        flash("관리자 계정의 비밀번호는 회원 관리 화면에서 초기화할 수 없습니다.", "warning")
         return redirect(url_for("admin"))
 
-    new_password = request.form.get("new_password", "")
-    new_password_confirm = request.form.get("new_password_confirm", "")
-    if len(new_password) < 6:
-        flash("임시 비밀번호는 6자 이상으로 입력해 주세요.", "warning")
-        return redirect(url_for("admin"))
-    if new_password != new_password_confirm:
-        flash("임시 비밀번호 확인이 일치하지 않습니다.", "warning")
-        return redirect(url_for("admin"))
-
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+    temporary_password = "".join(secrets.choice(alphabet) for _ in range(12))
     execute(
         "UPDATE users SET password_hash=%s WHERE id=%s",
-        (generate_password_hash(new_password), user_id),
+        (generate_password_hash(temporary_password), user_id),
     )
-    flash(
-        f"{target['username']} 계정의 비밀번호를 새 임시 비밀번호로 재설정했습니다. 사용자에게 안전하게 전달해 주세요.",
-        "success",
+
+    reports, users = _admin_page_data()
+    return render_template(
+        "admin.html",
+        reports=reports,
+        users=users,
+        reset_result={
+            "username": target["username"],
+            "temporary_password": temporary_password,
+        },
     )
-    return redirect(url_for("admin"))
 
 
 @app.route("/admin/report/<int:report_id>/<status>", methods=["POST"])

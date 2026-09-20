@@ -386,14 +386,20 @@
 
 
 /* Secure password recovery */
-.admin-password-reset{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-top:10px;align-items:center}
-.admin-password-reset input{height:38px;margin:0;padding:8px 10px;border:1px solid #cdd1d4;border-radius:6px;background:#fff}
+.admin-password-reset{margin-top:10px}
 .admin-password-reset button{height:38px;margin:0;border-color:#7a963e;background:var(--green);color:#fff;font-weight:700;border-radius:6px}
+.admin-reset-result{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:14px 0 18px;padding:14px 16px;border:1px solid #afc286;border-left:5px solid var(--green);background:#f8fbf2}
+.admin-reset-result>div{min-width:0}
+.admin-reset-result b,.admin-reset-result code,.admin-reset-result small{display:block}
+.admin-reset-result code{width:max-content;max-width:100%;margin:7px 0;padding:8px 11px;border:1px solid #cfd8c0;border-radius:6px;background:#fff;font-size:17px;font-weight:800;letter-spacing:.8px;user-select:all}
+.admin-reset-result small{color:#666;line-height:1.45}
+.admin-reset-result button{flex:0 0 auto;margin:0}
 .profile-password-change{margin:22px 0 4px;padding:15px;border:1px solid #d8dcdf;border-radius:8px;background:#fafbfc}
 .profile-password-change legend{padding:0 7px;font-weight:800}
 .profile-password-change p{margin:0 0 10px;color:#666;font-size:12px;line-height:1.5}
 .profile-password-change label{margin-top:10px}
 @media(max-width:700px){
-  .admin-password-reset{grid-template-columns:1fr}
   .admin-password-reset button{width:100%}
+  .admin-reset-result{align-items:stretch;flex-direction:column}
+  .admin-reset-result button{width:100%}
 }
