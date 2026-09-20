@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS users (
     real_name VARCHAR(30),
     student_no VARCHAR(6),
     school_name VARCHAR(80),
+    profile_name VARCHAR(30),
+    profile_bio VARCHAR(300),
+    profile_status VARCHAR(80),
+    profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43',
+    profile_emoji VARCHAR(8),
     role VARCHAR(16) NOT NULL DEFAULT 'user',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -125,6 +130,20 @@ CREATE TABLE IF NOT EXISTS gallery_reads (
     last_seen_post_id INTEGER NOT NULL DEFAULT 0,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS follows (
+    follower_id INTEGER NOT NULL,
+    following_id INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, following_id)
+);
+CREATE TABLE IF NOT EXISTS direct_messages (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    sender_id INTEGER NOT NULL,
+    receiver_id INTEGER NOT NULL,
+    body TEXT NOT NULL,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 def _sqlite_schema():
@@ -172,6 +191,11 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS real_name VARCHAR(30)")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS student_no VARCHAR(6)")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS school_name VARCHAR(80)")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_name VARCHAR(30)")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_bio VARCHAR(300)")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_status VARCHAR(80)")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43'")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_emoji VARCHAR(8)")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
                 "ON users(student_no) WHERE student_no IS NOT NULL"
@@ -185,6 +209,16 @@ def init_db():
                 conn.execute("ALTER TABLE users ADD COLUMN student_no VARCHAR(6)")
             if "school_name" not in columns:
                 conn.execute("ALTER TABLE users ADD COLUMN school_name VARCHAR(80)")
+            if "profile_name" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN profile_name VARCHAR(30)")
+            if "profile_bio" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN profile_bio VARCHAR(300)")
+            if "profile_status" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN profile_status VARCHAR(80)")
+            if "profile_color" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43'")
+            if "profile_emoji" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN profile_emoji VARCHAR(8)")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
                 "ON users(student_no) WHERE student_no IS NOT NULL"
