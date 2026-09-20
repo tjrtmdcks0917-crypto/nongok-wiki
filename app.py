@@ -85,7 +85,7 @@ def seed():
     if existing:
         return
     samples = [
-        ("논곡중학교", "## 개요\n논곡중학교에 관한 공개 정보를 정리하는 문서입니다.\n\n학교의 공식 공지와 공개 자료를 우선 참고하세요."),
+        ("논곡중학교", "## 개요\n논곡중학교에 관한 정보를 자유롭게 정리하는 문서입니다.\n\n학교생활과 관련된 다양한 내용을 함께 기록해 주세요."),
         ("학교 시설", "학교 시설에 관한 정보를 정리하는 문서입니다.\n\n예: 교실, 도서관, 운동장, 특별실 등."),
         ("동아리", "논곡중학교의 동아리 활동을 정리하는 문서입니다."),
         ("학생회", "학생회와 관련된 공개 정보를 정리하는 문서입니다."),
@@ -128,7 +128,7 @@ def edit(title):
         content = request.form.get("content", "").strip()
         new_title = slugify(request.form.get("title", title))
         if not new_title or not content:
-            flash("제목과 내용을 입력해줘.", "warning")
+            flash("제목과 내용을 입력해 주세요.", "warning")
             return redirect(request.url)
         user = current_user()
         if page and page["protected"] and user["role"] != "admin":
@@ -138,7 +138,7 @@ def edit(title):
             execute("UPDATE wiki_pages SET title=%s, content=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (new_title, content, page["id"]))
         else:
             execute("INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,%s,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)", (new_title, content, user["id"]))
-        flash("문서를 저장했어.", "success")
+        flash("문서를 저장했습니다.", "success")
         return redirect(url_for("wiki", title=new_title))
     return render_template("edit.html", page=page, title=title)
 
@@ -153,7 +153,7 @@ def new_page():
             flash("제목과 내용을 입력해줘.", "warning")
             return redirect(url_for("new_page"))
         if query("SELECT id FROM wiki_pages WHERE title=%s", (title,)):
-            flash("이미 같은 제목의 문서가 있어.", "warning")
+            flash("이미 같은 제목의 문서가 있습니다.", "warning")
             return redirect(url_for("wiki", title=title))
         user = current_user()
         execute("INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,%s,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)", (title, content, user["id"]))
@@ -195,16 +195,16 @@ def register():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         if not re.fullmatch(r"[A-Za-z0-9가-힣_]{2,24}", username):
-            flash("아이디는 2~24자의 한글/영문/숫자/밑줄만 사용할 수 있어.", "warning")
+            flash("아이디는 2~24자의 한글/영문/숫자/밑줄만 사용할 수 있습니다.", "warning")
             return redirect(url_for("register"))
-        if len(password) < 8:
-            flash("비밀번호는 8자 이상으로 해줘.", "warning")
+        if len(password) < 6:
+            flash("비밀번호는 6자 이상으로 입력해 주세요.", "warning")
             return redirect(url_for("register"))
         if query("SELECT id FROM users WHERE username=%s", (username,)):
-            flash("이미 사용 중인 아이디야.", "warning")
+            flash("이미 사용 중인 아이디입니다.", "warning")
             return redirect(url_for("register"))
         execute("INSERT INTO users(username,password_hash,role,created_at) VALUES (%s,%s,'user',CURRENT_TIMESTAMP)", (username, generate_password_hash(password)))
-        flash("회원가입 완료! 로그인해줘.", "success")
+        flash("회원가입이 완료되었습니다. 로그인해 주세요.", "success")
         return redirect(url_for("login"))
     return render_template("auth.html", mode="register")
 
@@ -217,9 +217,9 @@ def login():
         rows = query("SELECT * FROM users WHERE username=%s", (username,))
         if rows and check_password_hash(rows[0]["password_hash"], password):
             session["user_id"] = rows[0]["id"]
-            flash("로그인했어.", "success")
+            flash("로그인되었습니다.", "success")
             return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
-        flash("아이디 또는 비밀번호가 맞지 않아.", "warning")
+        flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
     return render_template("auth.html", mode="login", next_url=request.args.get("next", ""), entered_username=request.form.get("username", ""))
 
 @app.route("/logout")
@@ -233,7 +233,7 @@ def discuss(page_id):
     check_csrf()
     body = request.form.get("body", "").strip()
     if not body or len(body) > 2000:
-        flash("토론 내용은 1~2000자로 입력해줘.", "warning")
+        flash("토론 내용은 1~2000자로 입력해 주세요.", "warning")
         return redirect(request.referrer or url_for("index"))
     execute("INSERT INTO discussions(page_id,user_id,body,created_at) VALUES (%s,%s,%s,CURRENT_TIMESTAMP)", (page_id, current_user()["id"], body))
     return redirect(request.referrer or url_for("index"))
@@ -245,10 +245,10 @@ def report():
     page_id = request.form.get("page_id")
     reason = request.form.get("reason", "").strip()
     if not reason or len(reason) > 1000:
-        flash("신고 사유를 입력해줘.", "warning")
+        flash("신고 사유를 입력해 주세요.", "warning")
         return redirect(request.referrer or url_for("index"))
     execute("INSERT INTO reports(page_id,user_id,reason,status,created_at) VALUES (%s,%s,%s,'open',CURRENT_TIMESTAMP)", (page_id, current_user()["id"], reason))
-    flash("신고가 접수됐어.", "success")
+    flash("신고가 접수되었습니다.", "success")
     return redirect(request.referrer or url_for("index"))
 
 @app.route("/admin")
@@ -288,15 +288,15 @@ def delete_page(page_id):
 
 @app.errorhandler(429)
 def too_many(_):
-    return render_template("error.html", code=429, message="요청이 너무 많아. 잠시 후 다시 시도해줘."), 429
+    return render_template("error.html", code=429, message="요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."), 429
 
 @app.errorhandler(403)
 def forbidden(_):
-    return render_template("error.html", code=403, message="이 작업을 할 권한이 없어."), 403
+    return render_template("error.html", code=403, message="이 작업을 할 권한이 없습니다."), 403
 
 @app.errorhandler(500)
 def server_error(_):
-    return render_template("error.html", code=500, message="서버 오류가 발생했어. 관리자에게 알려줘."), 500
+    return render_template("error.html", code=500, message="서버 오류가 발생했습니다. 관리자에게 알려 주세요."), 500
 
 with app.app_context():
     init_db()
