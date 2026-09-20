@@ -11,7 +11,7 @@ from urllib.request import urlopen, Request
 from functools import wraps
 from io import BytesIO
 
-from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 from markupsafe import escape
 from werkzeug.security import check_password_hash, generate_password_hash
 from PIL import Image, ImageOps
@@ -28,6 +28,13 @@ RATE_MAX = 60
 
 MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
 TIMETABLE_CACHE = {}
+
+# Short-lived in-process caches: avoid repeating the same database-heavy sidebar,
+# visitor-stat and person-name queries on every page refresh.
+PUBLIC_CONTEXT_CACHE = {"expires": 0.0, "data": None}
+PERSON_NAMES_CACHE = {"expires": 0.0, "names": None}
+PUBLIC_CONTEXT_TTL = 12
+PERSON_NAMES_TTL = 30
 
 def _masked_teacher_name(value):
     name = str(value or "").strip()
@@ -368,24 +375,36 @@ def before():
     if "csrf" not in session:
         session["csrf"] = secrets.token_urlsafe(24)
 
-    # Count one browser once per Korea-calendar day. Skip static/media/API requests.
+    # Count one browser once per Korea-calendar day. A session marker avoids
+    # doing an INSERT ... ON CONFLICT round-trip on every page refresh.
     if (
         request.method == "GET"
         and request.endpoint not in {"static", "gallery_image"}
         and not request.path.startswith("/api/")
     ):
-        visitor_key = session.get("daily_visitor_key")
-        if not visitor_key:
-            visitor_key = secrets.token_hex(16)
-            session["daily_visitor_key"] = visitor_key
         now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
         visit_date = now_kst.strftime("%Y-%m-%d")
-        execute(
-            """INSERT INTO site_visits(visit_date, visitor_key, first_seen_at)
-               VALUES (%s,%s,%s)
-               ON CONFLICT(visit_date, visitor_key) DO NOTHING""",
-            (visit_date, visitor_key, datetime.now(timezone.utc).replace(tzinfo=None)),
-        )
+        if session.get("daily_visit_recorded") != visit_date:
+            visitor_key = session.get("daily_visitor_key")
+            if not visitor_key:
+                visitor_key = secrets.token_hex(16)
+                session["daily_visitor_key"] = visitor_key
+            execute(
+                """INSERT INTO site_visits(visit_date, visitor_key, first_seen_at)
+                   VALUES (%s,%s,%s)
+                   ON CONFLICT(visit_date, visitor_key) DO NOTHING""",
+                (visit_date, visitor_key, datetime.now(timezone.utc).replace(tzinfo=None)),
+            )
+            session["daily_visit_recorded"] = visit_date
+
+
+@app.after_request
+def cache_versioned_static_files(response):
+    # CSS/logo URLs already use version query strings, so they can be cached
+    # aggressively by the browser without serving stale assets after a deploy.
+    if request.endpoint == "static" and response.status_code == 200:
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
 
 def _as_utc_datetime(value):
     if isinstance(value, datetime):
@@ -399,8 +418,12 @@ def _as_utc_datetime(value):
     return None
 
 
-@app.context_processor
-def inject():
+def _public_context_data():
+    now = time.time()
+    cached = PUBLIC_CONTEXT_CACHE.get("data")
+    if cached is not None and now < PUBLIC_CONTEXT_CACHE.get("expires", 0):
+        return cached
+
     recent = query("""
         SELECT w.title, w.updated_at, w.views,
                CASE
@@ -442,27 +465,9 @@ def inject():
         ORDER BY views DESC, created_at DESC, id DESC
         LIMIT 10
     """)
-    user = current_user()
-
-    latest_gallery = query(
+    latest_gallery = int(query(
         "SELECT COALESCE(MAX(id),0) AS max_id FROM gallery_posts WHERE deleted=FALSE"
-    )[0]["max_id"]
-    latest_gallery = int(latest_gallery or 0)
-
-    if user:
-        seen_rows = query(
-            "SELECT last_seen_post_id FROM gallery_reads WHERE user_id=%s",
-            (user["id"],),
-        )
-        seen_gallery = int(seen_rows[0]["last_seen_post_id"] or 0) if seen_rows else 0
-    else:
-        seen_gallery = int(session.get("gallery_seen_post_id", 0) or 0)
-
-    gallery_unread = query(
-        "SELECT COUNT(*) AS c FROM gallery_posts WHERE deleted=FALSE AND id>%s",
-        (seen_gallery,),
-    )[0]["c"]
-    gallery_unread = int(gallery_unread or 0)
+    )[0]["max_id"] or 0)
 
     notice_rows = query(
         "SELECT content, updated_at FROM homepage_sections WHERE section_key=%s",
@@ -478,7 +483,6 @@ def inject():
     )
     site_notice = notice_content if site_notice_active else ""
     site_notice_html = _link_person_names(str(escape(site_notice))).replace("\n", "<br>") if site_notice else ""
-    site_notice_new = site_notice_active
 
     now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
     today_key = now_kst.strftime("%Y-%m-%d")
@@ -495,10 +499,7 @@ def inject():
     total_visitors = len(first_seen_hours)
     daily_visit_stats = []
     for hour in range(25):
-        if hour == 24:
-            count = total_visitors
-        else:
-            count = sum(1 for seen_hour in first_seen_hours if seen_hour <= hour)
+        count = total_visitors if hour == 24 else sum(1 for seen_hour in first_seen_hours if seen_hour <= hour)
         daily_visit_stats.append({
             "hour": hour,
             "count": count,
@@ -506,30 +507,82 @@ def inject():
             "height": 8 if total_visitors == 0 else max(8, round((count / total_visitors) * 100)),
         })
 
-    return {
-        "current_user": user,
-        "csrf": session.get("csrf"),
+    data = {
         "global_recent": recent,
         "global_popular": popular,
         "global_daily": daily,
         "global_gallery_popular": gallery_popular,
-        "gallery_unread": gallery_unread,
+        "latest_gallery": latest_gallery,
         "site_notice": site_notice,
         "site_notice_html": site_notice_html,
         "site_notice_active": site_notice_active,
-        "site_notice_new": site_notice_new,
+        "site_notice_new": site_notice_active,
         "site_notice_updated_at": notice_updated_at,
         "daily_visit_stats": daily_visit_stats,
         "daily_visit_total": total_visitors,
         "daily_visit_date": today_key,
     }
+    PUBLIC_CONTEXT_CACHE["data"] = data
+    PUBLIC_CONTEXT_CACHE["expires"] = now + PUBLIC_CONTEXT_TTL
+    return data
+
+
+@app.context_processor
+def inject():
+    public = _public_context_data()
+    user = current_user()
+    latest_gallery = public["latest_gallery"]
+
+    if user:
+        seen_rows = query(
+            "SELECT last_seen_post_id FROM gallery_reads WHERE user_id=%s",
+            (user["id"],),
+        )
+        seen_gallery = int(seen_rows[0]["last_seen_post_id"] or 0) if seen_rows else 0
+    else:
+        seen_gallery = int(session.get("gallery_seen_post_id", 0) or 0)
+
+    if latest_gallery > seen_gallery:
+        gallery_unread = int(query(
+            "SELECT COUNT(*) AS c FROM gallery_posts WHERE deleted=FALSE AND id>%s",
+            (seen_gallery,),
+        )[0]["c"] or 0)
+    else:
+        gallery_unread = 0
+
+    return {
+        "current_user": user,
+        "csrf": session.get("csrf"),
+        "global_recent": public["global_recent"],
+        "global_popular": public["global_popular"],
+        "global_daily": public["global_daily"],
+        "global_gallery_popular": public["global_gallery_popular"],
+        "gallery_unread": gallery_unread,
+        "site_notice": public["site_notice"],
+        "site_notice_html": public["site_notice_html"],
+        "site_notice_active": public["site_notice_active"],
+        "site_notice_new": public["site_notice_new"],
+        "site_notice_updated_at": public["site_notice_updated_at"],
+        "daily_visit_stats": public["daily_visit_stats"],
+        "daily_visit_total": public["daily_visit_total"],
+        "daily_visit_date": public["daily_visit_date"],
+    }
+
 
 def current_user():
+    if hasattr(g, "current_user_value"):
+        return g.current_user_value
     uid = session.get("user_id")
     if not uid:
+        g.current_user_value = None
         return None
-    rows = query("SELECT id, username, real_name, student_no, school_name, profile_name, profile_bio, profile_status, profile_color, profile_emoji, role FROM users WHERE id = %s", (uid,))
-    return rows[0] if rows else None
+    rows = query(
+        "SELECT id, username, real_name, student_no, school_name, profile_name, profile_bio, "
+        "profile_status, profile_color, profile_emoji, role FROM users WHERE id = %s",
+        (uid,),
+    )
+    g.current_user_value = rows[0] if rows else None
+    return g.current_user_value
 
 def require_login(fn):
     @wraps(fn)
@@ -572,6 +625,11 @@ HOME_OPERATOR_NAMES = {"석승찬", "김현우"}
 
 def _known_person_names():
     """Find names explicitly used as people in wiki documents or on the homepage."""
+    now = time.time()
+    cached = PERSON_NAMES_CACHE.get("names")
+    if cached is not None and now < PERSON_NAMES_CACHE.get("expires", 0):
+        return cached
+
     rows = query("SELECT title, content FROM wiki_pages WHERE deleted=FALSE")
     homepage_rows = query("SELECT content FROM homepage_sections")
     names = set(HOME_OPERATOR_NAMES)
@@ -609,7 +667,10 @@ def _known_person_names():
                 if candidate not in PERSON_NAME_STOPWORDS:
                     names.add(candidate)
 
-    return sorted(names, key=lambda value: (-len(value), value))
+    result = sorted(names, key=lambda value: (-len(value), value))
+    PERSON_NAMES_CACHE["names"] = result
+    PERSON_NAMES_CACHE["expires"] = now + PERSON_NAMES_TTL
+    return result
 
 
 def _link_person_names(safe_text):
@@ -947,18 +1008,25 @@ def ensure_schoollife_pages():
 특정 학생이나 교직원을 놀리거나 개인정보가 드러나는 내용은 작성하지 말아 주세요.
 """),
     ]
-    for title, content in pages:
-        if not query("SELECT id FROM wiki_pages WHERE title=%s AND deleted=FALSE", (title,)):
-            execute("INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)", (title, content))
+    existing_rows = query("SELECT id, title, protected FROM wiki_pages WHERE deleted=FALSE")
+    existing = {row["title"]: row for row in existing_rows}
 
-    guideline = query("SELECT id, protected FROM wiki_pages WHERE title=%s AND deleted=FALSE", ("편집지침",))
+    for title, content in pages:
+        if title not in existing:
+            execute(
+                "INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) "
+                "VALUES (%s,%s,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)",
+                (title, content),
+            )
+
+    guideline = existing.get("편집지침")
     if not guideline:
         execute(
             "INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,TRUE,FALSE)",
             ("편집지침", "논곡위키의 공식 편집지침입니다."),
         )
-    elif not guideline[0]["protected"]:
-        execute("UPDATE wiki_pages SET protected=TRUE WHERE id=%s", (guideline[0]["id"],))
+    elif not guideline["protected"]:
+        execute("UPDATE wiki_pages SET protected=TRUE WHERE id=%s", (guideline["id"],))
 
 def seed():
     existing = query("SELECT COUNT(*) AS c FROM wiki_pages")[0]["c"]
@@ -976,8 +1044,6 @@ def seed():
             "INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)",
             (title, content),
         )
-    ensure_schoollife_pages()
-
 @app.route("/robots.txt")
 def robots_txt():
     body = "User-agent: *\nAllow: /\nSitemap: https://nongok-wiki.onrender.com/sitemap.xml\n"
@@ -1005,8 +1071,6 @@ def sitemap_xml():
 
 @app.route("/")
 def index():
-    recent = query("SELECT title, updated_at FROM wiki_pages WHERE deleted=FALSE ORDER BY updated_at DESC LIMIT 10")
-    popular = query("SELECT title, views FROM wiki_pages WHERE deleted=FALSE ORDER BY views DESC, updated_at DESC LIMIT 10")
     defaults = {
         "notice": "다른 사람의 연락처, 주소 등 사적인 개인정보는 보호해 주세요.\n친구를 공격하거나 괴롭히는 내용은 작성하지 말아 주세요.\n학교생활, 추억, 정보 등 다양한 내용을 자유롭게 작성해 주세요.",
         "news": "논곡위키 공개 베타 운영 중입니다.\n문서 편집과 토론 기능을 사용할 수 있습니다.",
@@ -1061,8 +1125,6 @@ def index():
 
     return render_template(
         "index.html",
-        recent=recent,
-        popular=popular,
         sections=sections,
         sections_html=sections_html,
         document_groups=document_groups,
