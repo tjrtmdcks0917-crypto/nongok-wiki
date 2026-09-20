@@ -204,3 +204,33 @@
  .guideline-toc{grid-template-columns:1fr}.guideline-toc a:nth-child(odd){border-right:0}.guideline-section h2{font-size:19px}.guideline-section h2>span{width:25px;height:25px;font-size:12px}
  .guideline-important{padding-left:10px}
 }
+
+/* Homepage document directory */
+.home-directory-head{width:100%;border-collapse:collapse;margin:22px 0;border:1px solid #8f9396;text-align:center;background:#fff}
+.home-directory-head th,.home-directory-head td{border:1px solid #d7d9db;padding:9px 12px}
+.home-directory-head tr:first-child th{font-size:21px;padding:8px}
+.home-directory-head tr:not(:first-child)>th{width:105px;font-size:16px}
+.home-directory-head td{font-size:15px;line-height:1.8}
+
+.home-doc-directory{border:1px solid #d4d7d9;background:#fff;margin:22px 0 30px}
+.home-doc-directory>h2{font-size:23px;text-align:center;margin:0;padding:13px;border-bottom:1px solid #d4d7d9}
+.home-doc-group{border-bottom:1px solid #ddd}
+.home-doc-group:last-child{border-bottom:0}
+.home-doc-group summary{list-style:none;cursor:pointer;text-align:center;padding:10px 14px;user-select:none}
+.home-doc-group summary::-webkit-details-marker{display:none}
+.home-doc-group summary::before{content:"▶";font-size:12px;margin-right:8px}
+.home-doc-group[open] summary::before{content:"▼"}
+.home-doc-group summary strong{display:block;font-size:18px;margin-bottom:3px}
+.home-toggle{font-size:13px;color:#303b4f}.home-toggle .close-text{display:none}
+.home-doc-group[open] .home-toggle .open-text{display:none}.home-doc-group[open] .home-toggle .close-text{display:inline}
+.home-doc-links{display:flex;justify-content:center;flex-wrap:wrap;gap:7px 12px;padding:11px 18px 16px;border-top:1px dashed #e2e2e2;background:#fafafa}
+.home-doc-links a{font-size:14px}.home-doc-links span{color:#888;font-size:13px}
+.home-doc-all summary strong{font-size:17px}
+
+@media(max-width:650px){
+ .home-directory-head{font-size:13px}.home-directory-head th,.home-directory-head td{padding:7px 6px}
+ .home-directory-head tr:first-child th{font-size:18px}.home-directory-head tr:not(:first-child)>th{width:68px;font-size:14px}
+ .home-directory-head td{font-size:13px;line-height:1.7}
+ .home-doc-directory>h2{font-size:20px;padding:11px}.home-doc-group summary strong{font-size:16px}
+ .home-doc-links{justify-content:flex-start;padding:10px 12px 14px;gap:6px 10px}
+}
