@@ -24,3 +24,17 @@
   .mobile-users{display:flex;width:100%;justify-content:flex-end;gap:18px;border-top:1px solid #ffffff35;padding-top:9px}
   .mobile-users a{color:#fff;font-weight:700}
 }
+
+
+/* Mobile wiki navigation and document readability */
+.mobile-nav{display:none}
+@media(max-width:950px){
+  .mobile-nav{display:flex;width:100%;gap:10px;overflow-x:auto;padding:8px 0 2px;white-space:nowrap}
+  .mobile-nav a{color:#fff;font-weight:700;padding:7px 10px;border:1px solid #ffffff45;border-radius:8px}
+  .wiki-body{font-size:16px;line-height:1.8;overflow-wrap:anywhere;word-break:keep-all}
+  .document{width:100%;min-width:0}
+  .doc-title{align-items:flex-start;flex-direction:column}
+  .doc-tools{width:100%;overflow-x:auto;padding-bottom:5px}
+  .portal{display:block;overflow-x:auto;white-space:nowrap}
+  .content{width:100%;min-width:0;padding:16px 14px 45px}
+}
