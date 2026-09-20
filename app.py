@@ -27,32 +27,54 @@ MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
 TIMETABLE_CACHE = {}
 
 def get_nongok_timetable(grade, class_num):
-    key = (grade, class_num)
+    """Fetch the selected class timetable from Comcigan, cached briefly."""
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    # comci: date_index=1 is this week, 2 is next week.
+    date_index = 2 if today.weekday() == 6 else 1
+    key = (grade, class_num, date_index)
     now = time.time()
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["days"], cached["error"], cached["week_label"]
-    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     try:
         from comci import search_schools, get_timetable
-        schools = search_schools("논곡중학교")
-        school = next((x for x in schools if x.get("school_name") == "논곡중학교" and "인천" in str(x.get("region", ""))), None)
+        schools = search_schools("논곡중학교") or []
+        # comci search result keys are region / school_name / school_code.
+        exact = [x for x in schools if x.get("school_name") == "논곡중학교"]
+        school = next((x for x in exact if x.get("region") == "인천"), exact[0] if exact else None)
         if not school:
             raise RuntimeError("컴시간에서 논곡중학교를 찾지 못했습니다.")
-        kwargs = {"grade": grade, "class_num": class_num}
-        if today.weekday() == 6:
-            kwargs["date_index"] = 1
-        table = get_timetable(school["school_code"], **kwargs)
+        table = get_timetable(
+            school["school_code"],
+            grade=grade,
+            class_num=class_num,
+            date_index=date_index,
+        ) or {}
         weekdays = ["월", "화", "수", "목", "금"]
-        days = [{"weekday": d, "classes": table.get(d, [])} for d in weekdays]
+        days = []
+        for d in weekdays:
+            raw_classes = table.get(d, [])
+            classes = []
+            for item in raw_classes:
+                # comci returns lesson objects; show subject only, never teacher names.
+                if isinstance(item, dict):
+                    classes.append(item.get("subject") or item.get("과목") or "")
+                else:
+                    classes.append(str(item) if item is not None else "")
+            days.append({"weekday": d, "classes": classes})
         monday = target - timedelta(days=target.weekday())
         friday = monday + timedelta(days=4)
         label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
         TIMETABLE_CACHE[key] = {"expires": now + 300, "days": days, "error": None, "week_label": label}
     except Exception as e:
-        app.logger.warning("Comcigan timetable fetch failed: %s", e)
-        TIMETABLE_CACHE[key] = {"expires": now + 60, "days": [], "error": "시간표 정보를 불러오지 못했습니다.", "week_label": ""}
+        app.logger.exception("Comcigan timetable fetch failed")
+        TIMETABLE_CACHE[key] = {
+            "expires": now + 30,
+            "days": [],
+            "error": "시간표 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            "week_label": "",
+        }
     c = TIMETABLE_CACHE[key]
     return c["days"], c["error"], c["week_label"]
 
