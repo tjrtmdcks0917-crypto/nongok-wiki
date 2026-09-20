@@ -278,3 +278,5 @@
  .facility-wing-map th{width:67px;font-size:12px}
  .facility-wing-map .facility-wing-note{width:68px;font-size:9px}
 }
+
+.facility-room:hover{text-decoration:none;background:#f5f7ff;border-color:#aeb5e5}
