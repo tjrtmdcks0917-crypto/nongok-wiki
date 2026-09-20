@@ -14,7 +14,7 @@
 <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='nongok-favicon.svg', v='1') }}"></head>
 <body>
 <header class="top"><div class="top-inner">
-<a class="logo nongok-logo-link" href="{{ url_for('index') }}"><img class="nongok-header-logo" src="{{ url_for('static', filename='nongok-logo.svg', v='7') }}" alt="NONGOK"></a>
+<a class="logo nongok-logo-link" href="{{ url_for('index') }}"><img class="nongok-header-logo" src="{{ url_for('static', filename='nongok-logo.svg', v='8') }}" alt="NONGOK"></a>
 <nav class="menus"><a href="{{ url_for('index') }}">☰ 목록</a><a href="{{ url_for('all_pages') }}">▤ 모든 문서</a><a href="{{ url_for('chat') }}">💬 실시간 소통</a><a href="{{ url_for('wiki',title='학교생활') }}">◆ 학교생활</a><a href="{{ url_for('wiki',title='기타 도구') }}">▣ 기타 도구</a></nav>
 <form class="search" action="{{ url_for('search') }}"><input name="q" value="{{ request.args.get('q','') }}" placeholder="검색"><button>⌕</button></form>
 <nav class="users">{% if current_user %}{% if current_user.role=='admin' %}<a href="{{url_for('admin')}}">관리</a>{% endif %}<a href="{{url_for('new_page')}}">＋</a><a href="{{url_for('logout')}}">로그아웃</a>{% else %}<a href="{{url_for('login')}}">로그인</a><a href="{{url_for('register')}}">회원가입</a>{% endif %}</nav>
