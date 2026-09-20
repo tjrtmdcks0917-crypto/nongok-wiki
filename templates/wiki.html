@@ -19,6 +19,16 @@
   {% else %}<p>이번 주에 등록된 급식이 없습니다.</p>{% endif %}
 </section>
 {% endif %}
+{% if page.title == '학교생활' %}
+<section class="schoollife-gallery-link">
+  <div>
+    <h2>논곡갤러리</h2>
+    <p>학교생활과 관련된 게시물과 사진을 올리고 댓글로 소통할 수 있는 공간입니다. 익명 게시판이 아니며 작성자의 로그인 계정명이 공개됩니다.</p>
+  </div>
+  <a href="{{url_for('gallery')}}">논곡갤러리 들어가기 →</a>
+</section>
+{% endif %}
+
 {% if page.title == '시간표' %}
 <section class="timetable-live">
   <div class="meal-live-head"><h2>논곡중학교 시간표</h2><span>컴시간알리미 실시간 · {{ timetable_week }}</span></div>
