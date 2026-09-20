@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     username VARCHAR(24) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    real_name VARCHAR(30),
+    student_no VARCHAR(6),
     role VARCHAR(16) NOT NULL DEFAULT 'user',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -161,8 +163,23 @@ def init_db():
             for statement in SCHEMA.split(";"):
                 if statement.strip():
                     conn.execute(statement)
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS real_name VARCHAR(30)")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS student_no VARCHAR(6)")
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
+                "ON users(student_no) WHERE student_no IS NOT NULL"
+            )
         else:
             conn.executescript(_sqlite_schema())
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+            if "real_name" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN real_name VARCHAR(30)")
+            if "student_no" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN student_no VARCHAR(6)")
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
+                "ON users(student_no) WHERE student_no IS NOT NULL"
+            )
 
 def query(sql, params=()):
     if not USE_POSTGRES:
