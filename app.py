@@ -699,6 +699,123 @@ def all_pages():
     )
     return render_template("all_pages.html", pages=pages, page=page, total_pages=total_pages, total=total)
 
+@app.route("/polls")
+def polls():
+    poll_rows = query(
+        """SELECT p.id, p.question, p.is_open, p.created_at,
+                  u.username AS creator
+           FROM polls p
+           LEFT JOIN users u ON u.id=p.created_by
+           ORDER BY p.is_open DESC, p.created_at DESC, p.id DESC"""
+    )
+    user = current_user()
+    cards = []
+    for poll in poll_rows:
+        options = query(
+            """SELECT o.id, o.option_text, o.sort_order, COUNT(v.id) AS votes
+               FROM poll_options o
+               LEFT JOIN poll_votes v ON v.option_id=o.id
+               WHERE o.poll_id=%s
+               GROUP BY o.id, o.option_text, o.sort_order
+               ORDER BY o.sort_order ASC, o.id ASC""",
+            (poll["id"],),
+        )
+        total = sum(int(option["votes"] or 0) for option in options)
+        voted_option = None
+        if user:
+            voted = query(
+                "SELECT option_id FROM poll_votes WHERE poll_id=%s AND user_id=%s",
+                (poll["id"], user["id"]),
+            )
+            if voted:
+                voted_option = voted[0]["option_id"]
+        for option in options:
+            count = int(option["votes"] or 0)
+            option["percent"] = round((count * 100 / total), 1) if total else 0
+        poll["options"] = options
+        poll["total_votes"] = total
+        poll["voted_option"] = voted_option
+        cards.append(poll)
+    return render_template("polls.html", polls=cards)
+
+@app.route("/polls/create", methods=["POST"])
+@require_admin
+def poll_create():
+    check_csrf()
+    question = request.form.get("question", "").strip()
+    raw_options = request.form.get("options", "")
+    options = [line.strip() for line in raw_options.splitlines() if line.strip()]
+    options = list(dict.fromkeys(options))
+
+    if not question or len(question) > 200:
+        flash("투표 질문은 1~200자로 입력해 주세요.", "warning")
+        return redirect(url_for("polls"))
+    if len(options) < 2 or len(options) > 10:
+        flash("선택지는 2개 이상 10개 이하로 입력해 주세요.", "warning")
+        return redirect(url_for("polls"))
+    if any(len(option) > 120 for option in options):
+        flash("각 선택지는 120자 이하로 입력해 주세요.", "warning")
+        return redirect(url_for("polls"))
+
+    user = current_user()
+    execute(
+        "INSERT INTO polls(question, created_by, is_open, created_at) VALUES (%s,%s,TRUE,CURRENT_TIMESTAMP)",
+        (question, user["id"]),
+    )
+    poll_id = query(
+        "SELECT id FROM polls WHERE created_by=%s AND question=%s ORDER BY id DESC LIMIT 1",
+        (user["id"], question),
+    )[0]["id"]
+    for index, option in enumerate(options):
+        execute(
+            "INSERT INTO poll_options(poll_id, option_text, sort_order) VALUES (%s,%s,%s)",
+            (poll_id, option, index),
+        )
+    flash("투표를 만들었습니다.", "success")
+    return redirect(url_for("polls"))
+
+@app.route("/polls/<int:poll_id>/vote", methods=["POST"])
+@require_login
+def poll_vote(poll_id):
+    check_csrf()
+    poll_rows = query("SELECT id, is_open FROM polls WHERE id=%s", (poll_id,))
+    if not poll_rows:
+        abort(404)
+    if not poll_rows[0]["is_open"]:
+        flash("종료된 투표입니다.", "warning")
+        return redirect(url_for("polls"))
+
+    user = current_user()
+    if query("SELECT id FROM poll_votes WHERE poll_id=%s AND user_id=%s", (poll_id, user["id"])):
+        flash("이 투표에는 이미 참여했습니다.", "warning")
+        return redirect(url_for("polls"))
+
+    try:
+        option_id = int(request.form.get("option_id", "0"))
+    except ValueError:
+        option_id = 0
+    valid = query("SELECT id FROM poll_options WHERE id=%s AND poll_id=%s", (option_id, poll_id))
+    if not valid:
+        flash("선택지를 골라 주세요.", "warning")
+        return redirect(url_for("polls"))
+
+    execute(
+        "INSERT INTO poll_votes(poll_id, option_id, user_id, created_at) VALUES (%s,%s,%s,CURRENT_TIMESTAMP)",
+        (poll_id, option_id, user["id"]),
+    )
+    flash("투표가 반영되었습니다.", "success")
+    return redirect(url_for("polls"))
+
+@app.route("/polls/<int:poll_id>/toggle", methods=["POST"])
+@require_admin
+def poll_toggle(poll_id):
+    check_csrf()
+    rows = query("SELECT is_open FROM polls WHERE id=%s", (poll_id,))
+    if not rows:
+        abort(404)
+    execute("UPDATE polls SET is_open=%s WHERE id=%s", (not bool(rows[0]["is_open"]), poll_id))
+    return redirect(url_for("polls"))
+
 @app.route("/chat")
 def chat():
     return render_template("chat.html")
