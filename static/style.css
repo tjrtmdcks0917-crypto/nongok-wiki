@@ -366,3 +366,20 @@
   .daily-visitor-panel{margin-top:18px;padding:18px 14px 20px}
   .daily-visitor-head{align-items:flex-start}.daily-visitor-head h2{font-size:18px}.daily-visitor-head>strong{font-size:24px}
 }
+
+
+/* Homepage operators */
+.home-operators{margin:34px 0 8px}
+.home-operators table{width:100%;border-collapse:collapse;background:#fff;border:2px solid #8e8e8e;text-align:center}
+.home-operators th,.home-operators td{border:1px solid #d5d7d9;padding:10px 14px}
+.home-operators thead th{font-size:21px;font-weight:800;padding:8px 12px}
+.home-operators tbody th{width:20%;font-size:16px;font-weight:500;background:#fff}
+.home-operators tbody td{font-size:16px;color:#4a5ed5}
+.home-operators .operator-sep{color:#777;padding:0 6px}
+@media(max-width:650px){
+  .home-operators{margin-top:26px}
+  .home-operators th,.home-operators td{padding:9px 8px}
+  .home-operators thead th{font-size:18px}
+  .home-operators tbody th{width:34%;font-size:14px}
+  .home-operators tbody td{font-size:14px}
+}

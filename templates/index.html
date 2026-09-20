@@ -192,4 +192,17 @@ function toggleHomeDocs(button){
 {% endif %}
 <h2 class="section" id="feedback">3. 피드백 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='feedback')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections.feedback|e|replace('\n', '<br>'|safe) }}</div>
 <h2 class="section" id="supporters">4. 후원자 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='supporters')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections.supporters|e|replace('\n', '<br>'|safe) }}</div>
+
+<section class="home-operators">
+  <table>
+    <thead>
+      <tr><th colspan="2">논곡위키의 운영자</th></tr>
+    </thead>
+    <tbody>
+      <tr><th>시스템/개발</th><td>석승찬</td></tr>
+      <tr><th>서버/기획</th><td>석승찬</td></tr>
+      <tr><th>디자인</th><td>김현우 <span class="operator-sep">|</span> 석승찬</td></tr>
+    </tbody>
+  </table>
+</section>
 </article>{% endblock %}
