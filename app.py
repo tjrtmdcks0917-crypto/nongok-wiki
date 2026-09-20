@@ -66,16 +66,40 @@ def get_nongok_timetable(grade, class_num):
             "source": "comcigan",
         }
         url = "https://api.timefor.school/timetable?" + urlencode(params)
-        req = Request(url, headers={
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json",
-        })
-        with urlopen(req, timeout=12) as response:
-            data = json.loads(response.read().decode("utf-8"))
+
+        data = None
+        last_error = None
+        for attempt in range(1, 4):
+            try:
+                req = Request(url, headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "application/json",
+                })
+                with urlopen(req, timeout=12) as response:
+                    candidate = json.loads(response.read().decode("utf-8"))
+
+                candidate_days = candidate.get("timetable")
+                if not isinstance(candidate_days, list) or not candidate_days:
+                    raise RuntimeError("컴시간 시간표 응답이 비어 있습니다.")
+
+                data = candidate
+                break
+            except Exception as retry_error:
+                last_error = retry_error
+                app.logger.warning(
+                    "Comcigan timetable attempt %s/3 failed grade=%s class=%s: %s",
+                    attempt,
+                    grade,
+                    class_num,
+                    retry_error,
+                )
+                if attempt < 3:
+                    time.sleep(0.5 * attempt)
+
+        if data is None:
+            raise RuntimeError(f"컴시간 조회 3회 실패: {last_error}")
 
         raw_days = data.get("timetable")
-        if not isinstance(raw_days, list) or not raw_days:
-            raise RuntimeError("컴시간 시간표 응답이 비어 있습니다.")
 
         day_time = [str(x).strip() for x in (data.get("day_time") or [])[:8]]
         weekdays = ["월", "화", "수", "목", "금"]
@@ -137,7 +161,7 @@ def get_nongok_timetable(grade, class_num):
         TIMETABLE_CACHE[key] = {
             "expires": now + 30,
             "days": [],
-            "error": "정보없음",
+            "error": "3번 조회했지만 시간표 정보를 불러오지 못했습니다.",
             "week_label": week_label,
             "debug": f"{type(e).__name__}: {e}"[:900],
         }
