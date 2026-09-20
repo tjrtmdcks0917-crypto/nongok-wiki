@@ -531,7 +531,11 @@ def robots_txt():
 @app.route("/sitemap.xml")
 def sitemap_xml():
     pages = query("SELECT title, updated_at FROM wiki_pages WHERE deleted=FALSE ORDER BY updated_at DESC")
-    urls = ['<url><loc>https://nongok-wiki.onrender.com/</loc></url>']
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+    urls = [
+        f"<url><loc>https://nongok-wiki.onrender.com/</loc><lastmod>{today}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>",
+        "<url><loc>https://nongok-wiki.onrender.com/all-pages</loc><changefreq>daily</changefreq><priority>0.8</priority></url>",
+    ]
     from urllib.parse import quote
     for page in pages:
         loc = "https://nongok-wiki.onrender.com/wiki/" + quote(page["title"], safe="")
