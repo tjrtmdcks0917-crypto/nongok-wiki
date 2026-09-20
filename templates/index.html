@@ -183,15 +183,15 @@ function toggleHomeDocs(button){
 }
 </script>
 <div class="toc"><b>목차</b><a href="#notice">1. 유의사항</a><a href="#news">2. 공지사항</a><a href="#feedback">3. 피드백</a><a href="#supporters">4. 후원자</a></div>
-<h2 class="section" id="notice">1. 유의사항 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='notice')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections.notice|e|replace('\n', '<br>'|safe) }}</div>
+<h2 class="section" id="notice">1. 유의사항 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='notice')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.notice|safe }}</div>
 <h2 class="section" id="news">2. 공지사항 {% if site_notice_active %}<span class="notice-new-chip">NEW</span>{% endif %} {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='news')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2>
 {% if site_notice_active %}
-<div class="homepage-admin-notice fresh">{{ site_notice|e|replace('\n', '<br>'|safe) }}</div>
+<div class="homepage-admin-notice fresh">{{ site_notice_html|safe }}</div>
 {% elif current_user and current_user.role=='admin' %}
 <div class="homepage-admin-notice expired">현재 공개 중인 공지가 없습니다. 새 공지를 저장하면 48시간 동안 표시됩니다.</div>
 {% endif %}
-<h2 class="section" id="feedback">3. 피드백 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='feedback')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections.feedback|e|replace('\n', '<br>'|safe) }}</div>
-<h2 class="section" id="supporters">4. 후원자 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='supporters')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections.supporters|e|replace('\n', '<br>'|safe) }}</div>
+<h2 class="section" id="feedback">3. 피드백 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='feedback')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.feedback|safe }}</div>
+<h2 class="section" id="supporters">4. 후원자 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='supporters')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.supporters|safe }}</div>
 
 <section class="home-operators">
   <table>
@@ -199,9 +199,9 @@ function toggleHomeDocs(button){
       <tr><th colspan="2">논곡위키의 운영자</th></tr>
     </thead>
     <tbody>
-      <tr><th>시스템/개발</th><td>석승찬</td></tr>
-      <tr><th>서버/기획</th><td>김현우 <span class="operator-sep">|</span> 석승찬</td></tr>
-      <tr><th>디자인</th><td>김현우 <span class="operator-sep">|</span> 석승찬</td></tr>
+      <tr><th>시스템/개발</th><td><a class="person-mention" href="{{url_for('person_mentions',name='석승찬')}}">석승찬</a></td></tr>
+      <tr><th>서버/기획</th><td><a class="person-mention" href="{{url_for('person_mentions',name='김현우')}}">김현우</a> <span class="operator-sep">|</span> <a class="person-mention" href="{{url_for('person_mentions',name='석승찬')}}">석승찬</a></td></tr>
+      <tr><th>디자인</th><td><a class="person-mention" href="{{url_for('person_mentions',name='김현우')}}">김현우</a> <span class="operator-sep">|</span> <a class="person-mention" href="{{url_for('person_mentions',name='석승찬')}}">석승찬</a></td></tr>
     </tbody>
   </table>
 </section>

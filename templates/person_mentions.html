@@ -17,12 +17,12 @@
   <h2 class="section">관련 문서 <span class="person-index-count">{{pages|length}}</span></h2>
   <div class="person-document-list">
     {% for page in pages %}
-    <a class="person-document-card" href="{{url_for('wiki',title=page.title)}}">
+    <a class="person-document-card" href="{{page.url}}">
       <div>
         <b>{{page.title}}</b>
         <span>{{page.snippet}}</span>
       </div>
-      <small>조회 {{page.views}}</small>
+      <small>{% if page.is_home %}대문{% else %}조회 {{page.views}}{% endif %}</small>
     </a>
     {% else %}
     <div class="person-index-empty">아직 이 이름이 언급된 문서가 없습니다.</div>

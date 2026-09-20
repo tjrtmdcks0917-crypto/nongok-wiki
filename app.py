@@ -477,6 +477,7 @@ def inject():
         and datetime.now(timezone.utc) - notice_dt <= timedelta(hours=48)
     )
     site_notice = notice_content if site_notice_active else ""
+    site_notice_html = _link_person_names(str(escape(site_notice))).replace("\n", "<br>") if site_notice else ""
     site_notice_new = site_notice_active
 
     now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
@@ -514,6 +515,7 @@ def inject():
         "global_gallery_popular": gallery_popular,
         "gallery_unread": gallery_unread,
         "site_notice": site_notice,
+        "site_notice_html": site_notice_html,
         "site_notice_active": site_notice_active,
         "site_notice_new": site_notice_new,
         "site_notice_updated_at": notice_updated_at,
@@ -565,12 +567,14 @@ PERSON_NAME_STOPWORDS = {
     "회장", "부회장", "운영자", "개발자", "디자이너", "도움말", "연습장", "시간표",
     "동아리", "학교생활", "공지사항", "편집지침", "운영방침", "개인정보",
 }
+HOME_OPERATOR_NAMES = {"석승찬", "김현우"}
 
 
 def _known_person_names():
-    """Find names that are explicitly used as people in public wiki documents."""
+    """Find names explicitly used as people in wiki documents or on the homepage."""
     rows = query("SELECT title, content FROM wiki_pages WHERE deleted=FALSE")
-    names = set()
+    homepage_rows = query("SELECT content FROM homepage_sections")
+    names = set(HOME_OPERATOR_NAMES)
     role_pattern = "|".join(map(re.escape, PERSON_ROLE_WORDS))
 
     for row in rows:
@@ -584,6 +588,18 @@ def _known_person_names():
                     names.add(candidate)
 
         # Also learn names that are directly paired with a person-role in document text.
+        patterns = (
+            rf"(?<![가-힣])([가-힣]{{2,4}})(?![가-힣])\s*(?:{role_pattern})",
+            rf"(?:{role_pattern})\s*(?<![가-힣])([가-힣]{{2,4}})(?![가-힣])",
+        )
+        for pattern in patterns:
+            for candidate in re.findall(pattern, content):
+                if candidate not in PERSON_NAME_STOPWORDS:
+                    names.add(candidate)
+
+    # Editable homepage sections can also contain person mentions.
+    for row in homepage_rows:
+        content = str(row.get("content") or "")
         patterns = (
             rf"(?<![가-힣])([가-힣]{{2,4}})(?![가-힣])\s*(?:{role_pattern})",
             rf"(?:{role_pattern})\s*(?<![가-힣])([가-힣]{{2,4}})(?![가-힣])",
@@ -1000,6 +1016,10 @@ def index():
     rows = query("SELECT section_key, content FROM homepage_sections")
     sections = defaults.copy()
     sections.update({row["section_key"]: row["content"] for row in rows})
+    sections_html = {
+        key: _link_person_names(str(escape(value))).replace("\n", "<br>")
+        for key, value in sections.items()
+    }
 
     homepage_pages = query(
         "SELECT title FROM wiki_pages WHERE deleted=FALSE ORDER BY title ASC"
@@ -1044,6 +1064,7 @@ def index():
         recent=recent,
         popular=popular,
         sections=sections,
+        sections_html=sections_html,
         document_groups=document_groups,
         facility_floors=[
             {
@@ -1157,7 +1178,32 @@ def person_mentions(name):
         else:
             snippet = "문서 제목에 이 이름이 포함되어 있습니다."
         row["snippet"] = snippet
+        row["url"] = url_for("wiki", title=row["title"])
+        row["is_home"] = False
         pages.append(row)
+
+    homepage_rows = query("SELECT content FROM homepage_sections ORDER BY section_key")
+    homepage_text = " ".join(str(row.get("content") or "") for row in homepage_rows)
+    if name in HOME_OPERATOR_NAMES:
+        homepage_text = (homepage_text + " 논곡위키 운영자 " + " ".join(sorted(HOME_OPERATOR_NAMES))).strip()
+
+    home_compact = re.sub(r"\s+", " ", homepage_text)
+    home_pos = home_compact.lower().find(name.lower())
+    if home_pos >= 0:
+        start = max(0, home_pos - 65)
+        end = min(len(home_compact), home_pos + len(name) + 95)
+        home_snippet = home_compact[start:end]
+        if start > 0:
+            home_snippet = "…" + home_snippet
+        if end < len(home_compact):
+            home_snippet += "…"
+        pages.insert(0, {
+            "title": "논곡위키:대문",
+            "snippet": home_snippet,
+            "views": 0,
+            "url": url_for("index"),
+            "is_home": True,
+        })
 
     return render_template(
         "person_mentions.html",
