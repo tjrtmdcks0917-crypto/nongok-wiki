@@ -581,4 +581,3 @@
 /* Graduate registration */
 .graduate-check{display:flex!important;align-items:center;gap:8px;margin-top:14px;font-weight:700}
 .graduate-check input{width:auto!important;margin:0!important}
-.graduate-disabled-field{opacity:.45}

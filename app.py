@@ -564,7 +564,10 @@ def inject():
         "current_user": user,
         "csrf": session.get("csrf"),
         "can_create_school_posts": bool(
-            user and not user.get("is_graduate") and user.get("school_name") == "논곡중학교"
+            user and (
+                user.get("is_graduate")
+                or user.get("school_name") == "논곡중학교"
+            )
         ),
         "can_open_admin": role_at_least(user, "moderator"),
         "can_manage_documents": role_at_least(user, "teacher"),
@@ -598,7 +601,7 @@ def current_user():
         return None
     rows = query(
         "SELECT id, username, real_name, student_no, school_name, profile_name, profile_bio, "
-        "profile_status, profile_color, profile_emoji, role, account_status, is_graduate FROM users WHERE id = %s",
+        "profile_status, profile_color, profile_emoji, role, account_status, is_graduate, graduation_year FROM users WHERE id = %s",
         (uid,),
     )
     g.current_user_value = rows[0] if rows else None
@@ -613,9 +616,10 @@ def require_login(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-ROLE_LEVELS = {"user": 0, "moderator": 1, "teacher": 2, "admin": 3}
+ROLE_LEVELS = {"user": 0, "graduate": 0, "moderator": 1, "teacher": 2, "admin": 3}
 ROLE_LABELS = {
     "user": "일반학생",
+    "graduate": "졸업생",
     "moderator": "학생관리자",
     "teacher": "교사",
     "admin": "최고관리자",
@@ -692,7 +696,7 @@ def can_manage_member(actor, target):
     if actor.get("role") == "admin":
         return target.get("role") != "admin"
     if actor.get("role") == "teacher":
-        return target.get("role") in {"user", "moderator"}
+        return target.get("role") in {"user", "graduate", "moderator"}
     return False
 
 
@@ -2570,8 +2574,8 @@ def gallery():
 def gallery_new():
     check_csrf()
     user = current_user()
-    if user.get("is_graduate") or user.get("school_name") != "논곡중학교":
-        flash("논곡갤러리 게시물 작성은 현재 논곡중학교 재학생만 할 수 있습니다.", "warning")
+    if not user.get("is_graduate") and user.get("school_name") != "논곡중학교":
+        flash("논곡갤러리 게시물 작성은 논곡중학교 재학생 또는 졸업생만 할 수 있습니다.", "warning")
         return redirect(url_for("gallery"))
 
     title = request.form.get("title", "").strip()
@@ -2841,19 +2845,29 @@ def register():
         is_graduate = request.form.get("is_graduate") == "1"
         student_no = request.form.get("student_no", "").strip()
         school_name = request.form.get("school_name", "").strip()
+        graduation_year_raw = request.form.get("graduation_year", "").strip()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
         if not re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", real_name):
             flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
             return redirect(url_for("register"))
+        graduation_year = None
         if is_graduate:
-            student_no = None
-            if school_name and len(school_name) > 80:
-                flash("현재 소속 학교 이름은 80자 이하로 입력해 주세요.", "warning")
+            if not re.fullmatch(r"3\d{4}", student_no):
+                flash("졸업 당시 3학년 학번을 5자리로 입력해 주세요. 예: 30101", "warning")
                 return redirect(url_for("register"))
-            if not school_name:
-                school_name = "논곡중학교 졸업생"
+            try:
+                graduation_year = int(graduation_year_raw)
+            except ValueError:
+                graduation_year = 0
+            current_year = datetime.now(ZoneInfo("Asia/Seoul")).year
+            if graduation_year < 1950 or graduation_year > current_year:
+                flash("졸업 연도를 정확히 입력해 주세요.", "warning")
+                return redirect(url_for("register"))
+            if len(school_name) < 2 or len(school_name) > 80:
+                flash("현재 재학 중인 고등학교 이름을 정확히 입력해 주세요.", "warning")
+                return redirect(url_for("register"))
         else:
             if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
                 flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
@@ -2870,19 +2884,39 @@ def register():
         if query("SELECT id FROM users WHERE username=%s", (username,)):
             flash("이미 사용 중인 아이디입니다.", "warning")
             return redirect(url_for("register"))
-        if student_no:
-            legacy_student_no = student_no[0] + "0" + student_no[1:]
+        legacy_student_no = student_no[0] + "0" + student_no[1:]
+        if is_graduate:
             if query(
-                "SELECT id FROM users WHERE student_no IN (%s,%s)",
+                """SELECT id FROM users
+                   WHERE is_graduate=TRUE AND graduation_year=%s
+                     AND student_no IN (%s,%s)""",
+                (graduation_year, student_no, legacy_student_no),
+            ):
+                flash("같은 졸업 연도와 학번으로 가입된 계정이 이미 있습니다.", "warning")
+                return redirect(url_for("register"))
+        else:
+            if query(
+                """SELECT id FROM users
+                   WHERE is_graduate=FALSE AND student_no IN (%s,%s)""",
                 (student_no, legacy_student_no),
             ):
                 flash("이미 가입에 사용된 학번입니다.", "warning")
                 return redirect(url_for("register"))
 
+        account_role = "graduate" if is_graduate else "user"
         execute(
-            """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,account_status,is_graduate,created_at)
-               VALUES (%s,%s,%s,%s,%s,'user','approved',%s,CURRENT_TIMESTAMP)""",
-            (username, generate_password_hash(password), real_name, student_no, school_name, is_graduate),
+            """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,account_status,is_graduate,graduation_year,created_at)
+               VALUES (%s,%s,%s,%s,%s,%s,'approved',%s,%s,CURRENT_TIMESTAMP)""",
+            (
+                username,
+                generate_password_hash(password),
+                real_name,
+                student_no,
+                school_name,
+                account_role,
+                is_graduate,
+                graduation_year,
+            ),
         )
         flash("회원가입이 완료되었습니다. 바로 로그인하실 수 있습니다.", "success")
         return redirect(url_for("login"))
@@ -2995,7 +3029,7 @@ def _admin_page_data(member_q=""):
     )
     if member_q:
         users = query(
-            """SELECT id, username, real_name, student_no, school_name, role, account_status, is_graduate, created_at
+            """SELECT id, username, real_name, student_no, school_name, role, account_status, is_graduate, graduation_year, created_at
                FROM users
                WHERE COALESCE(real_name, '') ILIKE %s
                ORDER BY real_name ASC, created_at DESC
@@ -3081,14 +3115,16 @@ def admin_reset_password(user_id):
 def admin_user_role(user_id):
     check_csrf()
     new_role = request.form.get("role", "").strip()
-    if new_role not in {"user", "moderator", "teacher"}:
+    if new_role not in {"user", "graduate", "moderator", "teacher"}:
         abort(400)
-    rows = query("SELECT id, username, role FROM users WHERE id=%s", (user_id,))
+    rows = query("SELECT id, username, role, is_graduate FROM users WHERE id=%s", (user_id,))
     if not rows:
         abort(404)
     target = rows[0]
     if target["role"] == "admin":
         abort(403)
+    if new_role == "graduate" and not target.get("is_graduate"):
+        abort(400)
     old_role = target["role"]
     execute("UPDATE users SET role=%s WHERE id=%s", (new_role, user_id))
     log_admin_action(
