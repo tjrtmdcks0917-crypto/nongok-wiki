@@ -26,6 +26,32 @@ RATE_MAX = 60
 MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
 TIMETABLE_CACHE = {}
 
+def get_comcigan_class_timetable(grade, class_num, target):
+    """Best-effort Comcigan data for exact subject names and masked teacher names."""
+    try:
+        from comci import get_timetable
+
+        raw_code = os.environ.get("COMCI_SCHOOL_CODE", "21009")
+        digits = "".join(ch for ch in str(raw_code) if ch.isdigit())
+        if not digits:
+            raise RuntimeError("컴시간 학교 코드가 올바르지 않습니다.")
+
+        return get_timetable(
+            int(digits),
+            grade=grade,
+            class_num=class_num,
+            on=target,
+        ) or {}
+    except Exception as e:
+        app.logger.warning(
+            "Comcigan enrichment failed grade=%s class=%s: %s",
+            grade,
+            class_num,
+            e,
+        )
+        return {}
+
+
 def get_nongok_timetable(grade, class_num):
     """Fetch weekly timetable from NEIS using the same HTTP pattern as meals."""
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
@@ -85,14 +111,28 @@ def get_nongok_timetable(grade, class_num):
             if not ymd:
                 continue
             perio = int(row.get("PERIO", 0) or 0)
-            subject = row.get("ITRT_CNTNT", "").strip().replace("기술가정", "기술 / 가정").replace("기술.가정", "기술 / 가정").replace("기술·가정", "기술 / 가정").replace("기술ㆍ가정", "기술 / 가정")
+            subject = row.get("ITRT_CNTNT", "").strip()
             by_date.setdefault(ymd, {})[perio] = subject
         weekdays = ["월", "화", "수", "목", "금"]
+        comcigan = get_comcigan_class_timetable(grade, class_num, target)
         days = []
         for n, weekday in enumerate(weekdays):
             d = monday + timedelta(days=n)
             periods = by_date.get(d.strftime("%Y%m%d"), {})
-            classes = [periods.get(p, "") for p in range(1, max(periods.keys(), default=0) + 1)]
+            comci_periods = comcigan.get(weekday, []) if isinstance(comcigan, dict) else []
+            period_count = max(max(periods.keys(), default=0), len(comci_periods))
+            classes = []
+            for p in range(1, period_count + 1):
+                item = comci_periods[p - 1] if p - 1 < len(comci_periods) else None
+                if isinstance(item, dict):
+                    subject = (item.get("subject") or periods.get(p, "")).strip()
+                    teacher = (item.get("teacher") or "").strip()
+                    if teacher and "*" not in teacher:
+                        teacher = teacher[0] + "*" if len(teacher) > 1 else "*"
+                else:
+                    subject = periods.get(p, "")
+                    teacher = ""
+                classes.append({"subject": subject, "teacher": teacher})
             days.append({"weekday": weekday, "date": d, "classes": classes})
         if not any(day["classes"] for day in days):
             app.logger.warning("NEIS timetable returned no rows: %s", data)
