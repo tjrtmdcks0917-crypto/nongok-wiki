@@ -4,7 +4,7 @@ import secrets
 import time
 import json
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
 from urllib.request import urlopen, Request
@@ -707,8 +707,15 @@ def chat_messages():
                     FROM chat_messages c JOIN users u ON u.id=c.user_id
                     WHERE c.id>%s ORDER BY c.id ASC LIMIT 100""", (after,))
     for row in rows:
-        if hasattr(row["created_at"], "isoformat"):
-            row["created_at"] = row["created_at"].isoformat()
+        created_at = row.get("created_at")
+        if isinstance(created_at, datetime):
+            # DB timestamps are stored as UTC without a timezone. Attach UTC,
+            # then return an explicit Korea-time ISO timestamp.
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            row["created_at"] = created_at.astimezone(
+                ZoneInfo("Asia/Seoul")
+            ).isoformat()
     return {"messages": rows}
 
 @app.route("/api/chat/send", methods=["POST"])
@@ -719,7 +726,12 @@ def chat_send():
     if not body or len(body) > 500:
         return {"ok": False, "error": "메시지는 1~500자로 작성해 주세요."}, 400
     user = current_user()
-    execute("INSERT INTO chat_messages(user_id, body, created_at) VALUES (%s,%s,CURRENT_TIMESTAMP)", (user["id"], body))
+    # Store chat timestamps consistently as naive UTC in both PostgreSQL and SQLite.
+    created_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    execute(
+        "INSERT INTO chat_messages(user_id, body, created_at) VALUES (%s,%s,%s)",
+        (user["id"], body, created_utc),
+    )
     return {"ok": True}
 
 @app.route("/search")
