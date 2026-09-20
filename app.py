@@ -65,9 +65,9 @@ def _comcigan_json(text):
     raise RuntimeError("컴시간 응답 JSON을 해석하지 못했습니다.")
 
 
-def _get_comcigan_codes():
-    """Read current internal route/field codes directly from 컴시간학생."""
-    page = _read_url("http://comci.net:4082/st", encoding="euc-kr")
+def _get_comcigan_codes(page_url, base_url):
+    """Read current internal route/field codes directly from a Comcigan student frontend."""
+    page = _read_url(page_url, encoding="euc-kr")
 
     route = re.search(r"\.\/([0-9]+)\?([0-9]+)l", page)
     code0 = re.search(r"sc_data\(['\"]([0-9]+)_", page)
@@ -81,6 +81,7 @@ def _get_comcigan_codes():
         raise RuntimeError("컴시간학생 페이지 구조를 해석하지 못했습니다.")
 
     return {
+        "base": base_url.rstrip("/"),
         "endpoint": route.group(1),
         "search": route.group(2),
         "prefix": code0.group(1),
@@ -94,7 +95,7 @@ def _get_comcigan_codes():
 
 def _find_nongok_comcigan_school(codes):
     encoded = "".join(f"%{b:02X}" for b in "논곡중학교".encode("euc-kr"))
-    url = f"http://comci.net:4082/{codes['endpoint']}?{codes['search']}l{encoded}"
+    url = f"{codes['base']}/{codes['endpoint']}?{codes['search']}l{encoded}"
     payload = _comcigan_json(_read_url(url))
 
     rows = payload.get("학교검색") or []
@@ -118,14 +119,13 @@ def _find_nongok_comcigan_school(codes):
     return int(digits)
 
 
-def _fetch_comcigan_direct(grade, class_num, week):
-    """Fetch directly from Comcigan, matching the maintained client parser."""
-    codes = _get_comcigan_codes()
+def _fetch_comcigan_direct_once(grade, class_num, week, page_url, base_url):
+    codes = _get_comcigan_codes(page_url, base_url)
     school_code = _find_nongok_comcigan_school(codes)
 
     raw_payload = f"{codes['prefix']}_{school_code}_0_{week + 1}"
     route = base64.b64encode(raw_payload.encode("utf-8")).decode("ascii")
-    url = f"http://comci.net:4082/{codes['endpoint']}?{route}"
+    url = f"{codes['base']}/{codes['endpoint']}?{route}"
     raw = _comcigan_json(_read_url(url))
 
     teachers = raw.get(codes["teachers"])
@@ -195,7 +195,47 @@ def _fetch_comcigan_direct(grade, class_num, week):
         "times": [str(x).strip() for x in (raw.get("일과시간") or [])[:8]],
         "start_date": start_date,
         "update_date": str(raw.get(codes["updated"]) or "").strip(),
+        "host": codes["base"],
     }
+
+
+def _fetch_comcigan_direct(grade, class_num, week):
+    """Try the public student domain first, then the legacy :4082 hosts."""
+    candidates = [
+        ("http://xn--s39aj90b0nb2xw6xh.kr/", "http://xn--s39aj90b0nb2xw6xh.kr"),
+        ("http://www.xn--s39aj90b0nb2xw6xh.kr/", "http://www.xn--s39aj90b0nb2xw6xh.kr"),
+        ("http://comci.net:4082/st", "http://comci.net:4082"),
+        ("http://comci.kr:4082/st", "http://comci.kr:4082"),
+    ]
+    errors = []
+    for page_url, base_url in candidates:
+        try:
+            return _fetch_comcigan_direct_once(
+                grade, class_num, week, page_url, base_url
+            )
+        except Exception as e:
+            errors.append(f"{base_url}: {type(e).__name__}: {e}")
+            app.logger.warning("Comcigan host failed %s: %s", base_url, e)
+
+    raise RuntimeError(" | ".join(errors[-4:]))
+
+
+def _friendly_comcigan_error(error):
+    text = str(error or "")
+    lower = text.lower()
+    if "timed out" in lower or "timeout" in lower:
+        return "컴시간 서버 연결 시간이 초과됐습니다."
+    if "connection refused" in lower:
+        return "컴시간 서버가 Render의 연결을 거부했습니다."
+    if "name or service not known" in lower or "temporary failure in name resolution" in lower:
+        return "컴시간 서버 주소를 찾지 못했습니다."
+    if "403" in text:
+        return "컴시간 서버가 외부 서버 요청을 차단했습니다."
+    if "502" in text:
+        return "컴시간 서버 연결 과정에서 502 오류가 발생했습니다."
+    if "페이지 구조" in text:
+        return "컴시간학생 페이지 구조가 현재 파서와 달라졌습니다."
+    return "컴시간 서버에 직접 연결하지 못했습니다."
 
 
 def get_nongok_timetable(grade, class_num):
@@ -207,7 +247,7 @@ def get_nongok_timetable(grade, class_num):
     friday = monday + timedelta(days=4)
     week_label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
 
-    key = ("comcigan-direct-v3", grade, class_num, week, monday.isoformat())
+    key = ("comcigan-direct-v4", grade, class_num, week, monday.isoformat())
     now = time.time()
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
@@ -232,7 +272,7 @@ def get_nongok_timetable(grade, class_num):
         TIMETABLE_CACHE[key] = {
             "expires": now + 30,
             "days": [],
-            "error": "3번 조회했지만 시간표 정보를 불러오지 못했습니다.",
+            "error": "3번 조회 실패: " + _friendly_comcigan_error(last_error),
             "week_label": week_label,
             "debug": f"{type(last_error).__name__}: {last_error}"[:900] if last_error else "unknown",
         }
@@ -260,7 +300,8 @@ def get_nongok_timetable(grade, class_num):
         "error": None,
         "week_label": week_label,
         "debug": {
-            "source": "direct comci.net:4082",
+            "source": "direct comcigan",
+            "host": live.get("host"),
             "update_date": live.get("update_date"),
         },
     }
@@ -583,7 +624,7 @@ def timetable_debug():
     week = 1 if today.weekday() == 6 else 0
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     monday = target - timedelta(days=target.weekday())
-    cache_item = TIMETABLE_CACHE.get(("comcigan-direct-v3", grade, class_num, week, monday.isoformat()), {})
+    cache_item = TIMETABLE_CACHE.get(("comcigan-direct-v4", grade, class_num, week, monday.isoformat()), {})
 
     return {
         "grade": grade,
