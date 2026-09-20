@@ -57,11 +57,11 @@
 
   {% for group in document_groups %}
   <div class="home-doc-group">
-    <button class="home-doc-toggle" type="button" aria-expanded="false" aria-controls="home-doc-panel-{{loop.index}}" onclick="toggleHomeDocs(this)">
+    <button class="home-doc-toggle" type="button" aria-expanded="{{ 'true' if group.label == '학교 시설 목록' else 'false' }}" aria-controls="home-doc-panel-{{loop.index}}" onclick="toggleHomeDocs(this)">
       <strong>{{group.label}}</strong>
-      <span class="home-doc-control"><span class="arrow">▶</span> [ 펼치기 · 접기 ]</span>
+      <span class="home-doc-control"><span class="arrow">{{ '▼' if group.label == '학교 시설 목록' else '▶' }}</span> [ 펼치기 · 접기 ]</span>
     </button>
-    <div class="home-doc-links{% if group.label == '학교 시설 목록' %} facility-directory{% endif %}" id="home-doc-panel-{{loop.index}}" hidden>
+    <div class="home-doc-links{% if group.label == '학교 시설 목록' %} facility-directory{% endif %}" id="home-doc-panel-{{loop.index}}" {% if group.label != '학교 시설 목록' %}hidden{% endif %}>
       {% if group.label == '학교 시설 목록' %}
         <a class="facility-overview-link" href="{{url_for('wiki',title='학교 시설')}}">학교 시설 전체 안내</a>
         <div class="facility-subgroups">
