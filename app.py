@@ -85,7 +85,7 @@ def get_nongok_timetable(grade, class_num):
             if not ymd:
                 continue
             perio = int(row.get("PERIO", 0) or 0)
-            subject = row.get("ITRT_CNTNT", "").strip().replace("기술가정", "기술·가정")
+            subject = row.get("ITRT_CNTNT", "").strip().replace("기술가정", "기술 / 가정")
             by_date.setdefault(ymd, {})[perio] = subject
         weekdays = ["월", "화", "수", "목", "금"]
         days = []
