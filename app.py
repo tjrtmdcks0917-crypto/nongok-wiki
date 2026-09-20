@@ -212,7 +212,7 @@ def get_nongok_timetable(grade, class_num):
         TIMETABLE_CACHE[key] = {
             "expires": now + 30,
             "days": [],
-            "error": "컴시간알리미 시간표를 불러오지 못했습니다.",
+            "error": "정보없음",
             "week_label": label,
             "debug": f"{type(e).__name__}: {e}"[:700],
         }
