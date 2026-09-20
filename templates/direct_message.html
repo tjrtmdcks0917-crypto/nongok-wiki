@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{target.profile_name or target.username}}님과의 쪽지{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<article class="document social-page dm-thread-page" style="--profile-color:{{target.profile_color or '#87aa43'}}">
+  <div class="dm-thread-head">
+    <a class="profile-avatar" href="{{url_for('user_profile',username=target.username)}}">{{target.profile_emoji or '🙂'}}</a>
+    <div><a href="{{url_for('user_profile',username=target.username)}}"><b>{{target.profile_name or target.username}}</b></a><span>@{{target.username}}</span></div>
+    <a href="{{url_for('messages')}}">대화 목록</a>
+  </div>
+
+  <div class="dm-thread">
+  {% for message in thread %}
+    <div class="dm-bubble-wrap {{'mine' if message.sender_id==current_user.id else 'theirs'}}">
+      <div class="dm-bubble">{{message.body}}</div>
+      <small>{{message.created_text}}</small>
+    </div>
+  {% else %}
+    <p class="social-empty">첫 메시지를 보내 봐.</p>
+  {% endfor %}
+  </div>
+
+  <form method="post" class="dm-compose">
+    <input type="hidden" name="csrf" value="{{csrf}}">
+    <textarea name="body" maxlength="1000" required placeholder="메시지를 입력해 줘."></textarea>
+    <button class="social-btn" type="submit">보내기</button>
+  </form>
+</article>
+{% endblock %}
