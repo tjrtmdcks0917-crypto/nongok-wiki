@@ -557,7 +557,48 @@ def index():
     rows = query("SELECT section_key, content FROM homepage_sections")
     sections = defaults.copy()
     sections.update({row["section_key"]: row["content"] for row in rows})
-    return render_template("index.html", recent=recent, popular=popular, sections=sections)
+
+    homepage_pages = query(
+        "SELECT title FROM wiki_pages WHERE deleted=FALSE ORDER BY title ASC"
+    )
+    titles = [row["title"] for row in homepage_pages]
+
+    category_titles = {
+        "공지": {"도움말", "편집지침", "운영방침", "개인정보처리방침"},
+        "학교 시설 목록": {"학교 시설"},
+        "생활 관련 문서 목록": {"학교생활", "급식", "시간표", "학교 행사", "학생회"},
+        "동아리 목록": {"동아리"},
+    }
+
+    used = set()
+    document_groups = []
+    for label, wanted in category_titles.items():
+        items = [title for title in titles if title in wanted]
+        used.update(items)
+        document_groups.append({"label": label, "items": items})
+
+    # Titles that explicitly look like person-profile pages are grouped separately.
+    person_items = [
+        title for title in titles
+        if title not in used and any(key in title for key in ("인물", "교장", "교감", "선생님"))
+    ]
+    used.update(person_items)
+    document_groups.append({"label": "인물 문서 목록", "items": person_items})
+
+    other_items = [
+        title for title in titles
+        if title not in used and title != "논곡위키:대문"
+    ]
+    document_groups.append({"label": "기타 문서 목록", "items": other_items})
+
+    return render_template(
+        "index.html",
+        recent=recent,
+        popular=popular,
+        sections=sections,
+        document_groups=document_groups,
+        all_document_titles=[title for title in titles if title != "논곡위키:대문"],
+    )
 
 @app.route("/admin/homepage/<section_key>", methods=["GET", "POST"])
 @require_admin
