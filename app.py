@@ -205,6 +205,7 @@ def get_nongok_timetable(grade, class_num):
             by_date.setdefault(ymd, {})[perio] = subject
         weekdays = ["월", "화", "수", "목", "금"]
         comcigan = get_comcigan_class_timetable(grade, class_num, target)
+        timetable_source = "컴시간알리미" if any(comcigan.get(day) for day in weekdays) else "나이스 대체"
         days = []
         for n, weekday in enumerate(weekdays):
             d = monday + timedelta(days=n)
@@ -223,7 +224,7 @@ def get_nongok_timetable(grade, class_num):
                     subject = periods.get(p, "")
                     teacher = ""
                 classes.append({"subject": subject, "teacher": teacher})
-            days.append({"weekday": weekday, "date": d, "classes": classes})
+            days.append({"weekday": weekday, "date": d, "classes": classes, "source": timetable_source})
         if not any(day["classes"] for day in days):
             app.logger.warning("NEIS timetable returned no rows: %s", data)
             raise RuntimeError("NEIS에 해당 학년/반 시간표가 없습니다.")
