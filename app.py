@@ -40,228 +40,185 @@ def _masked_teacher_name(value):
     return name[0] + "*" + name[-1]
 
 
-def _read_url(url, encoding="utf-8", timeout=4):
-    req = Request(url, headers={
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/106 Safari/537.36",
+def _read_url(url, encoding="utf-8", timeout=5, extra_headers=None):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
         "Accept": "*/*",
-    })
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Referer": "http://comci.net:4082/st",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+    req = Request(url, headers=headers)
     with urlopen(req, timeout=timeout) as response:
         return response.read().decode(encoding, errors="replace")
 
 
 def _comcigan_json(text):
     cleaned = text.replace("\x00", "").strip()
-    # Comcigan timetable responses may have extra text after the first JSON line.
-    first_line = cleaned.splitlines()[0] if cleaned else ""
-    candidates = [first_line, cleaned]
-    for candidate in candidates:
-        try:
-            return json.loads(candidate)
-        except Exception:
-            pass
     end = cleaned.rfind("}")
     if end >= 0:
-        return json.loads(cleaned[:end + 1])
-    raise RuntimeError("컴시간 응답 JSON을 해석하지 못했습니다.")
+        cleaned = cleaned[:end + 1]
+    return json.loads(cleaned)
 
 
-def _get_comcigan_codes(page_url, base_url):
-    """Read current internal route/field codes directly from a Comcigan student frontend."""
-    page = _read_url(page_url, encoding="euc-kr")
-
-    route = re.search(r"\.\/([0-9]+)\?([0-9]+)l", page)
-    code0 = re.search(r"sc_data\(['\"]([0-9]+)_", page)
-    code1 = re.search(r"Q성명\(자료\.자료(\d+)", page)
-    code2 = re.search(r"자료\.자료(\d+)\[sb\]", page)
-    code3 = re.search(r"=H시간표\.자료(\d+)", page)
-    code4 = re.search(r"일일자료\s*=\s*Q자료\(자료\.자료(\d+)", page)
-    code5 = re.search(r"원자료\s*=\s*Q자료\(자료\.자료(\d+)", page)
-
-    if not all((route, code0, code1, code2, code3, code4, code5)):
-        raise RuntimeError("컴시간학생 페이지 구조를 해석하지 못했습니다.")
-
-    return {
-        "base": base_url.rstrip("/"),
-        "endpoint": route.group(1),
-        "search": route.group(2),
-        "prefix": code0.group(1),
-        "teachers": "자료" + code1.group(1),
-        "subjects": "자료" + code2.group(1),
-        "updated": "자료" + code3.group(1),
-        "daily": "자료" + code4.group(1),
-        "original": "자료" + code5.group(1),
-    }
+def _comcigan_number(value):
+    raw = str(value or "0").strip()
+    changed = raw.startswith(">")
+    if changed:
+        raw = raw[1:]
+    try:
+        number = int(raw)
+    except ValueError:
+        number = 0
+    return number, changed
 
 
-def _find_nongok_comcigan_school(codes):
-    encoded = "".join(f"%{b:02X}" for b in "논곡중학교".encode("euc-kr"))
-    url = f"{codes['base']}/{codes['endpoint']}?{codes['search']}l{encoded}"
-    payload = _comcigan_json(_read_url(url))
-
-    rows = payload.get("학교검색") or []
-    matches = []
-    for row in rows:
-        if not isinstance(row, list) or len(row) < 4:
-            continue
-        if str(row[2]).strip() != "논곡중학교":
-            continue
-        if str(row[1]).strip() not in ("인천", "인천광역시"):
-            continue
-        matches.append(row)
-
-    if not matches:
-        raise RuntimeError("컴시간에서 논곡중학교를 찾지 못했습니다.")
-
-    raw_code = str(matches[0][3])
-    digits = "".join(ch for ch in raw_code if ch.isdigit())
-    if not digits:
-        raise RuntimeError(f"컴시간 학교 코드 해석 실패: {raw_code!r}")
-    return int(digits)
+def _masked_teacher_name(value):
+    name = str(value or "").strip()
+    if not name:
+        return ""
+    if "*" in name:
+        return name
+    if len(name) <= 1:
+        return "*"
+    if len(name) == 2:
+        return name[0] + "*"
+    return name[0] + "*" + name[-1]
 
 
-def _fetch_comcigan_direct_once(grade, class_num, week, page_url, base_url):
-    codes = _get_comcigan_codes(page_url, base_url)
-    school_code = _find_nongok_comcigan_school(codes)
+def _fetch_comcigan_current_protocol(grade, class_num, target_date):
+    """Direct Comcigan request matching the currently working student-site protocol."""
+    base = "http://comci.net:4082"
+    endpoint = "36179"
+    school_code = "21009"
 
-    raw_payload = f"{codes['prefix']}_{school_code}_0_{week + 1}"
-    route = base64.b64encode(raw_payload.encode("utf-8")).decode("ascii")
-    url = f"{codes['base']}/{codes['endpoint']}?{route}"
-    raw = _comcigan_json(_read_url(url))
+    # The current student-site flow performs this request before loading timetable data.
+    _read_url(f"{base}/{endpoint}?17384l{school_code}", timeout=5)
 
-    teachers = raw.get(codes["teachers"])
-    subjects = raw.get(codes["subjects"])
-    daily_all = raw.get(codes["daily"])
-    original_all = raw.get(codes["original"])
+    now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
+    timestamp = f"{target_date.strftime('%Y-%m-%d')} {now_kst.strftime('%H:%M:%S')}"
+    payload = f"73629_{school_code}_{timestamp}_1"
+    encoded = base64.b64encode(payload.encode("ascii")).decode("ascii")
+    raw = _comcigan_json(_read_url(f"{base}/{endpoint}?{encoded}", timeout=5))
 
-    if not all(isinstance(x, list) for x in (teachers, subjects, daily_all, original_all)):
-        raise RuntimeError("컴시간 응답에 필요한 시간표 필드가 없습니다.")
+    changed_all = raw.get("자료147")
+    base_all = raw.get("자료481")
+    subjects = raw.get("자료492") or []
+    teachers = raw.get("자료446") or []
+
+    if not isinstance(changed_all, list) or not isinstance(base_all, list):
+        raise RuntimeError("컴시간 응답에 시간표 배열이 없습니다.")
 
     try:
-        class_daily = daily_all[grade][class_num]
-        class_original = original_all[grade][class_num]
+        changed_class = changed_all[grade][class_num]
+        base_class = base_all[grade][class_num]
     except (IndexError, TypeError):
         raise RuntimeError("컴시간에 해당 학년/반 시간표가 없습니다.")
 
-    max_day = int(class_original[0] or 0) if class_original else 0
     weekdays = ["월", "화", "수", "목", "금"]
     result = {}
 
-    for day in range(1, 6):
+    for day_index, weekday in enumerate(weekdays, start=1):
+        changed_day = changed_class[day_index] if day_index < len(changed_class) else []
+        base_day = base_class[day_index] if day_index < len(base_class) else []
+
+        changed_has_data = (
+            isinstance(changed_day, list)
+            and len(changed_day) > 1
+            and any(_comcigan_number(v)[0] != 0 for v in changed_day[1:])
+        )
+        day_data = changed_day if changed_has_data else base_day
+
         lessons = []
-        original_day = class_original[day] if day <= max_day and day < len(class_original) else []
-        daily_day = class_daily[day] if day < len(class_daily) else []
-        max_period = int(original_day[0] or 0) if isinstance(original_day, list) and original_day else 0
-        daily_period_count = int(daily_day[0] or 0) if isinstance(daily_day, list) and daily_day else 0
-        periods = max(max_period, daily_period_count, 8)
+        for period in range(1, 9):
+            value = day_data[period] if isinstance(day_data, list) and period < len(day_data) else 0
+            number, marked_changed = _comcigan_number(value)
 
-        for period in range(1, periods + 1):
-            original_value = int(original_day[period] or 0) if isinstance(original_day, list) and period < len(original_day) else 0
-            current_value = int(daily_day[period] or 0) if isinstance(daily_day, list) and period <= daily_period_count and period < len(daily_day) else 0
-
-            if current_value:
-                subject_index = current_value // 1000
-                teacher_index = current_value % 1000
+            if number:
+                subject_index = number // 1000
+                teacher_index = number % 1000
                 subject = str(subjects[subject_index]).strip() if subject_index < len(subjects) else ""
-                teacher = _masked_teacher_name(teachers[teacher_index] if teacher_index < len(teachers) else "")
+                teacher_raw = teachers[teacher_index] if teacher_index < len(teachers) else ""
+                teacher = _masked_teacher_name(teacher_raw)
             else:
                 subject = ""
                 teacher = ""
 
+            base_value = base_day[period] if isinstance(base_day, list) and period < len(base_day) else 0
+            base_number, _ = _comcigan_number(base_value)
+
             lessons.append({
                 "subject": subject,
                 "teacher": teacher,
-                "changed": current_value != original_value,
+                "changed": marked_changed or (number != base_number),
             })
 
-        result[weekdays[day - 1]] = lessons[:8]
+        result[weekday] = lessons
 
     start_text = str(raw.get("시작일") or "").strip()
-    start_date = None
-    if start_text:
-        try:
-            start_date = datetime.strptime(start_text[:10], "%Y-%m-%d").date()
-        except ValueError:
-            start_date = None
-
-    if start_date is None:
-        today = datetime.now(ZoneInfo("Asia/Seoul")).date()
-        target = today + timedelta(days=1) if today.weekday() == 6 else today
-        start_date = target - timedelta(days=target.weekday())
-        if week == 1 and today.weekday() != 6:
-            start_date += timedelta(days=7)
+    try:
+        start_date = datetime.strptime(start_text[:10], "%Y-%m-%d").date()
+    except ValueError:
+        start_date = target_date - timedelta(days=target_date.weekday())
 
     return {
         "days": result,
         "times": [str(x).strip() for x in (raw.get("일과시간") or [])[:8]],
         "start_date": start_date,
-        "update_date": str(raw.get(codes["updated"]) or "").strip(),
-        "host": codes["base"],
+        "update_date": str(raw.get("자료244") or "").strip(),
     }
 
 
-def _fetch_comcigan_direct(grade, class_num, week):
-    """Try the public student domain first, then the legacy :4082 hosts."""
-    candidates = [
-        ("http://comci.net:4082/st", "http://comci.net:4082"),
-        ("http://comci.kr:4082/st", "http://comci.kr:4082"),
-        ("http://xn--s39aj90b0nb2xw6xh.kr/", "http://xn--s39aj90b0nb2xw6xh.kr"),
-    ]
-    errors = []
-    for page_url, base_url in candidates:
-        try:
-            return _fetch_comcigan_direct_once(
-                grade, class_num, week, page_url, base_url
-            )
-        except Exception as e:
-            errors.append(f"{base_url}: {type(e).__name__}: {e}")
-            app.logger.warning("Comcigan host failed %s: %s", base_url, e)
-
-    raise RuntimeError(" | ".join(errors[-4:]))
-
-
-def _friendly_comcigan_error(error):
-    text = str(error or "")
-    lower = text.lower()
-    if "timed out" in lower or "timeout" in lower:
-        return "컴시간 서버 연결 시간이 초과됐습니다."
-    if "connection refused" in lower:
-        return "컴시간 서버가 Render의 연결을 거부했습니다."
-    if "name or service not known" in lower or "temporary failure in name resolution" in lower:
-        return "컴시간 서버 주소를 찾지 못했습니다."
-    if "403" in text:
-        return "컴시간 서버가 외부 서버 요청을 차단했습니다."
-    if "502" in text:
-        return "컴시간 서버 연결 과정에서 502 오류가 발생했습니다."
-    if "페이지 구조" in text:
-        return "컴시간학생 페이지 구조가 현재 파서와 달라졌습니다."
-    return "컴시간 서버에 직접 연결하지 못했습니다."
-
-
 def get_nongok_timetable(grade, class_num):
-    """Fetch directly from 컴시간학생/컴시간 서버. No third-party timetable API."""
+    """Fetch directly from Comcigan using its current student timetable request format."""
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
-    week = 1 if today.weekday() == 6 else 0
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     monday = target - timedelta(days=target.weekday())
     friday = monday + timedelta(days=4)
     week_label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
 
-    key = ("comcigan-direct-v5", grade, class_num, week, monday.isoformat())
+    key = ("comcigan-current-v6", grade, class_num, monday.isoformat())
     now = time.time()
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["days"], cached["error"], cached["week_label"]
 
-    try:
-        # _fetch_comcigan_direct performs exactly three short direct attempts.
-        live = _fetch_comcigan_direct(grade, class_num, week)
-    except Exception as e:
+    live = None
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            live = _fetch_comcigan_current_protocol(grade, class_num, target)
+            break
+        except Exception as e:
+            last_error = e
+            app.logger.warning(
+                "Current Comcigan protocol attempt %s/3 failed grade=%s class=%s: %s",
+                attempt, grade, class_num, e,
+            )
+            if attempt < 3:
+                time.sleep(0.6 * attempt)
+
+    if live is None:
+        error_text = str(last_error or "")
+        if "timed out" in error_text.lower() or "timeout" in error_text.lower():
+            reason = "컴시간 서버 연결 시간이 초과됐습니다."
+        elif "502" in error_text:
+            reason = "컴시간 서버 연결 과정에서 502 오류가 발생했습니다."
+        elif "403" in error_text:
+            reason = "컴시간 서버가 요청을 거부했습니다."
+        else:
+            reason = "컴시간 서버에서 데이터를 가져오지 못했습니다."
+
         TIMETABLE_CACHE[key] = {
             "expires": now + 30,
             "days": [],
-            "error": "3번 조회 실패: " + _friendly_comcigan_error(e),
+            "error": "3번 조회 실패: " + reason,
             "week_label": week_label,
-            "debug": f"{type(e).__name__}: {e}"[:900],
+            "debug": f"{type(last_error).__name__}: {last_error}"[:900] if last_error else "unknown",
         }
         c = TIMETABLE_CACHE[key]
         return c["days"], c["error"], c["week_label"]
@@ -287,8 +244,7 @@ def get_nongok_timetable(grade, class_num):
         "error": None,
         "week_label": week_label,
         "debug": {
-            "source": "direct comcigan",
-            "host": live.get("host"),
+            "source": "direct current Comcigan protocol",
             "update_date": live.get("update_date"),
         },
     }
@@ -611,7 +567,7 @@ def timetable_debug():
     week = 1 if today.weekday() == 6 else 0
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     monday = target - timedelta(days=target.weekday())
-    cache_item = TIMETABLE_CACHE.get(("comcigan-direct-v5", grade, class_num, week, monday.isoformat()), {})
+    cache_item = TIMETABLE_CACHE.get(("comcigan-current-v6", grade, class_num, week, monday.isoformat()), {})
 
     return {
         "grade": grade,
