@@ -416,3 +416,22 @@
   .admin-member-search{grid-template-columns:1fr auto}
   .admin-member-search>a{grid-column:1/-1;height:38px}
 }
+
+
+/* Person mentions and grouped person-document index */
+.person-mention{font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.person-mention:hover{text-decoration-style:solid}
+.person-index-intro{margin:14px 0 24px;padding:14px 16px;border:1px solid #d8ddcf;border-left:4px solid var(--green);background:#fafcf7;line-height:1.65}
+.person-index-count{font-size:13px;color:#777;font-weight:500}
+.person-document-list{border-top:1px solid #ddd}
+.person-document-card{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:15px 10px;border-bottom:1px solid #e5e7e9;color:var(--text)}
+.person-document-card:hover{text-decoration:none;background:#fafafa}
+.person-document-card>div{min-width:0}
+.person-document-card b{display:block;color:var(--link);font-size:16px;margin-bottom:6px}
+.person-document-card span{display:block;color:#666;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+.person-document-card small{flex:0 0 auto;color:#888;white-space:nowrap}
+.person-index-empty{padding:32px 12px;text-align:center;color:#777}
+@media(max-width:650px){
+  .person-document-card{gap:10px;padding:13px 6px}
+  .person-document-card small{font-size:10px}
+}

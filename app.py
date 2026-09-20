@@ -556,22 +556,90 @@ def slugify(title):
     title = re.sub(r"\s+", " ", title.strip())
     return title[:120]
 
+PERSON_ROLE_WORDS = (
+    "학생", "선생님", "선생", "교사", "교장", "교감",
+    "회장", "부회장", "운영자", "개발자", "디자이너",
+)
+PERSON_NAME_STOPWORDS = {
+    "인물", "학생", "학교", "중학교", "논곡", "교장", "교감", "교사", "선생님",
+    "회장", "부회장", "운영자", "개발자", "디자이너", "도움말", "연습장", "시간표",
+    "동아리", "학교생활", "공지사항", "편집지침", "운영방침", "개인정보",
+}
+
+
+def _known_person_names():
+    """Find names that are explicitly used as people in public wiki documents."""
+    rows = query("SELECT title, content FROM wiki_pages WHERE deleted=FALSE")
+    names = set()
+    role_pattern = "|".join(map(re.escape, PERSON_ROLE_WORDS))
+
+    for row in rows:
+        title = str(row.get("title") or "")
+        content = str(row.get("content") or "")
+
+        # Person-profile titles such as '인물/석승찬', '김현우 선생님', '교장 김철수'.
+        if any(key in title for key in ("인물", "교장", "교감", "선생님")):
+            for candidate in re.findall(r"(?<![가-힣])[가-힣]{2,4}(?![가-힣])", title):
+                if candidate not in PERSON_NAME_STOPWORDS:
+                    names.add(candidate)
+
+        # Also learn names that are directly paired with a person-role in document text.
+        patterns = (
+            rf"(?<![가-힣])([가-힣]{{2,4}})(?![가-힣])\s*(?:{role_pattern})",
+            rf"(?:{role_pattern})\s*(?<![가-힣])([가-힣]{{2,4}})(?![가-힣])",
+        )
+        for pattern in patterns:
+            for candidate in re.findall(pattern, content):
+                if candidate not in PERSON_NAME_STOPWORDS:
+                    names.add(candidate)
+
+    return sorted(names, key=lambda value: (-len(value), value))
+
+
+def _link_person_names(safe_text):
+    names = _known_person_names()
+    if not names:
+        return safe_text
+
+    # Protect links first so names inside an existing link do not become nested links.
+    placeholders = []
+
+    def protect(html):
+        token = f"@@NONGOK_LINK_{len(placeholders)}@@"
+        placeholders.append(html)
+        return token
+
+    safe_text = re.sub(
+        r"\[\[([^\[\]]{1,120})\]\]",
+        lambda m: protect(
+            f'<a href="{url_for("wiki", title=m.group(1).strip())}">{m.group(1).strip()}</a>'
+        ),
+        safe_text,
+    )
+    safe_text = re.sub(
+        r"\[([^\[\]\n]{1,200})\]\((https?://[^\s<>]+)\)",
+        lambda m: protect(
+            f'<a href="{m.group(2)}" target="_blank" rel="noopener noreferrer">{m.group(1)}</a>'
+        ),
+        safe_text,
+    )
+
+    pattern = re.compile(
+        r"(?<![가-힣A-Za-z0-9])(" + "|".join(map(re.escape, names)) + r")(?![가-힣A-Za-z0-9])"
+    )
+    safe_text = pattern.sub(
+        lambda m: f'<a class="person-mention" href="{url_for("person_mentions", name=m.group(1))}">{m.group(1)}</a>',
+        safe_text,
+    )
+
+    for index, html in enumerate(placeholders):
+        safe_text = safe_text.replace(f"@@NONGOK_LINK_{index}@@", html)
+    return safe_text
+
+
 def render_wiki(text):
     safe = str(escape(text or ""))
-
-    # Internal links: [[문서명]]
-    safe = re.sub(
-        r"\[\[([^\[\]]{1,120})\]\]",
-        lambda m: f'<a href="{url_for("wiki", title=m.group(1).strip())}">{m.group(1).strip()}</a>',
-        safe,
-    )
-
-    # External links: [표시할 글](https://example.com)
-    safe = re.sub(
-        r"\[([^\[\]\n]{1,200})\]\((https?://[^\s<>]+)\)",
-        lambda m: f'<a href="{m.group(2)}" target="_blank" rel="noopener noreferrer">{m.group(1)}</a>',
-        safe,
-    )
+    safe = _link_person_names(safe)
 
     # NamuWiki-style headings with automatic section numbering.
     # == 큰 제목 ==  -> 1. 큰 제목
@@ -1053,6 +1121,50 @@ def edit_homepage_section(section_key):
         flash(f'{labels[section_key]} 내용을 저장했습니다.', "success")
         return redirect(url_for("index"))
     return render_template("homepage_edit.html", section_key=section_key, section_label=labels[section_key], content=content)
+
+@app.route("/person/<name>")
+def person_mentions(name):
+    name = re.sub(r"\s+", " ", str(name or "").strip())[:30]
+    if not re.fullmatch(r"[가-힣A-Za-z][가-힣A-Za-z .·'-]{1,29}", name):
+        abort(404)
+
+    like = f"%{name}%"
+    rows = query(
+        """SELECT title, content, updated_at, views
+           FROM wiki_pages
+           WHERE deleted=FALSE AND (title ILIKE %s OR content ILIKE %s)
+           ORDER BY
+             CASE WHEN title ILIKE %s THEN 0 ELSE 1 END,
+             updated_at DESC,
+             title ASC
+           LIMIT 100""",
+        (like, like, like),
+    )
+
+    pages = []
+    for row in rows:
+        content = str(row.get("content") or "")
+        compact = re.sub(r"\s+", " ", content)
+        pos = compact.lower().find(name.lower())
+        if pos >= 0:
+            start = max(0, pos - 65)
+            end = min(len(compact), pos + len(name) + 95)
+            snippet = compact[start:end]
+            if start > 0:
+                snippet = "…" + snippet
+            if end < len(compact):
+                snippet += "…"
+        else:
+            snippet = "문서 제목에 이 이름이 포함되어 있습니다."
+        row["snippet"] = snippet
+        pages.append(row)
+
+    return render_template(
+        "person_mentions.html",
+        person_name=name,
+        pages=pages,
+    )
+
 
 @app.route("/wiki/<path:title>")
 def wiki(title):
