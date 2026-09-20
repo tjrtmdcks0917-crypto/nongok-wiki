@@ -43,27 +43,12 @@ def _comci_nested(data, *indexes):
     return cur
 
 
-def _comci_split(value):
-    try:
-        number = int(str(value).strip())
-    except (TypeError, ValueError):
-        return None
-    if number <= 0:
-        return None
-    parts = []
-    while number:
-        parts.append(number % 1000)
-        number //= 1000
-    return parts if len(parts) >= 2 else None
-
-
 def _masked_teacher_name(value):
     name = str(value or "").strip()
     if not name:
         return ""
     if "*" in name:
         return name
-    # Do not expose an unmasked teacher name even if the upstream response changes.
     if len(name) <= 1:
         return "*"
     if len(name) == 2:
@@ -71,135 +56,135 @@ def _masked_teacher_name(value):
     return name[0] + "*" + name[-1]
 
 
-def get_comcigan_class_timetable(grade, class_num, target):
-    """Fetch exact subjects and masked teacher labels directly from Comcigan."""
+def _decode_comcigan_lesson(value, separator, subjects, teachers):
+    """Decode one cell exactly like the Comcigan student page."""
     try:
-        encoded_name = "".join(f"%{byte:02X}" for byte in "논곡중학교".encode("euc-kr"))
-        search_url = "http://comci.net:4082/36179?17384l" + encoded_name
-        search_req = Request(search_url, headers={"User-Agent": "Mozilla/5.0"})
-        with urlopen(search_req, timeout=8) as response:
-            search_data = _comci_json(response.read().decode("utf-8", errors="replace"))
+        packed = int(value or 0)
+        separator = int(separator or 100)
+    except (TypeError, ValueError):
+        return None
 
-        matches = []
-        for row in search_data.get("학교검색", []):
-            if not isinstance(row, list) or len(row) < 4:
-                continue
-            region = str(row[1]).strip()
-            school_name = str(row[2]).strip()
-            if school_name == "논곡중학교" and region == "인천":
-                matches.append(row)
-        if not matches:
-            raise RuntimeError(f"인천 논곡중학교 컴시간 검색 실패: {search_data.get('학교검색', [])!r}")
+    # The student page treats <=100 as an empty cell.
+    if packed <= 100 or separator <= 0:
+        return None
 
-        raw_school_code = str(matches[0][3])
-        school_digits = "".join(ch for ch in raw_school_code if ch.isdigit())
-        if not school_digits:
-            raise RuntimeError(f"컴시간 학교 코드 해석 실패: {raw_school_code!r}")
-        school_code = int(school_digits)
-        today = datetime.now(ZoneInfo("Asia/Seoul")).date()
-        date_index = 2 if today.weekday() == 6 else 1
-        route = base64.b64encode(
-            f"73629_{school_code}_0_{date_index}".encode("ascii")
-        ).decode("ascii")
-        timetable_url = "http://comci.net:4082/36179?" + route
-        timetable_req = Request(timetable_url, headers={"User-Agent": "Mozilla/5.0"})
-        with urlopen(timetable_req, timeout=8) as response:
-            raw = _comci_json(response.read().decode("utf-8", errors="replace"))
+    if separator == 100:
+        teacher_code = packed // separator
+        subject_code = packed % separator
+    else:
+        teacher_code = packed % separator
+        subject_with_group = packed // separator
+        subject_code = subject_with_group % separator
 
-        current = raw.get("자료481")
-        subjects = raw.get("자료492") or []
-        teachers = raw.get("자료446") or []
-        if not isinstance(current, list):
-            raise RuntimeError("컴시간 현재 시간표 데이터(자료481)가 없습니다.")
+    subject = str(subjects[subject_code]).strip() if 0 <= subject_code < len(subjects) else ""
+    teacher_raw = teachers[teacher_code] if 0 <= teacher_code < len(teachers) else ""
+    return {
+        "subject": subject,
+        "teacher": _masked_teacher_name(teacher_raw),
+    }
 
-        weekdays = ["월", "화", "수", "목", "금"]
-        result = {}
-        for day_index, weekday in enumerate(weekdays, start=1):
-            lessons = []
-            for period in range(1, 9):
-                packed = _comci_nested(current, grade, class_num, day_index, period)
-                codes = _comci_split(packed)
-                if not codes:
-                    lessons.append(None)
-                    continue
-                teacher_code, subject_code = codes[0], codes[1]
-                subject = str(subjects[subject_code]).strip() if subject_code < len(subjects) else ""
-                teacher_raw = teachers[teacher_code] if teacher_code < len(teachers) else ""
-                lessons.append({
-                    "subject": subject,
-                    "teacher": _masked_teacher_name(teacher_raw),
-                })
-            while lessons and lessons[-1] is None:
-                lessons.pop()
-            result[weekday] = lessons
 
-        if not any(result.get(day) for day in weekdays):
-            raise RuntimeError("컴시간에서 해당 학급 시간표가 비어 있습니다.")
-        return result
-    except Exception as e:
-        app.logger.warning(
-            "Direct Comcigan fetch failed grade=%s class=%s: %s",
-            grade,
-            class_num,
-            e,
-        )
-        return {}
+def get_comcigan_class_timetable(grade, class_num):
+    """Fetch the same live cells shown on 컴시간학생.kr for one class."""
+    encoded_name = "".join(f"%{byte:02X}" for byte in "논곡중학교".encode("euc-kr"))
+    search_url = "http://comci.net:4082/36179?17384l" + encoded_name
+    search_req = Request(search_url, headers={"User-Agent": "Mozilla/5.0"})
+    with urlopen(search_req, timeout=8) as response:
+        search_data = _comci_json(response.read().decode("utf-8", errors="replace"))
+
+    matches = []
+    for row in search_data.get("학교검색", []):
+        if not isinstance(row, list) or len(row) < 4:
+            continue
+        if str(row[1]).strip() == "인천" and str(row[2]).strip() == "논곡중학교":
+            matches.append(row)
+    if not matches:
+        raise RuntimeError("컴시간에서 인천 논곡중학교를 찾지 못했습니다.")
+
+    raw_school_code = str(matches[0][3])
+    school_digits = "".join(ch for ch in raw_school_code if ch.isdigit())
+    if not school_digits:
+        raise RuntimeError(f"컴시간 학교 코드 해석 실패: {raw_school_code!r}")
+    school_code = int(school_digits)
+
+    # 컴시간학생.kr itself opens the currently selected week with r=1.
+    route = base64.b64encode(f"73629_{school_code}_0_1".encode("ascii")).decode("ascii")
+    timetable_url = "http://comci.net:4082/36179?" + route
+    timetable_req = Request(timetable_url, headers={"User-Agent": "Mozilla/5.0"})
+    with urlopen(timetable_req, timeout=8) as response:
+        raw = _comci_json(response.read().decode("utf-8", errors="replace"))
+
+    # The live student page renders 자료147 (일일자료).
+    daily = raw.get("자료147")
+    original = raw.get("자료481")
+    subjects = raw.get("자료492") or []
+    teachers = raw.get("자료446") or []
+    separator = raw.get("분리", 100)
+    period_labels = [str(x).strip() for x in (raw.get("일과시간") or [])[:8]]
+
+    if not isinstance(daily, list):
+        raise RuntimeError("컴시간 실시간 시간표 데이터(자료147)가 없습니다.")
+
+    start_text = str(raw.get("시작일") or "").strip()
+    try:
+        start_date = datetime.strptime(start_text[:10], "%Y-%m-%d").date()
+    except ValueError as e:
+        raise RuntimeError(f"컴시간 시작일 해석 실패: {start_text!r}") from e
+
+    weekdays = ["월", "화", "수", "목", "금"]
+    result = {}
+    for day_index, weekday in enumerate(weekdays, start=1):
+        lessons = []
+        for period in range(1, 9):
+            daily_value = _comci_nested(daily, grade, class_num, day_index, period)
+            original_value = _comci_nested(original, grade, class_num, day_index, period)
+            lesson = _decode_comcigan_lesson(daily_value, separator, subjects, teachers)
+            if lesson is None:
+                lesson = {"subject": "", "teacher": ""}
+            lesson["changed"] = (daily_value or 0) != (original_value or 0)
+            lessons.append(lesson)
+        result[weekday] = lessons
+
+    return {
+        "days": result,
+        "times": period_labels,
+        "start_date": start_date,
+    }
 
 
 def get_nongok_timetable(grade, class_num):
-    """Fetch the weekly timetable only from Comcigan.
-
-    Do not mix NEIS lesson cells into Comcigan data. If Comcigan is unavailable,
-    fail visibly instead of showing a misleading timetable.
-    """
-    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
-    target = today + timedelta(days=1) if today.weekday() == 6 else today
-    monday = target - timedelta(days=target.weekday())
-    friday = monday + timedelta(days=4)
-    label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
-    key = ("comcigan", grade, class_num, monday.isoformat())
+    """Use only the live timetable shown by Comcigan; never invent/fill cells."""
     now = time.time()
+    key = ("comcigan-live", grade, class_num)
 
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["days"], cached["error"], cached["week_label"]
 
     try:
-        comcigan = get_comcigan_class_timetable(grade, class_num, target)
+        live = get_comcigan_class_timetable(grade, class_num)
         weekdays = ["월", "화", "수", "목", "금"]
-        if not isinstance(comcigan, dict) or not any(comcigan.get(day) for day in weekdays):
-            raise RuntimeError("컴시간알리미에서 시간표를 가져오지 못했습니다.")
+        start_date = live["start_date"]
+        times = live.get("times") or []
+        week_label = f"{start_date.strftime('%m/%d')} ~ {(start_date + timedelta(days=4)).strftime('%m/%d')}"
 
         days = []
         for n, weekday in enumerate(weekdays):
-            d = monday + timedelta(days=n)
-            raw_lessons = comcigan.get(weekday, []) or []
-            classes = []
-            for item in raw_lessons:
-                if isinstance(item, dict):
-                    classes.append({
-                        "subject": str(item.get("subject") or "").strip(),
-                        "teacher": str(item.get("teacher") or "").strip(),
-                    })
-                else:
-                    classes.append({"subject": "", "teacher": ""})
-
-            # A holiday or no-school day stays empty exactly as Comcigan provides it.
-            if classes and not any(x["subject"] or x["teacher"] for x in classes):
-                classes = []
-
             days.append({
                 "weekday": weekday,
-                "date": d,
-                "classes": classes,
+                "date": start_date + timedelta(days=n),
+                "classes": live["days"].get(weekday, [
+                    {"subject": "", "teacher": "", "changed": False} for _ in range(8)
+                ]),
+                "times": times,
                 "source": "컴시간알리미",
             })
 
         TIMETABLE_CACHE[key] = {
-            "expires": now + 300,
+            "expires": now + 120,
             "days": days,
             "error": None,
-            "week_label": label,
+            "week_label": week_label,
             "debug": None,
         }
     except Exception as e:
@@ -213,7 +198,7 @@ def get_nongok_timetable(grade, class_num):
             "expires": now + 30,
             "days": [],
             "error": "정보없음",
-            "week_label": label,
+            "week_label": "",
             "debug": f"{type(e).__name__}: {e}"[:700],
         }
 
