@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     real_name VARCHAR(30),
     student_no VARCHAR(6),
+    school_name VARCHAR(80),
     role VARCHAR(16) NOT NULL DEFAULT 'user',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -165,6 +166,7 @@ def init_db():
                     conn.execute(statement)
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS real_name VARCHAR(30)")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS student_no VARCHAR(6)")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS school_name VARCHAR(80)")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
                 "ON users(student_no) WHERE student_no IS NOT NULL"
@@ -176,6 +178,8 @@ def init_db():
                 conn.execute("ALTER TABLE users ADD COLUMN real_name VARCHAR(30)")
             if "student_no" not in columns:
                 conn.execute("ALTER TABLE users ADD COLUMN student_no VARCHAR(6)")
+            if "school_name" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN school_name VARCHAR(80)")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
                 "ON users(student_no) WHERE student_no IS NOT NULL"
