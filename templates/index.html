@@ -61,16 +61,34 @@
       <strong>{{group.label}}</strong>
       <span class="home-doc-control"><span class="arrow">▶</span> [ 펼치기 · 접기 ]</span>
     </button>
-    <div class="home-doc-links" id="home-doc-panel-{{loop.index}}" hidden>
-      {% for title in group['items'] %}
-        <a href="{{url_for('wiki',title=title)}}">{{title}}</a>
+    <div class="home-doc-links{% if group.label == '학교 시설 목록' %} facility-directory{% endif %}" id="home-doc-panel-{{loop.index}}" hidden>
+      {% if group.label == '학교 시설 목록' %}
+        <a class="facility-overview-link" href="{{url_for('wiki',title='학교 시설')}}">학교 시설 전체 안내</a>
+        <div class="facility-subgroups">
+          {% for facility in facility_groups %}
+          <div class="facility-subgroup">
+            <button class="facility-subtoggle" type="button" aria-expanded="false" aria-controls="facility-panel-{{loop.index}}" onclick="toggleFacilityDocs(this)">
+              <span class="arrow">▶</span> {{facility.label}} <span>[펼치기 · 접기]</span>
+            </button>
+            <div class="facility-sublinks" id="facility-panel-{{loop.index}}" hidden>
+              {% for item in facility['items'] %}
+                <a href="{{url_for('wiki',title=item.title)}}">{{item.label}}</a>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
       {% else %}
-        <span>등록된 문서가 없습니다.</span>
-      {% endfor %}
-      {% if group.label == '생활 관련 문서 목록' %}
-        <a href="{{url_for('gallery')}}">논곡갤러리</a>
-      {% elif group.label == '기타 문서 목록' %}
-        <a href="{{url_for('polls')}}">투표</a>
+        {% for title in group['items'] %}
+          <a href="{{url_for('wiki',title=title)}}">{{title}}</a>
+        {% else %}
+          <span>등록된 문서가 없습니다.</span>
+        {% endfor %}
+        {% if group.label == '생활 관련 문서 목록' %}
+          <a href="{{url_for('gallery')}}">논곡갤러리</a>
+        {% elif group.label == '기타 문서 목록' %}
+          <a href="{{url_for('polls')}}">투표</a>
+        {% endif %}
       {% endif %}
     </div>
   </div>
@@ -98,6 +116,14 @@
 function toggleHomeDocs(button){
   const panelId = button.getAttribute('aria-controls');
   const panel = document.getElementById(panelId);
+  const expanded = button.getAttribute('aria-expanded') === 'true';
+  button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+  panel.hidden = expanded;
+  const arrow = button.querySelector('.arrow');
+  if (arrow) arrow.textContent = expanded ? '▶' : '▼';
+}
+function toggleFacilityDocs(button){
+  const panel = document.getElementById(button.getAttribute('aria-controls'));
   const expanded = button.getAttribute('aria-expanded') === 'true';
   button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
   panel.hidden = expanded;
