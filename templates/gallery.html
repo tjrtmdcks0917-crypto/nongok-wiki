@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}논곡갤러리 - NONGOK Wiki{% endblock %}
 {% block meta_description %}논곡중학교 학교생활 사진과 게시물을 함께 올리고 댓글로 소통하는 논곡갤러리입니다.{% endblock %}
+{% block robots %}noindex,nofollow,noimageindex{% endblock %}
 {% block content %}
 <article class="document gallery-page">
   <div class="doc-title">
@@ -9,7 +10,7 @@
   </div>
 
   <div class="gallery-notice">
-    <b>익명 게시판이 아닙니다.</b> 게시물과 댓글에는 로그인한 <b>계정명</b>이 항상 공개됩니다.
+    <b>익명 게시판이 아닙니다.</b> 게시물과 댓글에는 회원가입 때 등록한 <b>이름</b>이 표시됩니다. 학번은 공개되지 않고 관리자만 확인할 수 있습니다.
     다른 사람의 얼굴이 나온 사진은 당사자의 동의 없이 올리지 말고, 연락처·주소 같은 개인정보가 보이는 사진도 올리지 마세요.
   </div>
 
@@ -23,7 +24,7 @@
       <label>사진 <small>선택 · 최대 4장, 장당 3MB</small>
         <input type="file" name="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
       </label>
-      <p class="gallery-identity">작성자: <b>{{current_user.username}}</b> · 작성자명은 게시물에 공개됩니다.</p>
+      <p class="gallery-identity">작성자: <b>{{current_user.real_name or current_user.username}}</b> · 이름은 게시물에 공개됩니다.</p>
       <button type="submit">게시물 올리기</button>
     </form>
   </details>
@@ -42,7 +43,7 @@
       <div class="gallery-card-body">
         <h2>{{post.title}}</h2>
         <p>{{post.body|truncate(90, True, '…')}}</p>
-        <div class="gallery-card-meta"><b>{{post.username}}</b><span>{{post.created_text}}</span></div>
+        <div class="gallery-card-meta"><b>{{post.display_name}}</b><span>{{post.created_text}}</span></div>
         <div class="gallery-card-stats">사진 {{post.image_count}} · 댓글 {{post.comment_count}}</div>
       </div>
     </a>
