@@ -1370,7 +1370,7 @@ def index():
     defaults = {
         "notice": "다른 사람의 연락처, 주소 등 사적인 개인정보는 보호해 주세요.\n친구를 공격하거나 괴롭히는 내용은 작성하지 말아 주세요.\n학교생활, 추억, 정보 등 다양한 내용을 자유롭게 작성해 주세요.",
         "news": "논곡위키 공개 베타 운영 중입니다.\n문서 편집과 토론 기능을 사용할 수 있습니다.",
-        "feedback": "오류나 개선할 점은 문서 토론 또는 관리자에게 알려주세요.",
+        "feedback": "오류나 개선할 점은 문서 토론 또는 관리자에게 알려 주세요.",
         "supporters": "아직 등록된 후원자가 없습니다.",
     }
     rows = query("SELECT section_key, content FROM homepage_sections")
@@ -1790,7 +1790,7 @@ def new_page():
         title = slugify(request.form.get("title", ""))
         content = request.form.get("content", "").strip()
         if not title or not content:
-            flash("제목과 내용을 입력해줘.", "warning")
+            flash("제목과 내용을 입력해 주세요.", "warning")
             return redirect(url_for("new_page"))
         if query("SELECT id FROM wiki_pages WHERE title=%s", (title,)):
             flash("이미 같은 제목의 문서가 있습니다.", "warning")

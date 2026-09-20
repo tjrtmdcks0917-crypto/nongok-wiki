@@ -20,16 +20,16 @@
       <input name="profile_status" maxlength="80" value="{{profile.profile_status or ''}}" placeholder="지금 하고 싶은 말">
     </label>
     <label>자기소개
-      <textarea name="profile_bio" maxlength="300" placeholder="취미, 좋아하는 것 등을 소개해 봐.">{{profile.profile_bio or ''}}</textarea>
+      <textarea name="profile_bio" maxlength="300" placeholder="취미, 좋아하는 것 등을 소개해 주세요.">{{profile.profile_bio or ''}}</textarea>
     </label>
     <label>프로필 테마 색상
       <input type="color" name="profile_color" value="{{profile.profile_color or '#87aa43'}}">
     </label>
-    <div class="profile-safety">전화번호, 주소, 학번, 비밀번호 같은 개인정보는 프로필 소개에 적지 마.</div>
+    <div class="profile-safety">전화번호, 주소, 학번, 비밀번호 같은 개인정보는 프로필 소개에 적지 말아 주세요.</div>
 
     <fieldset class="profile-password-change">
       <legend>비밀번호 변경</legend>
-      <p>관리자에게 임시 비밀번호를 발급받았다면 여기에서 원하는 비밀번호로 다시 변경할 수 있어.</p>
+      <p>관리자에게 임시 비밀번호를 발급받으셨다면 여기에서 원하는 비밀번호로 다시 변경하실 수 있습니다.</p>
       <label>현재 비밀번호
         <input type="password" name="current_password" autocomplete="current-password" placeholder="변경할 때만 입력">
       </label>
