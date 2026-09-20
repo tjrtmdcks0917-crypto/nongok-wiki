@@ -30,7 +30,7 @@
    for(const m of data.messages){
     last=Math.max(last,m.id);
     const el=document.createElement('div'); el.className='chat-message';
-    const dt=new Date(m.created_at); const tm=isNaN(dt)?'':dt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    const dt=new Date(m.created_at); const tm=isNaN(dt)?'':dt.toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit'});
     el.innerHTML='<div><b>'+esc(m.username)+'</b><small>'+tm+'</small></div><p>'+esc(m.body)+'</p>';
     box.appendChild(el);
    }
