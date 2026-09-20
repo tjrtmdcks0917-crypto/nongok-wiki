@@ -18,7 +18,7 @@ from db import init_db, query, execute
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-secret-key")
-app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 14 * 1024 * 1024
 
 RATE = {}
 RATE_WINDOW = 60
@@ -699,6 +699,27 @@ def all_pages():
     )
     return render_template("all_pages.html", pages=pages, page=page, total_pages=total_pages, total=total)
 
+def _gallery_image_mime(data):
+    """Accept only common raster image formats; SVG is intentionally excluded."""
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _gallery_time_text(value):
+    if not isinstance(value, datetime):
+        return str(value or "")
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(ZoneInfo("Asia/Seoul")).strftime("%Y.%m.%d %H:%M")
+
+
 @app.route("/polls")
 def polls():
     poll_rows = query(
@@ -815,6 +836,175 @@ def poll_toggle(poll_id):
         abort(404)
     execute("UPDATE polls SET is_open=%s WHERE id=%s", (not bool(rows[0]["is_open"]), poll_id))
     return redirect(url_for("polls"))
+
+@app.route("/gallery")
+def gallery():
+    posts = query(
+        """SELECT p.id, p.title, p.body, p.created_at, u.username,
+                  (SELECT COUNT(*) FROM gallery_images gi WHERE gi.post_id=p.id) AS image_count,
+                  (SELECT COUNT(*) FROM gallery_comments gc WHERE gc.post_id=p.id AND gc.deleted=FALSE) AS comment_count,
+                  (SELECT MIN(gi.id) FROM gallery_images gi WHERE gi.post_id=p.id) AS cover_image_id
+           FROM gallery_posts p
+           JOIN users u ON u.id=p.user_id
+           WHERE p.deleted=FALSE
+           ORDER BY p.created_at DESC, p.id DESC
+           LIMIT 50"""
+    )
+    for post in posts:
+        post["created_text"] = _gallery_time_text(post.get("created_at"))
+    return render_template("gallery.html", posts=posts)
+
+
+@app.route("/gallery/new", methods=["POST"])
+@require_login
+def gallery_new():
+    check_csrf()
+    title = request.form.get("title", "").strip()
+    body = request.form.get("body", "").strip()
+    files = [f for f in request.files.getlist("images") if f and f.filename]
+
+    if not title or len(title) > 100:
+        flash("제목은 1~100자로 입력해 주세요.", "warning")
+        return redirect(url_for("gallery"))
+    if not body or len(body) > 5000:
+        flash("본문은 1~5000자로 입력해 주세요.", "warning")
+        return redirect(url_for("gallery"))
+    if len(files) > 4:
+        flash("사진은 게시물 하나에 최대 4장까지 올릴 수 있습니다.", "warning")
+        return redirect(url_for("gallery"))
+
+    images = []
+    for file in files:
+        data = file.read(3 * 1024 * 1024 + 1)
+        if len(data) > 3 * 1024 * 1024:
+            flash("사진 한 장의 최대 크기는 3MB입니다.", "warning")
+            return redirect(url_for("gallery"))
+        mime = _gallery_image_mime(data)
+        if not mime:
+            flash("사진은 JPG, PNG, GIF, WebP 형식만 올릴 수 있습니다.", "warning")
+            return redirect(url_for("gallery"))
+        images.append((mime, data))
+
+    user = current_user()
+    execute(
+        "INSERT INTO gallery_posts(user_id, title, body, deleted, created_at) VALUES (%s,%s,%s,FALSE,CURRENT_TIMESTAMP)",
+        (user["id"], title, body),
+    )
+    post_rows = query(
+        """SELECT id FROM gallery_posts
+           WHERE user_id=%s AND title=%s AND body=%s AND deleted=FALSE
+           ORDER BY id DESC LIMIT 1""",
+        (user["id"], title, body),
+    )
+    if not post_rows:
+        abort(500)
+    post_id = post_rows[0]["id"]
+
+    for index, (mime, data) in enumerate(images):
+        execute(
+            "INSERT INTO gallery_images(post_id, mime_type, image_data, sort_order, created_at) VALUES (%s,%s,%s,%s,CURRENT_TIMESTAMP)",
+            (post_id, mime, data, index),
+        )
+
+    flash("논곡갤러리에 게시물을 올렸습니다.", "success")
+    return redirect(url_for("gallery_post", post_id=post_id))
+
+
+@app.route("/gallery/<int:post_id>")
+def gallery_post(post_id):
+    rows = query(
+        """SELECT p.id, p.user_id, p.title, p.body, p.created_at, u.username
+           FROM gallery_posts p JOIN users u ON u.id=p.user_id
+           WHERE p.id=%s AND p.deleted=FALSE""",
+        (post_id,),
+    )
+    if not rows:
+        abort(404)
+    post = rows[0]
+    post["created_text"] = _gallery_time_text(post.get("created_at"))
+    images = query(
+        "SELECT id FROM gallery_images WHERE post_id=%s ORDER BY sort_order ASC, id ASC",
+        (post_id,),
+    )
+    comments = query(
+        """SELECT c.id, c.user_id, c.body, c.created_at, u.username
+           FROM gallery_comments c JOIN users u ON u.id=c.user_id
+           WHERE c.post_id=%s AND c.deleted=FALSE
+           ORDER BY c.created_at ASC, c.id ASC""",
+        (post_id,),
+    )
+    for comment in comments:
+        comment["created_text"] = _gallery_time_text(comment.get("created_at"))
+    return render_template("gallery_post.html", post=post, images=images, comments=comments)
+
+
+@app.route("/gallery/image/<int:image_id>")
+def gallery_image(image_id):
+    rows = query(
+        """SELECT gi.image_data, gi.mime_type
+           FROM gallery_images gi
+           JOIN gallery_posts p ON p.id=gi.post_id
+           WHERE gi.id=%s AND p.deleted=FALSE""",
+        (image_id,),
+    )
+    if not rows:
+        abort(404)
+    raw = rows[0]["image_data"]
+    data = bytes(raw) if not isinstance(raw, bytes) else raw
+    response = app.response_class(data, mimetype=rows[0]["mime_type"])
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@app.route("/gallery/<int:post_id>/comment", methods=["POST"])
+@require_login
+def gallery_comment(post_id):
+    check_csrf()
+    if not query("SELECT id FROM gallery_posts WHERE id=%s AND deleted=FALSE", (post_id,)):
+        abort(404)
+    body = request.form.get("body", "").strip()
+    if not body or len(body) > 1000:
+        flash("댓글은 1~1000자로 입력해 주세요.", "warning")
+        return redirect(url_for("gallery_post", post_id=post_id))
+    execute(
+        "INSERT INTO gallery_comments(post_id, user_id, body, deleted, created_at) VALUES (%s,%s,%s,FALSE,CURRENT_TIMESTAMP)",
+        (post_id, current_user()["id"], body),
+    )
+    return redirect(url_for("gallery_post", post_id=post_id) + "#comments")
+
+
+@app.route("/gallery/<int:post_id>/delete", methods=["POST"])
+@require_login
+def gallery_delete_post(post_id):
+    check_csrf()
+    rows = query("SELECT user_id FROM gallery_posts WHERE id=%s AND deleted=FALSE", (post_id,))
+    if not rows:
+        abort(404)
+    user = current_user()
+    if rows[0]["user_id"] != user["id"] and user["role"] != "admin":
+        abort(403)
+    execute("UPDATE gallery_posts SET deleted=TRUE WHERE id=%s", (post_id,))
+    flash("게시물을 삭제했습니다.", "success")
+    return redirect(url_for("gallery"))
+
+
+@app.route("/gallery/comment/<int:comment_id>/delete", methods=["POST"])
+@require_login
+def gallery_delete_comment(comment_id):
+    check_csrf()
+    rows = query(
+        "SELECT post_id, user_id FROM gallery_comments WHERE id=%s AND deleted=FALSE",
+        (comment_id,),
+    )
+    if not rows:
+        abort(404)
+    user = current_user()
+    if rows[0]["user_id"] != user["id"] and user["role"] != "admin":
+        abort(403)
+    execute("UPDATE gallery_comments SET deleted=TRUE WHERE id=%s", (comment_id,))
+    return redirect(url_for("gallery_post", post_id=rows[0]["post_id"]) + "#comments")
+
 
 @app.route("/chat")
 def chat():
