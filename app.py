@@ -97,6 +97,22 @@ def seed():
             (title, content),
         )
 
+@app.route("/robots.txt")
+def robots_txt():
+    body = "User-agent: *\nAllow: /\nSitemap: https://nongok-wiki.onrender.com/sitemap.xml\n"
+    return app.response_class(body, mimetype="text/plain")
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    pages = query("SELECT title, updated_at FROM wiki_pages WHERE deleted=FALSE ORDER BY updated_at DESC")
+    urls = ['<url><loc>https://nongok-wiki.onrender.com/</loc></url>']
+    from urllib.parse import quote
+    for page in pages:
+        loc = "https://nongok-wiki.onrender.com/wiki/" + quote(page["title"], safe="")
+        urls.append(f"<url><loc>{loc}</loc></url>")
+    xml = '<?xml version="1.0" encoding="UTF-8"?>' + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(urls) + "</urlset>"
+    return app.response_class(xml, mimetype="application/xml")
+
 @app.route("/")
 def index():
     recent = query("SELECT title, updated_at FROM wiki_pages WHERE deleted=FALSE ORDER BY updated_at DESC LIMIT 10")
