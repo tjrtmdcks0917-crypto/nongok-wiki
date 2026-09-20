@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 from functools import wraps
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
@@ -40,7 +40,7 @@ def get_nongok_meals():
         monday = today - timedelta(days=today.weekday())
     friday = monday + timedelta(days=4)
     params = {
-        "KEY": os.environ.get("NEIS_API_KEY", "sample"),
+        "KEY": os.environ.get("NEIS_API_KEY", ""),
         "Type": "json", "pIndex": 1, "pSize": 5,
         "ATPT_OFCDC_SC_CODE": "E10",
         # Exact NEIS school code for Nongok Middle School can be set in Render.
@@ -54,8 +54,13 @@ def get_nongok_meals():
         # Do not send an empty school-code parameter.
         if not params["SD_SCHUL_CODE"]:
             params.pop("SD_SCHUL_CODE")
+        # NEIS allows unauthenticated JSON queries for this public dataset.
+        # Omitting KEY is more reliable than using the restricted demo/sample key.
+        if not params["KEY"]:
+            params.pop("KEY")
         url = "https://open.neis.go.kr/hub/mealServiceDietInfo?" + urlencode(params)
-        with urlopen(url, timeout=4) as response:
+        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=8) as response:
             data = json.loads(response.read().decode("utf-8"))
         rows = []
         for block in data.get("mealServiceDietInfo", []):
@@ -70,8 +75,10 @@ def get_nongok_meals():
             meals.append({"date": date, "weekday": weekdays[date.weekday()], "dishes": dishes,
                           "calories": row.get("CAL_INFO", ""), "today": date == today})
         MEAL_CACHE.update({"expires": now + 1800, "meals": meals, "error": None})
-    except Exception:
-        MEAL_CACHE.update({"expires": now + 300, "meals": [], "error": "급식 정보를 불러오지 못했습니다."})
+    except Exception as e:
+        # Keep the page usable, while exposing a short diagnostic to admins.
+        MEAL_CACHE.update({"expires": now + 60, "meals": [], "error": "급식 정보를 불러오지 못했습니다."})
+        app.logger.warning("NEIS meal fetch failed: %s", e)
     return MEAL_CACHE["meals"], MEAL_CACHE["error"]
 
 
