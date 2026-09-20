@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 150" role="img" aria-label="NONGOK">
+<defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#246b49"/><stop offset="1" stop-color="#4b9b62"/></linearGradient></defs>
+<g fill="url(#g)">
+<path d="M18 112V35c0-13 18-17 26-7l49 58V34h25v78c0 14-18 18-27 7L43 62v50z"/>
+<path fill-rule="evenodd" d="M145 72c0-31 22-49 51-49s51 18 51 49-22 49-51 49-51-18-51-49zm27 0c0 16 9 26 24 26s24-10 24-26-9-26-24-26-24 10-24 26z"/>
+<path d="M268 112V35c0-13 18-17 26-7l49 58V34h25v78c0 14-18 18-27 7l-48-57v50z"/>
+<path d="M445 51c-8-5-17-7-26-7-20 0-32 11-32 28 0 18 12 28 31 28 7 0 13-1 18-4V84h-22V63h47v47c-12 8-28 12-44 12-34 0-58-19-58-50 0-30 24-50 59-50 14 0 28 3 38 9z"/>
+<path fill-rule="evenodd" d="M470 72c0-31 22-49 51-49s51 18 51 49-22 49-51 49-51-18-51-49zm27 0c0 16 9 26 24 26s24-10 24-26-9-26-24-26-24 10-24 26z"/>
+<path d="M590 24h26v37l31-37h32l-38 43 40 45h-34l-31-37v37h-26z"/>
+</g>
+<path d="M189 18c8-15 25-20 40-15-5 16-19 24-36 23z" fill="#78b75e"/>
+<path d="M631 17c10-13 26-16 40-9-7 15-21 21-37 18z" fill="#78b75e"/>
+<path d="M166 93c12 13 31 17 49 9-9 15-25 22-42 17zM496 96c13 11 30 13 47 6-10 14-27 20-43 14z" fill="#78b75e"/>
+<text x="340" y="144" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" letter-spacing="8" fill="#397354">NONGOK MIDDLE SCHOOL</text>
+</svg>
