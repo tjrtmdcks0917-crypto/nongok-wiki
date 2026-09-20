@@ -1154,9 +1154,45 @@ def login():
         if rows and check_password_hash(rows[0]["password_hash"], password):
             session["user_id"] = rows[0]["id"]
             flash("로그인되었습니다.", "success")
+            if rows[0]["role"] != "admin" and (not rows[0].get("real_name") or not rows[0].get("student_no")):
+                return redirect(url_for("identity_setup"))
             return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
         flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
     return render_template("auth.html", mode="login", next_url=request.args.get("next", ""), entered_username=request.form.get("username", ""))
+
+@app.route("/account/identity", methods=["GET", "POST"])
+@require_login
+def identity_setup():
+    user = current_user()
+    if user["role"] == "admin":
+        return redirect(url_for("index"))
+    if user.get("real_name") and user.get("student_no"):
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        check_csrf()
+        real_name = request.form.get("real_name", "").strip()
+        student_no = request.form.get("student_no", "").strip()
+
+        if not re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", real_name):
+            flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
+            return redirect(url_for("identity_setup"))
+        if not re.fullmatch(r"(10|20|30)(0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
+            flash("학번 형식이 올바르지 않습니다. 예: 100101 = 1학년 1반 1번", "warning")
+            return redirect(url_for("identity_setup"))
+        if query("SELECT id FROM users WHERE student_no=%s AND id<>%s", (student_no, user["id"])):
+            flash("이미 다른 계정에 등록된 학번입니다.", "warning")
+            return redirect(url_for("identity_setup"))
+
+        execute(
+            "UPDATE users SET real_name=%s, student_no=%s WHERE id=%s",
+            (real_name, student_no, user["id"]),
+        )
+        flash("이름과 학번이 등록되었습니다.", "success")
+        return redirect(url_for("index"))
+
+    return render_template("identity.html")
+
 
 @app.route("/logout")
 def logout():
