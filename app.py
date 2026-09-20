@@ -416,6 +416,13 @@ def inject():
         GROUP BY w.id, w.title, w.views
         ORDER BY daily_views DESC, w.views DESC LIMIT 10
     """)
+    gallery_popular = query("""
+        SELECT id, title, views
+        FROM gallery_posts
+        WHERE deleted=FALSE
+        ORDER BY views DESC, created_at DESC, id DESC
+        LIMIT 10
+    """)
     user = current_user()
 
     latest_gallery = query(
@@ -466,6 +473,7 @@ def inject():
         "global_recent": recent,
         "global_popular": popular,
         "global_daily": daily,
+        "global_gallery_popular": gallery_popular,
         "gallery_unread": gallery_unread,
         "site_notice": site_notice,
         "site_notice_active": site_notice_active,
@@ -1624,7 +1632,7 @@ def gallery():
         session["gallery_seen_post_id"] = latest_id
 
     posts = query(
-        """SELECT p.id, p.title, p.body, p.created_at, u.username,
+        """SELECT p.id, p.title, p.body, p.created_at, p.views, u.username,
                   COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name,
                   (SELECT COUNT(*) FROM gallery_images gi WHERE gi.post_id=p.id) AS image_count,
                   (SELECT COUNT(*) FROM gallery_comments gc WHERE gc.post_id=p.id AND gc.deleted=FALSE) AS comment_count,
@@ -1701,7 +1709,7 @@ def gallery_new():
 @app.route("/gallery/<int:post_id>")
 def gallery_post(post_id):
     rows = query(
-        """SELECT p.id, p.user_id, p.title, p.body, p.created_at, u.username,
+        """SELECT p.id, p.user_id, p.title, p.body, p.created_at, p.views, u.username,
                   COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name
            FROM gallery_posts p JOIN users u ON u.id=p.user_id
            WHERE p.id=%s AND p.deleted=FALSE""",
@@ -1710,6 +1718,8 @@ def gallery_post(post_id):
     if not rows:
         abort(404)
     post = rows[0]
+    execute("UPDATE gallery_posts SET views=views+1 WHERE id=%s", (post_id,))
+    post["views"] = int(post.get("views") or 0) + 1
     post["created_text"] = _gallery_time_text(post.get("created_at"))
     images = query(
         "SELECT id FROM gallery_images WHERE post_id=%s ORDER BY sort_order ASC, id ASC",

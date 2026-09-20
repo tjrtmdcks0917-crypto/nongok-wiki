@@ -29,5 +29,6 @@
 <section class="railbox"><h3>최근 변경</h3>{% for p in global_recent %}<a href="{{url_for('wiki',title=p.title)}}"><span>{{p.title}}</span><small>12시간 {{p.hourly_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
 <section class="railbox"><h3>실시간 인기 문서</h3>{% for p in global_popular %}<a href="{{url_for('wiki',title=p.title)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>12시간 {{p.hourly_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
 <section class="railbox"><h3>일별 인기 글</h3>{% for p in global_daily %}<a href="{{url_for('wiki',title=p.title)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>24시간 {{p.daily_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
+<section class="railbox"><h3>인기 게시물</h3>{% for p in global_gallery_popular %}<a href="{{url_for('gallery_post',post_id=p.id)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>조회 {{p.views}}</small></a>{% else %}<span>게시물 없음</span>{% endfor %}</section>
 </aside></div>
 <footer>최근 문서는 각 기여자가 작성한 내용을 바탕으로 합니다. · 논곡위키</footer></body></html>

@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS gallery_posts (
     user_id INTEGER NOT NULL,
     title VARCHAR(100) NOT NULL,
     body TEXT NOT NULL,
+    views INTEGER NOT NULL DEFAULT 0,
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -196,6 +197,7 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_status VARCHAR(80)")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43'")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_emoji VARCHAR(8)")
+            conn.execute("ALTER TABLE gallery_posts ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
                 "ON users(student_no) WHERE student_no IS NOT NULL"
@@ -219,6 +221,9 @@ def init_db():
                 conn.execute("ALTER TABLE users ADD COLUMN profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43'")
             if "profile_emoji" not in columns:
                 conn.execute("ALTER TABLE users ADD COLUMN profile_emoji VARCHAR(8)")
+            gallery_columns = {row[1] for row in conn.execute("PRAGMA table_info(gallery_posts)").fetchall()}
+            if "views" not in gallery_columns:
+                conn.execute("ALTER TABLE gallery_posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
                 "ON users(student_no) WHERE student_no IS NOT NULL"

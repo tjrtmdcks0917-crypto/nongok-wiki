@@ -15,7 +15,7 @@
     </div>
   </div>
 
-  <div class="gallery-author"><a href="{{url_for('user_profile',username=post.username)}}"><b>{{post.display_name}}</b></a><span>@{{post.username}}</span><span>{{post.created_text}}</span></div>
+  <div class="gallery-author"><a href="{{url_for('user_profile',username=post.username)}}"><b>{{post.display_name}}</b></a><span>@{{post.username}}</span><span>{{post.created_text}}</span><span>조회 {{post.views}}</span></div>
   <div class="gallery-post-body">{{post.body|e|replace('\n','<br>'|safe)}}</div>
 
   {% if images %}
