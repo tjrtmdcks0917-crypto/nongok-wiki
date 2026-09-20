@@ -1,21 +1,32 @@
 {% extends "base.html" %}
 {% block title %}NOGOK{% endblock %}
 {% block content %}
-<section class="hero hero-simple">
-  <h1>NOGOK</h1>
-</section>
-<div class="grid">
-  <section class="card">
-    <h2>Recent</h2>
-    {% for p in recent %}
-      <a class="row" href="{{ url_for('wiki', title=p.title) }}"><span>{{ p.title }}</span><small>{{ p.updated_at }}</small></a>
-    {% else %}<p>No pages.</p>{% endfor %}
-  </section>
-  <section class="card">
-    <h2>Popular</h2>
-    {% for p in popular %}
-      <a class="row" href="{{ url_for('wiki', title=p.title) }}"><span>{{ p.title }}</span><small>{{ p.views }}</small></a>
-    {% else %}<p>No pages.</p>{% endfor %}
-  </section>
+<div class="home-layout">
+  <div class="home-main">
+    <section class="welcome-card">
+      <div class="nogok-mark">NOGOK</div>
+      <h1>논곡위키, NOGOK Wiki</h1>
+      <p class="welcome">논곡중학교 위키에 오신 것을 환영합니다.</p>
+      <hr>
+      <p>논곡위키는 논곡중학교의 정보를 함께 기록하는 학생 위키입니다.<br>누구나 문서를 만들고 수정하며 함께 더 나은 위키를 만들어갈 수 있습니다.</p>
+      <div class="notice-box">문서 서술에 앞서 운영 방침과 개인정보 보호 원칙을 확인해 주세요.</div>
+    </section>
+    <section class="card recent-card">
+      <h2>최근 변경</h2>
+      {% for p in recent %}
+        <a class="row" href="{{ url_for('wiki', title=p.title) }}"><span>{{ p.title }}</span><small>{{ p.updated_at }}</small></a>
+      {% else %}<p>아직 문서가 없습니다.</p>{% endfor %}
+    </section>
+  </div>
+  <aside class="right-column">
+    <section class="card popular-card">
+      <h2>실시간 인기 문서</h2>
+      {% for p in popular %}
+        <a class="popular-row" href="{{ url_for('wiki', title=p.title) }}"><b>{{ loop.index }}</b><span>{{ p.title }}</span></a>
+      {% else %}<p>아직 문서가 없습니다.</p>{% endfor %}
+    </section>
+    <section class="card side-card"><h2>공지사항</h2><p>논곡위키에 오신 것을 환영합니다.</p><p>개인정보가 포함된 내용은 작성하지 마세요.</p></section>
+    <section class="card side-card"><h2>도움말</h2><a href="{{ url_for('wiki', title='도움말') }}">위키 사용법</a></section>
+  </aside>
 </div>
 {% endblock %}
