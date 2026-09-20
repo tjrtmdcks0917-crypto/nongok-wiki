@@ -24,7 +24,7 @@ RATE_WINDOW = 60
 RATE_MAX = 60
 
 MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
-TIMETABLE_CACHE = {}\nTEACHER_CACHE = {}
+TIMETABLE_CACHE = {}
 
 def get_nongok_timetable(grade, class_num):
     """Fetch weekly timetable from NEIS using the same HTTP pattern as meals."""
