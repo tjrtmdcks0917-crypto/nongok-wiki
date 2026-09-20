@@ -1,15 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 150" role="img" aria-label="NONGOK">
-<defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#246b49"/><stop offset="1" stop-color="#4b9b62"/></linearGradient></defs>
-<g fill="url(#g)">
-<path d="M18 112V35c0-13 18-17 26-7l49 58V34h25v78c0 14-18 18-27 7L43 62v50z"/>
-<path fill-rule="evenodd" d="M145 72c0-31 22-49 51-49s51 18 51 49-22 49-51 49-51-18-51-49zm27 0c0 16 9 26 24 26s24-10 24-26-9-26-24-26-24 10-24 26z"/>
-<path d="M268 112V35c0-13 18-17 26-7l49 58V34h25v78c0 14-18 18-27 7l-48-57v50z"/>
-<path d="M445 51c-8-5-17-7-26-7-20 0-32 11-32 28 0 18 12 28 31 28 7 0 13-1 18-4V84h-22V63h47v47c-12 8-28 12-44 12-34 0-58-19-58-50 0-30 24-50 59-50 14 0 28 3 38 9z"/>
-<path fill-rule="evenodd" d="M470 72c0-31 22-49 51-49s51 18 51 49-22 49-51 49-51-18-51-49zm27 0c0 16 9 26 24 26s24-10 24-26-9-26-24-26-24 10-24 26z"/>
-<path d="M590 24h26v37l31-37h32l-38 43 40 45h-34l-31-37v37h-26z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 230" aria-label="NONGOK">
+<defs><linearGradient id="dark" x1="0" x2="1"><stop stop-color="#1d6041"/><stop offset="1" stop-color="#286b49"/></linearGradient><linearGradient id="light" x1="0" x2="1"><stop stop-color="#72ad51"/><stop offset="1" stop-color="#8bc45e"/></linearGradient></defs>
+<g fill="url(#dark)">
+<path d="M35 155V65Q35 43 55 43Q65 43 75 55L145 128V65Q145 43 165 43Q185 43 185 65V158Q185 178 166 178Q156 178 146 167L76 94V155Q76 177 55 177Q35 177 35 155Z"/>
+<path fill-rule="evenodd" d="M207 110Q207 43 277 43Q347 43 347 110Q347 178 277 178Q207 178 207 110ZM249 110Q249 141 277 141Q305 141 305 110Q305 79 277 79Q249 79 249 110Z"/>
+<path d="M368 155V65Q368 43 388 43Q398 43 408 55L478 128V65Q478 43 498 43Q518 43 518 65V158Q518 178 499 178Q489 178 479 167L409 94V155Q409 177 388 177Q368 177 368 155Z"/>
+<path d="M665 71Q643 55 616 55Q568 55 568 110Q568 164 618 164Q641 164 658 153V128H616Q600 128 600 111Q600 94 616 94H692V169Q661 190 617 190Q526 190 526 110Q526 30 616 30Q657 30 686 50Z"/>
+<path fill-rule="evenodd" d="M705 110Q705 43 775 43Q845 43 845 110Q845 178 775 178Q705 178 705 110ZM747 110Q747 141 775 141Q803 141 803 110Q803 79 775 79Q747 79 747 110Z"/>
+<path d="M864 48Q864 29 884 29Q904 29 904 48V92L944 46Q957 31 971 44Q983 56 971 70L938 106L975 151Q987 166 972 178Q957 189 945 174L904 124V158Q904 178 884 178Q864 178 864 158Z"/>
 </g>
-<path d="M189 18c8-15 25-20 40-15-5 16-19 24-36 23z" fill="#78b75e"/>
-<path d="M631 17c10-13 26-16 40-9-7 15-21 21-37 18z" fill="#78b75e"/>
-<path d="M166 93c12 13 31 17 49 9-9 15-25 22-42 17zM496 96c13 11 30 13 47 6-10 14-27 20-43 14z" fill="#78b75e"/>
-<text x="340" y="144" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" letter-spacing="8" fill="#397354">NONGOK MIDDLE SCHOOL</text>
+<path d="M239 48Q263 9 307 17Q299 52 258 61Z" fill="url(#light)"/>
+<path d="M238 52Q226 33 209 35Q226 42 238 62Z" fill="#286b49"/>
+<path d="M245 143Q270 161 308 143Q292 179 251 172Z" fill="url(#light)"/>
+<path d="M742 143Q772 161 813 140Q795 178 752 172Z" fill="url(#light)"/>
+<path d="M902 77Q932 38 976 48Q962 83 919 91Z" fill="url(#light)"/>
+<text x="505" y="220" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" letter-spacing="13" fill="#376f53">NONGOK MIDDLE SCHOOL</text>
 </svg>
