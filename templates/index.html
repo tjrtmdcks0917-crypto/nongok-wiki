@@ -52,6 +52,31 @@
   </td></tr>
 </table>
 
+<section class="home-utility">
+  <div class="home-utility-head">
+    <h2>편의 기능</h2>
+    <span>자주 쓰는 기능을 한곳에 모아뒀어.</span>
+  </div>
+  <div class="home-utility-grid">
+    <a href="{{url_for('search')}}"><b>🔎 문서 검색</b><span>원하는 문서를 빠르게 찾아보기</span></a>
+    <a href="{{url_for('all_pages')}}"><b>📚 모든 문서</b><span>전체 문서를 한 번에 보기</span></a>
+    {% if current_user %}
+      <a href="{{url_for('new_page')}}"><b>＋ 새 문서</b><span>새 위키 문서 만들기</span></a>
+    {% else %}
+      <a href="{{url_for('login')}}"><b>＋ 새 문서</b><span>로그인 후 새 문서 만들기</span></a>
+    {% endif %}
+    <a href="{{url_for('notices')}}"><b>📢 공지사항{% if site_notice_new %} <em>NEW</em>{% endif %}</b><span>운영 공지 확인하기</span></a>
+    <a href="{{url_for('gallery')}}"><b>▣ 논곡갤러리{% if gallery_unread %} <em>({{gallery_unread}})</em>{% endif %}</b><span>학교 사진과 게시물 보기</span></a>
+    <a href="{{url_for('chat')}}"><b>💬 실시간 소통</b><span>학생들과 실시간으로 대화하기</span></a>
+    <a href="{{url_for('polls')}}"><b>🗳️ 투표</b><span>투표 만들기와 참여하기</span></a>
+    {% if current_user %}
+      <a href="{{url_for('members')}}"><b>👥 친구 찾기</b><span>회원 프로필과 팔로우 보기</span></a>
+      <a href="{{url_for('messages')}}"><b>✉️ 쪽지{% if unread_messages %} <em>({{unread_messages}})</em>{% endif %}</b><span>1:1 메시지 확인하기</span></a>
+      <a href="{{url_for('user_profile',username=current_user.username)}}"><b>🙂 내 프로필</b><span>내 프로필 확인하고 꾸미기</span></a>
+    {% endif %}
+  </div>
+</section>
+
 <section class="home-doc-directory">
   <h2>논곡위키 문서 목록</h2>
 
