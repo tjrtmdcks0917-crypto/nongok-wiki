@@ -2222,6 +2222,7 @@ def chat_send():
 def search():
     q = request.args.get("q", "").strip()
     results = []
+    gallery_results = []
     if q:
         like = f"%{q}%"
         results = query(
@@ -2230,7 +2231,22 @@ def search():
                ORDER BY updated_at DESC LIMIT 50""",
             (like, like),
         )
-    return render_template("search.html", q=q, results=results)
+        gallery_results = query(
+            """SELECT p.id, p.title, p.body, p.created_at, p.views,
+                      COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name
+               FROM gallery_posts p
+               JOIN users u ON u.id=p.user_id
+               WHERE p.deleted=FALSE AND (p.title ILIKE %s OR p.body ILIKE %s)
+               ORDER BY p.created_at DESC, p.id DESC
+               LIMIT 50""",
+            (like, like),
+        )
+    return render_template(
+        "search.html",
+        q=q,
+        results=results,
+        gallery_results=gallery_results,
+    )
 
 @app.route("/history/<path:title>")
 def history(title):

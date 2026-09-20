@@ -1,3 +1,35 @@
 {% extends "base.html" %}
 {% block title %}검색 - NONGOK Wiki{% endblock %}
-{% block content %}<section class="card"><h1>검색 결과</h1>{% if q %}<p><b>{{ q }}</b> 검색 결과</p>{% endif %}{% for p in results %}<a class="search-result" href="{{ url_for('wiki', title=p.title) }}"><h3>{{ p.title }}</h3><p>{{ p.content[:180] }}</p></a>{% else %}<p>검색 결과가 없습니다.</p>{% endfor %}</section>{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>검색 결과</h1>
+  {% if q %}
+  <p><b>{{ q }}</b> 검색 결과 · 문서 {{results|length}}개 · 논곡갤러리 {{gallery_results|length}}개</p>
+  {% endif %}
+
+  {% if q %}
+  <h2 class="section">위키 문서</h2>
+  {% for p in results %}
+  <a class="search-result" href="{{ url_for('wiki', title=p.title) }}">
+    <h3>{{ p.title }}</h3>
+    <p>{{ p.content[:180] }}</p>
+  </a>
+  {% else %}
+  <p>일치하는 위키 문서가 없습니다.</p>
+  {% endfor %}
+
+  <h2 class="section">논곡갤러리</h2>
+  {% for p in gallery_results %}
+  <a class="search-result" href="{{ url_for('gallery_post', post_id=p.id) }}">
+    <h3>{{ p.title }}</h3>
+    <p>{{ p.body[:180] }}</p>
+    <small>{{ p.display_name }} · 조회 {{ p.views }}</small>
+  </a>
+  {% else %}
+  <p>일치하는 논곡갤러리 게시물이 없습니다.</p>
+  {% endfor %}
+  {% else %}
+  <p>검색어를 입력해 주세요.</p>
+  {% endif %}
+</section>
+{% endblock %}
