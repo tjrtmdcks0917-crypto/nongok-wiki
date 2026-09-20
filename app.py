@@ -78,6 +78,11 @@ def render_wiki(text):
         lambda m: f'<a href="{url_for("wiki", title=m.group(1).strip())}">{m.group(1).strip()}</a>',
         safe,
     )
+    safe = re.sub(
+        r"\[([^\[\]\n]{1,200})\]\((https?://[^\s<>]+)\)",
+        lambda m: f'<a href="{m.group(2)}" target="_blank" rel="noopener noreferrer">{m.group(1)}</a>',
+        safe,
+    )
     return safe.replace("\n", "<br>\n")
 
 def seed():
