@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{'팔로워' if kind=='followers' else '팔로잉'}} - {{owner.profile_name or owner.username}}{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<article class="document social-page">
+  <div class="doc-title">
+    <h1>{{owner.profile_name or owner.username}} · {{'팔로워' if kind=='followers' else '팔로잉'}}</h1>
+    <div class="doc-tools"><a href="{{url_for('user_profile',username=owner.username)}}">프로필로</a></div>
+  </div>
+  <div class="connection-list">
+  {% for person in people %}
+    <div class="connection-row" style="--profile-color:{{person.profile_color or '#87aa43'}}">
+      <a class="profile-avatar" href="{{url_for('user_profile',username=person.username)}}">{{person.profile_emoji or '🙂'}}</a>
+      <div class="connection-person">
+        <a href="{{url_for('user_profile',username=person.username)}}"><b>{{person.profile_name or person.username}}</b></a>
+        <span>@{{person.username}}</span>
+        {% if person.profile_status %}<small>{{person.profile_status}}</small>{% endif %}
+      </div>
+      {% if person.id != current_user.id %}
+      <form method="post" action="{{url_for('profile_follow',username=person.username)}}">
+        <input type="hidden" name="csrf" value="{{csrf}}">
+        <button class="social-btn{% if person.id in viewer_following %} secondary{% endif %}" type="submit">{{'팔로잉' if person.id in viewer_following else '팔로우'}}</button>
+      </form>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="social-empty">아직 표시할 회원이 없습니다.</p>
+  {% endfor %}
+  </div>
+</article>
+{% endblock %}
