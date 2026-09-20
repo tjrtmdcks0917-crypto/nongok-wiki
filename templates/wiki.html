@@ -17,20 +17,52 @@
 {% endif %}
 {% if page.title == '시간표' %}
 <section class="timetable-live">
-  <div class="meal-live-head"><h2>논곡중학교 시간표</h2><span>{{ timetable[0].source if timetable else "시간표" }} · {{ timetable_week }}</span></div>
+  <div class="meal-live-head"><h2>논곡중학교 시간표</h2><span>컴시간알리미 실시간 · {{ timetable_week }}</span></div>
   <form class="timetable-picker" method="get">
     <label>학년 <select name="grade">{% for g in range(1,4) %}<option value="{{g}}" {% if g==timetable_grade %}selected{% endif %}>{{g}}학년</option>{% endfor %}</select></label>
     <label>반 <select name="class">{% for c in range(1,11) %}<option value="{{c}}" {% if c==timetable_class %}selected{% endif %}>{{c}}반</option>{% endfor %}</select></label>
     <button type="submit">시간표 보기</button>
   </form>
-  {% if timetable_error %}<p class="meal-error">{{timetable_error}}</p>{% elif timetable %}
-  <div class="timetable-grid">{% for day in timetable %}
-    <article class="timetable-day"><h3>{{ day.date.strftime('%m/%d') }} ({{day.weekday}})</h3>
-      {% for lesson in day.classes %}<div class="timetable-period"><b>{{loop.index}}교시</b><span>{{lesson.subject}}{% if lesson.teacher %}<small class="timetable-teacher">{{lesson.teacher}}</small>{% endif %}</span></div>{% else %}<p>정보없음</p>{% endfor %}
-    </article>
-  {% endfor %}</div>
-  {% else %}<p>정보없음</p>{% endif %}
-  <p class="timetable-note">시간표 정보는 컴시간알리미에서만 가져옵니다. 컴시간알리미에 정보가 없거나 연결에 실패하면 정보없음으로 표시합니다.</p>
+
+  {% if timetable_error %}
+    <p class="meal-error">정보없음</p>
+  {% elif timetable %}
+  <div class="timetable-table-wrap">
+    <table class="timetable-table">
+      <thead>
+        <tr>
+          <th class="period-head">교시</th>
+          {% for day in timetable %}
+          <th>{{day.weekday}}({{day.date.day}})</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in range(0,8) %}
+        <tr>
+          <th class="period-cell">
+            {% if timetable[0].times and p < timetable[0].times|length %}
+              {{ timetable[0].times[p] }}
+            {% else %}
+              {{p+1}}교시
+            {% endif %}
+          </th>
+          {% for day in timetable %}
+          {% set lesson = day.classes[p] %}
+          <td class="lesson-cell{% if lesson.changed %} changed{% endif %}">
+            {% if lesson.subject %}<strong>{{lesson.subject}}</strong>{% endif %}
+            {% if lesson.teacher %}<span>{{lesson.teacher}}</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="meal-error">정보없음</p>
+  {% endif %}
+  <p class="timetable-note">컴시간학생.kr에 표시되는 실시간 시간표만 사용합니다. 없는 칸은 그대로 비워 두고, 조회 오류 시 정보없음으로 표시합니다.</p>
 </section>
 {% endif %}
 <div class="wiki-body">{{content_html|safe}}</div><div class="meta">조회수 {{page.views}}</div>
