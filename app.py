@@ -27,85 +27,80 @@ MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
 TIMETABLE_CACHE = {}
 
 def get_nongok_timetable(grade, class_num):
-    """Fetch Nongok Middle School timetable, with /st -> /th fallback."""
+    """Fetch weekly timetable from NEIS using the same HTTP pattern as meals."""
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
-    date_index = 2 if today.weekday() == 6 else 1
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     monday = target - timedelta(days=target.weekday())
     friday = monday + timedelta(days=4)
     label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
-    key = (grade, class_num, date_index)
+    key = (grade, class_num, monday.isoformat())
     now = time.time()
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["days"], cached["error"], cached["week_label"]
-
-    def normalize(table):
+    params = {
+        "KEY": os.environ.get("NEIS_API_KEY", ""),
+        "Type": "json", "pIndex": 1, "pSize": 100,
+        "ATPT_OFCDC_SC_CODE": "E10",
+        "SD_SCHUL_CODE": os.environ.get("NEIS_SCHOOL_CODE", "7341070"),
+        "AY": str(target.year),
+        "SEM": "1" if target.month <= 7 else "2",
+        "GRADE": str(grade),
+        "CLASS_NM": str(class_num),
+        "TI_FROM_YMD": monday.strftime("%Y%m%d"),
+        "TI_TO_YMD": friday.strftime("%Y%m%d"),
+    }
+    try:
+        if not params["KEY"]:
+            params.pop("KEY")
+        url = "https://open.neis.go.kr/hub/misTimetable?" + urlencode(params)
+        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=8) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        rows = []
+        for part in data.get("misTimetable", []):
+            if isinstance(part, dict) and "row" in part:
+                rows = part["row"]
+                break
+        # With no API key NEIS may cap results at five rows. Retry day-by-day,
+        # exactly like the meal API, so a full week still works.
+        if len(rows) <= 5:
+            rows = []
+            for n in range(5):
+                d = monday + timedelta(days=n)
+                day_params = dict(params)
+                day_params.pop("TI_FROM_YMD", None)
+                day_params.pop("TI_TO_YMD", None)
+                day_params["ALL_TI_YMD"] = d.strftime("%Y%m%d")
+                day_url = "https://open.neis.go.kr/hub/misTimetable?" + urlencode(day_params)
+                with urlopen(Request(day_url, headers={"User-Agent": "Mozilla/5.0"}), timeout=8) as response:
+                    day_data = json.loads(response.read().decode("utf-8"))
+                for part in day_data.get("misTimetable", []):
+                    if isinstance(part, dict) and "row" in part:
+                        rows.extend(part["row"])
+                        break
+        by_date = {}
+        for row in rows:
+            ymd = row.get("ALL_TI_YMD", "")
+            if not ymd:
+                continue
+            perio = int(row.get("PERIO", 0) or 0)
+            subject = row.get("ITRT_CNTNT", "").strip()
+            by_date.setdefault(ymd, {})[perio] = subject
         weekdays = ["월", "화", "수", "목", "금"]
         days = []
-        for d in weekdays:
-            classes = []
-            for item in ((table or {}).get(d) or []):
-                if isinstance(item, dict):
-                    classes.append(item.get("subject") or item.get("과목") or "")
-                elif item is None:
-                    classes.append("")
-                else:
-                    classes.append(str(item))
-            days.append({"weekday": d, "classes": classes})
-        return days
-
-    try:
-        from comci import search_schools, get_timetable
-        schools = search_schools("논곡중학교") or []
-        exact = [x for x in schools if x.get("school_name") == "논곡중학교"]
-        school = next((x for x in exact if x.get("region") == "인천"), None)
-        if not school:
-            raise RuntimeError(f"인천 논곡중학교 검색 실패: {schools!r}")
-        # Comcigan school codes may be encoded strings such as "\\u003E21009".
-        # The client expects that value unchanged and parses it internally.
-        code = school["school_code"]
-        # Search results may contain escaped prefixes such as '>21009'.
-        # Avoid regex/escape ambiguity: retain only decimal digits.
-        if isinstance(code, str):
-            digits = "".join(ch for ch in code if ch.isdigit())
-            if not digits:
-                raise RuntimeError(f"알 수 없는 컴시간 학교 코드: {code!r}")
-            code = int(digits)
-
-        errors = []
-        table = None
-        # First use the normal student timetable endpoint.
-        try:
-            table = get_timetable(code, grade=grade, class_num=class_num, date_index=date_index)
-        except Exception as e:
-            errors.append(f"/st: {type(e).__name__}: {e}")
-
-        days = normalize(table)
-        # Some networks/Comcigan states fail only on /st. Retry through /th.
+        for n, weekday in enumerate(weekdays):
+            d = monday + timedelta(days=n)
+            periods = by_date.get(d.strftime("%Y%m%d"), {})
+            classes = [periods.get(p, "") for p in range(1, max(periods.keys(), default=0) + 1)]
+            days.append({"weekday": weekday, "classes": classes})
         if not any(day["classes"] for day in days):
-            try:
-                from comci import th
-                table = th.get_timetable(code, grade=grade, class_num=class_num, date_index=date_index)
-                days = normalize(table)
-            except Exception as e:
-                errors.append(f"/th: {type(e).__name__}: {e}")
-
-        if not any(day["classes"] for day in days):
-            raise RuntimeError("; ".join(errors) or "컴시간에서 빈 시간표를 반환했습니다.")
-
-        TIMETABLE_CACHE[key] = {
-            "expires": now + 300, "days": days, "error": None,
-            "week_label": label, "debug": None,
-        }
+            app.logger.warning("NEIS timetable returned no rows: %s", data)
+            raise RuntimeError("NEIS에 해당 학년/반 시간표가 없습니다.")
+        TIMETABLE_CACHE[key] = {"expires": now + 1800, "days": days, "error": None, "week_label": label, "debug": None}
     except Exception as e:
-        app.logger.exception("Comcigan timetable fetch failed grade=%s class=%s", grade, class_num)
-        TIMETABLE_CACHE[key] = {
-            "expires": now + 20, "days": [],
-            "error": "시간표 정보를 불러오지 못했습니다.",
-            "week_label": label,
-            "debug": f"{type(e).__name__}: {e}"[:700],
-        }
+        app.logger.exception("NEIS timetable fetch failed grade=%s class=%s", grade, class_num)
+        TIMETABLE_CACHE[key] = {"expires": now + 60, "days": [], "error": "시간표 정보를 불러오지 못했습니다.", "week_label": label, "debug": f"{type(e).__name__}: {e}"[:700]}
     c = TIMETABLE_CACHE[key]
     return c["days"], c["error"], c["week_label"]
 
