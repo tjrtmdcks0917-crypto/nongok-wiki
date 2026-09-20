@@ -4,6 +4,7 @@ import secrets
 import time
 import json
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
 from urllib.request import urlopen
 from functools import wraps
@@ -29,7 +30,8 @@ def get_nongok_meals():
     now = time.time()
     if MEAL_CACHE["expires"] > now:
         return MEAL_CACHE["meals"], MEAL_CACHE["error"]
-    today = datetime.now().date()
+    # Render runs in UTC, so always calculate the school date in Korea time.
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
     # Mon-Sat: keep showing the current week's Mon-Fri meals.
     # Sun: switch ahead and show the coming week's Mon-Fri meals.
     if today.weekday() == 6:
@@ -41,11 +43,17 @@ def get_nongok_meals():
         "KEY": os.environ.get("NEIS_API_KEY", "sample"),
         "Type": "json", "pIndex": 1, "pSize": 100,
         "ATPT_OFCDC_SC_CODE": "E10",
+        # Exact NEIS school code for Nongok Middle School can be set in Render.
+        # Keeping the school name as well prevents similarly named schools from matching.
+        "SD_SCHUL_CODE": os.environ.get("NEIS_SCHOOL_CODE", ""),
         "SCHUL_NM": "논곡중학교",
         "MLSV_FROM_YMD": monday.strftime("%Y%m%d"),
         "MLSV_TO_YMD": friday.strftime("%Y%m%d"),
     }
     try:
+        # Do not send an empty school-code parameter.
+        if not params["SD_SCHUL_CODE"]:
+            params.pop("SD_SCHUL_CODE")
         url = "https://open.neis.go.kr/hub/mealServiceDietInfo?" + urlencode(params)
         with urlopen(url, timeout=4) as response:
             data = json.loads(response.read().decode("utf-8"))
