@@ -93,7 +93,7 @@ def get_nongok_timetable(grade, class_num):
             d = monday + timedelta(days=n)
             periods = by_date.get(d.strftime("%Y%m%d"), {})
             classes = [periods.get(p, "") for p in range(1, max(periods.keys(), default=0) + 1)]
-            days.append({"weekday": weekday, "classes": classes})
+            days.append({"weekday": weekday, "date": d, "classes": classes})
         if not any(day["classes"] for day in days):
             app.logger.warning("NEIS timetable returned no rows: %s", data)
             raise RuntimeError("NEIS에 해당 학년/반 시간표가 없습니다.")
