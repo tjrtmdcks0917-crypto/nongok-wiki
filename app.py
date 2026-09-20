@@ -73,17 +73,46 @@ def slugify(title):
 
 def render_wiki(text):
     safe = str(escape(text or ""))
+
+    # Internal links: [[문서명]]
     safe = re.sub(
         r"\[\[([^\[\]]{1,120})\]\]",
         lambda m: f'<a href="{url_for("wiki", title=m.group(1).strip())}">{m.group(1).strip()}</a>',
         safe,
     )
+
+    # External links: [표시할 글](https://example.com)
     safe = re.sub(
         r"\[([^\[\]\n]{1,200})\]\((https?://[^\s<>]+)\)",
         lambda m: f'<a href="{m.group(2)}" target="_blank" rel="noopener noreferrer">{m.group(1)}</a>',
         safe,
     )
-    return safe.replace("\n", "<br>\n")
+
+    # NamuWiki-style headings with automatic section numbering.
+    # == 큰 제목 ==  -> 1. 큰 제목
+    # === 작은 제목 === -> 1.1. 작은 제목
+    major = 0
+    minor = 0
+    out = []
+    for line in safe.splitlines():
+        sub = re.fullmatch(r"===\s*(.+?)\s*===", line.strip())
+        top = re.fullmatch(r"==\s*(.+?)\s*==", line.strip())
+        if sub:
+            if major == 0:
+                major = 1
+            minor += 1
+            title = sub.group(1)
+            anchor = f"section-{major}-{minor}"
+            out.append(f'<h3 id="{anchor}" class="wiki-heading wiki-heading-sub"><span class="wiki-section-number">{major}.{minor}.</span> {title}</h3>')
+        elif top:
+            major += 1
+            minor = 0
+            title = top.group(1)
+            anchor = f"section-{major}"
+            out.append(f'<h2 id="{anchor}" class="wiki-heading"><span class="wiki-section-number">{major}.</span> {title}</h2>')
+        else:
+            out.append(line)
+    return "<br>\n".join(out)
 
 def seed():
     existing = query("SELECT COUNT(*) AS c FROM wiki_pages")[0]["c"]
