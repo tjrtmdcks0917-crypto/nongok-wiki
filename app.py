@@ -40,7 +40,7 @@ def _masked_teacher_name(value):
     return name[0] + "*" + name[-1]
 
 
-def _read_url(url, encoding="utf-8", timeout=12):
+def _read_url(url, encoding="utf-8", timeout=4):
     req = Request(url, headers={
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/106 Safari/537.36",
         "Accept": "*/*",
@@ -202,10 +202,9 @@ def _fetch_comcigan_direct_once(grade, class_num, week, page_url, base_url):
 def _fetch_comcigan_direct(grade, class_num, week):
     """Try the public student domain first, then the legacy :4082 hosts."""
     candidates = [
-        ("http://xn--s39aj90b0nb2xw6xh.kr/", "http://xn--s39aj90b0nb2xw6xh.kr"),
-        ("http://www.xn--s39aj90b0nb2xw6xh.kr/", "http://www.xn--s39aj90b0nb2xw6xh.kr"),
         ("http://comci.net:4082/st", "http://comci.net:4082"),
         ("http://comci.kr:4082/st", "http://comci.kr:4082"),
+        ("http://xn--s39aj90b0nb2xw6xh.kr/", "http://xn--s39aj90b0nb2xw6xh.kr"),
     ]
     errors = []
     for page_url, base_url in candidates:
@@ -247,34 +246,22 @@ def get_nongok_timetable(grade, class_num):
     friday = monday + timedelta(days=4)
     week_label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
 
-    key = ("comcigan-direct-v4", grade, class_num, week, monday.isoformat())
+    key = ("comcigan-direct-v5", grade, class_num, week, monday.isoformat())
     now = time.time()
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["days"], cached["error"], cached["week_label"]
 
-    last_error = None
-    live = None
-    for attempt in range(1, 4):
-        try:
-            live = _fetch_comcigan_direct(grade, class_num, week)
-            break
-        except Exception as e:
-            last_error = e
-            app.logger.warning(
-                "Direct Comcigan attempt %s/3 failed grade=%s class=%s: %s",
-                attempt, grade, class_num, e,
-            )
-            if attempt < 3:
-                time.sleep(0.5 * attempt)
-
-    if live is None:
+    try:
+        # _fetch_comcigan_direct performs exactly three short direct attempts.
+        live = _fetch_comcigan_direct(grade, class_num, week)
+    except Exception as e:
         TIMETABLE_CACHE[key] = {
             "expires": now + 30,
             "days": [],
-            "error": "3번 조회 실패: " + _friendly_comcigan_error(last_error),
+            "error": "3번 조회 실패: " + _friendly_comcigan_error(e),
             "week_label": week_label,
-            "debug": f"{type(last_error).__name__}: {last_error}"[:900] if last_error else "unknown",
+            "debug": f"{type(e).__name__}: {e}"[:900],
         }
         c = TIMETABLE_CACHE[key]
         return c["days"], c["error"], c["week_label"]
@@ -624,7 +611,7 @@ def timetable_debug():
     week = 1 if today.weekday() == 6 else 0
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     monday = target - timedelta(days=target.weekday())
-    cache_item = TIMETABLE_CACHE.get(("comcigan-direct-v4", grade, class_num, week, monday.isoformat()), {})
+    cache_item = TIMETABLE_CACHE.get(("comcigan-direct-v5", grade, class_num, week, monday.isoformat()), {})
 
     return {
         "grade": grade,
