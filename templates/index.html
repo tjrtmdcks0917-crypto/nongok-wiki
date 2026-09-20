@@ -67,13 +67,26 @@
         <div class="facility-subgroups">
           {% for facility in facility_groups %}
           <div class="facility-subgroup">
-            <button class="facility-subtoggle" type="button" aria-expanded="false" aria-controls="facility-panel-{{loop.index}}" onclick="toggleFacilityDocs(this)">
-              <span class="arrow">▶</span> {{facility.label}} <span>[펼치기 · 접기]</span>
+            <button class="facility-subtoggle" type="button"
+                    aria-expanded="{{ 'true' if loop.first else 'false' }}"
+                    aria-controls="facility-panel-{{loop.index}}"
+                    onclick="toggleFacilityDocs(this)">
+              <span class="arrow">{{ '▼' if loop.first else '▶' }}</span>
+              {{facility.label}}
+              <span>[펼치기 · 접기]</span>
             </button>
-            <div class="facility-sublinks" id="facility-panel-{{loop.index}}" hidden>
-              {% for item in facility['items'] %}
-                <a href="{{url_for('wiki',title=item.title)}}">{{item.label}}</a>
-              {% endfor %}
+            <div class="facility-sublinks" id="facility-panel-{{loop.index}}" {% if not loop.first %}hidden{% endif %}>
+              <table class="facility-table">
+                <tbody>
+                  {% for row in facility['rows'] %}
+                  <tr>
+                    <th>{{row[0]}}</th>
+                    <td>{{row[1]}}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              <a class="facility-detail-link" href="{{url_for('wiki',title=facility.title)}}">이 시설 문서 자세히 보기 →</a>
             </div>
           </div>
           {% endfor %}
