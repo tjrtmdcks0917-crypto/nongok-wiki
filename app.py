@@ -368,6 +368,18 @@ def before():
     if "csrf" not in session:
         session["csrf"] = secrets.token_urlsafe(24)
 
+def _as_utc_datetime(value):
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+        except ValueError:
+            return None
+    return None
+
+
 @app.context_processor
 def inject():
     recent = query("""
@@ -430,15 +442,23 @@ def inject():
         "SELECT content, updated_at FROM homepage_sections WHERE section_key=%s",
         ("news",),
     )
-    site_notice = notice_rows[0]["content"] if notice_rows else "논곡위키 공개 베타 운영 중입니다.\n문서 편집과 토론 기능을 사용할 수 있습니다."
+    notice_content = notice_rows[0]["content"].strip() if notice_rows else ""
     notice_updated_at = notice_rows[0]["updated_at"] if notice_rows else None
-    site_notice_new = False
-    if isinstance(notice_updated_at, datetime):
-        if notice_updated_at.tzinfo is None:
-            notice_updated_at = notice_updated_at.replace(tzinfo=timezone.utc)
-        site_notice_new = (
-            datetime.now(timezone.utc) - notice_updated_at.astimezone(timezone.utc)
-        ) <= timedelta(days=2)
+    notice_dt = _as_utc_datetime(notice_updated_at)
+    site_notice_active = bool(
+        notice_content
+        and notice_dt
+        and datetime.now(timezone.utc) - notice_dt <= timedelta(hours=48)
+    )
+    site_notice = notice_content if site_notice_active else ""
+    site_notice_new = site_notice_active
+
+    unread_messages = 0
+    if user:
+        unread_messages = int(query(
+            "SELECT COUNT(*) AS c FROM direct_messages WHERE receiver_id=%s AND read_at IS NULL",
+            (user["id"],),
+        )[0]["c"] or 0)
 
     return {
         "current_user": user,
@@ -448,15 +468,17 @@ def inject():
         "global_daily": daily,
         "gallery_unread": gallery_unread,
         "site_notice": site_notice,
+        "site_notice_active": site_notice_active,
         "site_notice_new": site_notice_new,
         "site_notice_updated_at": notice_updated_at,
+        "unread_messages": unread_messages,
     }
 
 def current_user():
     uid = session.get("user_id")
     if not uid:
         return None
-    rows = query("SELECT id, username, real_name, student_no, school_name, role FROM users WHERE id = %s", (uid,))
+    rows = query("SELECT id, username, real_name, student_no, school_name, profile_name, profile_bio, profile_status, profile_color, profile_emoji, role FROM users WHERE id = %s", (uid,))
     return rows[0] if rows else None
 
 def require_login(fn):
@@ -1159,6 +1181,224 @@ def _gallery_time_text(value):
     return value.astimezone(ZoneInfo("Asia/Seoul")).strftime("%Y.%m.%d %H:%M")
 
 
+@app.route("/members")
+@require_login
+def members():
+    rows = query(
+        """SELECT u.id, u.username, u.profile_name, u.profile_bio, u.profile_status,
+                  u.profile_color, u.profile_emoji, u.role,
+                  (SELECT COUNT(*) FROM follows f WHERE f.following_id=u.id) AS follower_count,
+                  (SELECT COUNT(*) FROM follows f WHERE f.follower_id=u.id) AS following_count
+           FROM users u
+           ORDER BY COALESCE(NULLIF(u.profile_name,''), u.username) ASC
+           LIMIT 200"""
+    )
+    return render_template("members.html", members=rows)
+
+
+@app.route("/profile/<username>")
+@require_login
+def user_profile(username):
+    rows = query(
+        """SELECT id, username, profile_name, profile_bio, profile_status,
+                  profile_color, profile_emoji, role
+           FROM users WHERE username=%s""",
+        (username,),
+    )
+    if not rows:
+        abort(404)
+    profile = rows[0]
+    viewer = current_user()
+    follower_count = int(query(
+        "SELECT COUNT(*) AS c FROM follows WHERE following_id=%s",
+        (profile["id"],),
+    )[0]["c"] or 0)
+    following_count = int(query(
+        "SELECT COUNT(*) AS c FROM follows WHERE follower_id=%s",
+        (profile["id"],),
+    )[0]["c"] or 0)
+    is_following = False
+    if viewer["id"] != profile["id"]:
+        is_following = bool(query(
+            "SELECT follower_id FROM follows WHERE follower_id=%s AND following_id=%s",
+            (viewer["id"], profile["id"]),
+        ))
+    gallery_posts = query(
+        """SELECT id, title, created_at FROM gallery_posts
+           WHERE user_id=%s AND deleted=FALSE
+           ORDER BY created_at DESC, id DESC LIMIT 6""",
+        (profile["id"],),
+    )
+    for post in gallery_posts:
+        post["created_text"] = _gallery_time_text(post.get("created_at"))
+    return render_template(
+        "profile.html",
+        profile=profile,
+        follower_count=follower_count,
+        following_count=following_count,
+        is_following=is_following,
+        gallery_posts=gallery_posts,
+    )
+
+
+@app.route("/profile/edit", methods=["GET", "POST"])
+@require_login
+def profile_edit():
+    user = current_user()
+    if request.method == "POST":
+        check_csrf()
+        profile_name = request.form.get("profile_name", "").strip()
+        profile_status = request.form.get("profile_status", "").strip()
+        profile_bio = request.form.get("profile_bio", "").strip()
+        profile_emoji = request.form.get("profile_emoji", "").strip()
+        profile_color = request.form.get("profile_color", "#87aa43").strip().lower()
+
+        if len(profile_name) > 30:
+            flash("프로필 이름은 30자 이하로 입력해 주세요.", "warning")
+            return redirect(url_for("profile_edit"))
+        if len(profile_status) > 80:
+            flash("상태 메시지는 80자 이하로 입력해 주세요.", "warning")
+            return redirect(url_for("profile_edit"))
+        if len(profile_bio) > 300:
+            flash("자기소개는 300자 이하로 입력해 주세요.", "warning")
+            return redirect(url_for("profile_edit"))
+        if len(profile_emoji) > 8 or any(ch in profile_emoji for ch in "<>"):
+            flash("프로필 이모지는 짧게 입력해 주세요.", "warning")
+            return redirect(url_for("profile_edit"))
+        if not re.fullmatch(r"#[0-9a-f]{6}", profile_color):
+            profile_color = "#87aa43"
+
+        execute(
+            """UPDATE users
+               SET profile_name=%s, profile_status=%s, profile_bio=%s,
+                   profile_color=%s, profile_emoji=%s
+               WHERE id=%s""",
+            (profile_name, profile_status, profile_bio, profile_color, profile_emoji, user["id"]),
+        )
+        flash("프로필을 저장했습니다.", "success")
+        return redirect(url_for("user_profile", username=user["username"]))
+
+    return render_template("profile_edit.html", profile=user)
+
+
+@app.route("/profile/<username>/follow", methods=["POST"])
+@require_login
+def profile_follow(username):
+    check_csrf()
+    viewer = current_user()
+    rows = query("SELECT id FROM users WHERE username=%s", (username,))
+    if not rows:
+        abort(404)
+    target_id = rows[0]["id"]
+    if target_id == viewer["id"]:
+        return redirect(url_for("user_profile", username=username))
+    existing = query(
+        "SELECT follower_id FROM follows WHERE follower_id=%s AND following_id=%s",
+        (viewer["id"], target_id),
+    )
+    if existing:
+        execute(
+            "DELETE FROM follows WHERE follower_id=%s AND following_id=%s",
+            (viewer["id"], target_id),
+        )
+    else:
+        execute(
+            "INSERT INTO follows(follower_id,following_id,created_at) VALUES (%s,%s,CURRENT_TIMESTAMP)",
+            (viewer["id"], target_id),
+        )
+    return redirect(url_for("user_profile", username=username))
+
+
+@app.route("/messages")
+@require_login
+def messages():
+    user = current_user()
+    rows = query(
+        """SELECT m.id, m.sender_id, m.receiver_id, m.body, m.read_at, m.created_at,
+                  s.username AS sender_username, r.username AS receiver_username
+           FROM direct_messages m
+           JOIN users s ON s.id=m.sender_id
+           JOIN users r ON r.id=m.receiver_id
+           WHERE m.sender_id=%s OR m.receiver_id=%s
+           ORDER BY m.created_at DESC, m.id DESC
+           LIMIT 500""",
+        (user["id"], user["id"]),
+    )
+    conversations = []
+    seen = set()
+    for row in rows:
+        partner_id = row["receiver_id"] if row["sender_id"] == user["id"] else row["sender_id"]
+        if partner_id in seen:
+            continue
+        seen.add(partner_id)
+        partner_rows = query(
+            """SELECT id, username, profile_name, profile_status, profile_color, profile_emoji
+               FROM users WHERE id=%s""",
+            (partner_id,),
+        )
+        if not partner_rows:
+            continue
+        unread = int(query(
+            """SELECT COUNT(*) AS c FROM direct_messages
+               WHERE sender_id=%s AND receiver_id=%s AND read_at IS NULL""",
+            (partner_id, user["id"]),
+        )[0]["c"] or 0)
+        row["created_text"] = _gallery_time_text(row.get("created_at"))
+        conversations.append({
+            "partner": partner_rows[0],
+            "last": row,
+            "unread": unread,
+        })
+    return render_template("messages.html", conversations=conversations)
+
+
+@app.route("/messages/<username>", methods=["GET", "POST"])
+@require_login
+def direct_message(username):
+    user = current_user()
+    target_rows = query(
+        """SELECT id, username, profile_name, profile_status, profile_color, profile_emoji
+           FROM users WHERE username=%s""",
+        (username,),
+    )
+    if not target_rows:
+        abort(404)
+    target = target_rows[0]
+    if target["id"] == user["id"]:
+        return redirect(url_for("messages"))
+
+    if request.method == "POST":
+        check_csrf()
+        body = request.form.get("body", "").strip()
+        if not body or len(body) > 1000:
+            flash("메시지는 1~1000자로 작성해 주세요.", "warning")
+            return redirect(url_for("direct_message", username=username))
+        execute(
+            """INSERT INTO direct_messages(sender_id,receiver_id,body,read_at,created_at)
+               VALUES (%s,%s,%s,NULL,CURRENT_TIMESTAMP)""",
+            (user["id"], target["id"], body),
+        )
+        return redirect(url_for("direct_message", username=username))
+
+    execute(
+        """UPDATE direct_messages SET read_at=CURRENT_TIMESTAMP
+           WHERE sender_id=%s AND receiver_id=%s AND read_at IS NULL""",
+        (target["id"], user["id"]),
+    )
+    thread = query(
+        """SELECT m.id, m.sender_id, m.receiver_id, m.body, m.read_at, m.created_at
+           FROM direct_messages m
+           WHERE (m.sender_id=%s AND m.receiver_id=%s)
+              OR (m.sender_id=%s AND m.receiver_id=%s)
+           ORDER BY m.created_at ASC, m.id ASC
+           LIMIT 300""",
+        (user["id"], target["id"], target["id"], user["id"]),
+    )
+    for message in thread:
+        message["created_text"] = _gallery_time_text(message.get("created_at"))
+    return render_template("direct_message.html", target=target, thread=thread)
+
+
 @app.route("/polls")
 def polls():
     poll_rows = query(
@@ -1282,20 +1522,24 @@ def notices():
         "SELECT content, updated_at FROM homepage_sections WHERE section_key=%s",
         ("news",),
     )
-    content = rows[0]["content"] if rows else "논곡위키 공개 베타 운영 중입니다.\n문서 편집과 토론 기능을 사용할 수 있습니다."
+    raw_content = rows[0]["content"].strip() if rows else ""
     updated_at = rows[0]["updated_at"] if rows else None
-    is_new = False
-    if isinstance(updated_at, datetime):
-        if updated_at.tzinfo is None:
-            updated_at = updated_at.replace(tzinfo=timezone.utc)
-        is_new = (
-            datetime.now(timezone.utc) - updated_at.astimezone(timezone.utc)
-        ) <= timedelta(days=2)
+    updated_dt = _as_utc_datetime(updated_at)
+    is_active = bool(
+        raw_content
+        and updated_dt
+        and datetime.now(timezone.utc) - updated_dt <= timedelta(hours=48)
+    )
+    user = current_user()
+    admin_view = bool(user and user["role"] == "admin")
+    content = raw_content if (is_active or admin_view) else ""
     return render_template(
         "notices.html",
         notice_content=content,
         notice_updated_at=updated_at,
-        notice_is_new=is_new,
+        notice_is_new=is_active,
+        notice_is_active=is_active,
+        notice_admin_view=admin_view,
     )
 
 
