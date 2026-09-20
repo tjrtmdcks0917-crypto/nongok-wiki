@@ -205,32 +205,36 @@
  .guideline-important{padding-left:10px}
 }
 
-/* Homepage document directory */
+/* Homepage document directory — Ingot Wiki-style fold/unfold rows */
 .home-directory-head{width:100%;border-collapse:collapse;margin:22px 0;border:1px solid #8f9396;text-align:center;background:#fff}
 .home-directory-head th,.home-directory-head td{border:1px solid #d7d9db;padding:9px 12px}
 .home-directory-head tr:first-child th{font-size:21px;padding:8px}
 .home-directory-head tr:not(:first-child)>th{width:105px;font-size:16px}
 .home-directory-head td{font-size:15px;line-height:1.8}
 
-.home-doc-directory{border:1px solid #d4d7d9;background:#fff;margin:22px 0 30px}
-.home-doc-directory>h2{font-size:23px;text-align:center;margin:0;padding:13px;border-bottom:1px solid #d4d7d9}
-.home-doc-group{border-bottom:1px solid #ddd}
+.home-doc-directory{border:1px solid #cfd2d4;background:#fff;margin:22px 0 30px}
+.home-doc-directory>h2{font-size:23px;text-align:center;margin:0;padding:13px;border-bottom:1px solid #cfd2d4}
+.home-doc-group{border-bottom:1px solid #d8dadd}
 .home-doc-group:last-child{border-bottom:0}
-.home-doc-group summary{list-style:none;cursor:pointer;text-align:center;padding:10px 14px;user-select:none}
-.home-doc-group summary::-webkit-details-marker{display:none}
-.home-doc-group summary::before{content:"▶";font-size:12px;margin-right:8px}
-.home-doc-group[open] summary::before{content:"▼"}
-.home-doc-group summary strong{display:block;font-size:18px;margin-bottom:3px}
-.home-toggle{font-size:13px;color:#303b4f}.home-toggle .close-text{display:none}
-.home-doc-group[open] .home-toggle .open-text{display:none}.home-doc-group[open] .home-toggle .close-text{display:inline}
-.home-doc-links{display:flex;justify-content:center;flex-wrap:wrap;gap:7px 12px;padding:11px 18px 16px;border-top:1px dashed #e2e2e2;background:#fafafa}
-.home-doc-links a{font-size:14px}.home-doc-links span{color:#888;font-size:13px}
-.home-doc-all summary strong{font-size:17px}
+.home-doc-toggle{display:block;width:100%;border:0;background:#fff;margin:0;padding:9px 14px;text-align:center;color:#111;font:inherit;cursor:pointer}
+.home-doc-toggle:hover{background:#fafafa}
+.home-doc-toggle strong{display:block;font-size:18px;line-height:1.35;margin-bottom:2px}
+.home-doc-control{display:block;font-size:13px;line-height:1.35;color:#25364e}
+.home-doc-control .arrow{display:inline-block;width:14px;color:#111}
+.home-doc-toggle[aria-expanded="true"]{background:#fafafa}
+.home-doc-links[hidden]{display:none!important}
+.home-doc-links{display:flex;justify-content:center;flex-wrap:wrap;gap:7px 12px;padding:11px 18px 15px;border-top:1px solid #eceeef;background:#fff}
+.home-doc-links a{font-size:14px}
+.home-doc-links span{font-size:13px;color:#888}
+.home-doc-all .home-doc-toggle strong{font-size:17px}
 
 @media(max-width:650px){
- .home-directory-head{font-size:13px}.home-directory-head th,.home-directory-head td{padding:7px 6px}
- .home-directory-head tr:first-child th{font-size:18px}.home-directory-head tr:not(:first-child)>th{width:68px;font-size:14px}
+ .home-directory-head th,.home-directory-head td{padding:7px 6px}
+ .home-directory-head tr:first-child th{font-size:18px}
+ .home-directory-head tr:not(:first-child)>th{width:68px;font-size:14px}
  .home-directory-head td{font-size:13px;line-height:1.7}
- .home-doc-directory>h2{font-size:20px;padding:11px}.home-doc-group summary strong{font-size:16px}
+ .home-doc-directory>h2{font-size:20px;padding:11px}
+ .home-doc-toggle{padding:9px 8px}
+ .home-doc-toggle strong{font-size:16px}
  .home-doc-links{justify-content:flex-start;padding:10px 12px 14px;gap:6px 10px}
 }
