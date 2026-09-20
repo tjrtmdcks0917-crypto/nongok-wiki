@@ -35,7 +35,7 @@ def before():
 
 @app.context_processor
 def inject():
-    return {"current_user": current_user(), "csrf": session.get("csrf")}
+    return {"current_user": current_user(), "csrf": session.get("csrf"), "global_recent": query("SELECT title, updated_at FROM wiki_pages WHERE deleted=FALSE ORDER BY updated_at DESC LIMIT 10"), "global_popular": query("SELECT title, views FROM wiki_pages WHERE deleted=FALSE ORDER BY views DESC, updated_at DESC LIMIT 10")}
 
 def current_user():
     uid = session.get("user_id")
