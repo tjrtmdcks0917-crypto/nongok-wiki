@@ -411,7 +411,7 @@ def current_user():
     uid = session.get("user_id")
     if not uid:
         return None
-    rows = query("SELECT id, username, role FROM users WHERE id = %s", (uid,))
+    rows = query("SELECT id, username, real_name, student_no, role FROM users WHERE id = %s", (uid,))
     return rows[0] if rows else None
 
 def require_login(fn):
@@ -866,6 +866,7 @@ def poll_toggle(poll_id):
 def gallery():
     posts = query(
         """SELECT p.id, p.title, p.body, p.created_at, u.username,
+                  COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name,
                   (SELECT COUNT(*) FROM gallery_images gi WHERE gi.post_id=p.id) AS image_count,
                   (SELECT COUNT(*) FROM gallery_comments gc WHERE gc.post_id=p.id AND gc.deleted=FALSE) AS comment_count,
                   (SELECT MIN(gi.id) FROM gallery_images gi WHERE gi.post_id=p.id) AS cover_image_id
@@ -941,7 +942,8 @@ def gallery_new():
 @app.route("/gallery/<int:post_id>")
 def gallery_post(post_id):
     rows = query(
-        """SELECT p.id, p.user_id, p.title, p.body, p.created_at, u.username
+        """SELECT p.id, p.user_id, p.title, p.body, p.created_at, u.username,
+                  COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name
            FROM gallery_posts p JOIN users u ON u.id=p.user_id
            WHERE p.id=%s AND p.deleted=FALSE""",
         (post_id,),
@@ -955,7 +957,8 @@ def gallery_post(post_id):
         (post_id,),
     )
     comments = query(
-        """SELECT c.id, c.user_id, c.body, c.created_at, u.username
+        """SELECT c.id, c.user_id, c.body, c.created_at, u.username,
+                  COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name
            FROM gallery_comments c JOIN users u ON u.id=c.user_id
            WHERE c.post_id=%s AND c.deleted=FALSE
            ORDER BY c.created_at ASC, c.id ASC""",
@@ -1108,8 +1111,17 @@ def history(title):
 def register():
     if request.method == "POST":
         check_csrf()
+        real_name = request.form.get("real_name", "").strip()
+        student_no = request.form.get("student_no", "").strip()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+
+        if not re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", real_name):
+            flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
+            return redirect(url_for("register"))
+        if not re.fullmatch(r"(10|20|30)(0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
+            flash("학번 형식이 올바르지 않습니다. 예: 100101 = 1학년 1반 1번", "warning")
+            return redirect(url_for("register"))
         if not re.fullmatch(r"[A-Za-z0-9가-힣_]{2,24}", username):
             flash("아이디는 2~24자의 한글/영문/숫자/밑줄만 사용할 수 있습니다.", "warning")
             return redirect(url_for("register"))
@@ -1119,7 +1131,15 @@ def register():
         if query("SELECT id FROM users WHERE username=%s", (username,)):
             flash("이미 사용 중인 아이디입니다.", "warning")
             return redirect(url_for("register"))
-        execute("INSERT INTO users(username,password_hash,role,created_at) VALUES (%s,%s,'user',CURRENT_TIMESTAMP)", (username, generate_password_hash(password)))
+        if query("SELECT id FROM users WHERE student_no=%s", (student_no,)):
+            flash("이미 가입에 사용된 학번입니다.", "warning")
+            return redirect(url_for("register"))
+
+        execute(
+            """INSERT INTO users(username,password_hash,real_name,student_no,role,created_at)
+               VALUES (%s,%s,%s,%s,'user',CURRENT_TIMESTAMP)""",
+            (username, generate_password_hash(password), real_name, student_no),
+        )
         flash("회원가입이 완료되었습니다. 로그인해 주세요.", "success")
         return redirect(url_for("login"))
     return render_template("auth.html", mode="register")
@@ -1176,7 +1196,7 @@ def admin():
            LEFT JOIN users u ON u.id=r.user_id
            ORDER BY r.created_at DESC LIMIT 100"""
     )
-    users = query("SELECT id, username, role, created_at FROM users ORDER BY created_at DESC LIMIT 100")
+    users = query("SELECT id, username, real_name, student_no, role, created_at FROM users ORDER BY created_at DESC LIMIT 100")
     return render_template("admin.html", reports=reports, users=users)
 
 @app.route("/admin/report/<int:report_id>/<status>", methods=["POST"])
