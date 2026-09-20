@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} - 논곡중나무위키{% endblock %}
+{% block content %}
+<article class="card article"><div class="article-head"><h1>{{ page.title }}</h1><div class="actions">{% if current_user %}<a href="{{ url_for('edit', title=page.title) }}">편집</a>{% endif %}<a href="{{ url_for('history', title=page.title) }}">역사</a></div></div>
+{% if page.protected %}<div class="notice">🔒 관리자에 의해 보호된 문서입니다.</div>{% endif %}<div class="wiki-body">{{ content_html|safe }}</div></article>
+<section class="card"><h2>토론</h2>{% if current_user %}<form method="post" action="{{ url_for('discuss', page_id=page.id) }}"><input type="hidden" name="csrf" value="{{ csrf }}"><textarea name="body" maxlength="2000" placeholder="문서에 관한 의견을 작성해줘."></textarea><button>토론 작성</button></form>{% else %}<p><a href="{{ url_for('login') }}">로그인</a>하면 토론에 참여할 수 있어.</p>{% endif %}
+{% for d in discussions %}<div class="discussion"><b>{{ d.username or '탈퇴 사용자' }}</b><small>{{ d.created_at }}</small><p>{{ d.body }}</p></div>{% else %}<p>아직 토론이 없어.</p>{% endfor %}</section>
+{% if current_user %}<section class="card"><h2>신고</h2><form method="post" action="{{ url_for('report') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="page_id" value="{{ page.id }}"><textarea name="reason" maxlength="1000" placeholder="문서에서 문제가 되는 부분과 이유를 적어줘."></textarea><button>문서 신고</button></form></section>{% endif %}
+{% endblock %}
