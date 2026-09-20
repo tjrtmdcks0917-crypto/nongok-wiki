@@ -63,30 +63,52 @@
     </button>
     <div class="home-doc-links{% if group.label == '학교 시설 목록' %} facility-directory{% endif %}" id="home-doc-panel-{{loop.index}}" hidden>
       {% if group.label == '학교 시설 목록' %}
-        <div class="facility-oneview">
-          <div class="facility-oneview-head">
-            <a href="{{url_for('wiki',title='학교 시설')}}">학교 시설 전체 안내</a>
-            <span>한 번 펼치면 전관·후관·기타 시설을 모두 볼 수 있습니다.</span>
+        <div class="facility-map">
+          <div class="facility-map-title">
+            <b>본관</b>
+            <a href="{{url_for('wiki',title='학교 시설')}}">학교 시설 문서 →</a>
           </div>
-          <table class="facility-overview-table">
-            <thead>
-              <tr><th>관·구역</th><th>층</th><th>시설</th></tr>
-            </thead>
+
+          <table class="facility-floor-map">
             <tbody>
-            {% for section in facility_layout %}
+            {% for floor in facility_floors %}
               <tr>
-                <th class="facility-area">{{section.area}}</th>
-                <td class="facility-floor">{{section.floor}}</td>
-                <td class="facility-rooms">
-                  {% for room in section['rooms'] %}
-                    <span>{{room}}</span>
-                  {% endfor %}
+                <th>{{floor.floor}}</th>
+                <td>
+                  {% if floor['rooms'] %}
+                    {% for room in floor['rooms'] %}
+                      <span class="facility-room verified">{{room}}</span>
+                    {% endfor %}
+                  {% else %}
+                    <span class="facility-pending">세부 시설 위치 확인 중</span>
+                  {% endif %}
                 </td>
               </tr>
             {% endfor %}
             </tbody>
           </table>
-          <p class="facility-layout-note">※ 확인되지 않은 층별 위치는 임의로 넣지 않았습니다. 정확한 층 배치를 확인하면 각 층별 행으로 나누어 추가할 수 있습니다.</p>
+
+          <div class="facility-wing-title">관·구역별 시설</div>
+          <table class="facility-wing-map">
+            <tbody>
+            {% for wing in facility_wings %}
+              <tr>
+                <th>{{wing.area}}</th>
+                <td>
+                  {% for room in wing['rooms'] %}
+                    <span class="facility-room">{{room}}</span>
+                  {% endfor %}
+                </td>
+                <td class="facility-wing-note">{{wing.note}}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+
+          <p class="facility-source-note">
+            층별 위치는 공개 자료에서 확인되는 항목부터 반영하고 있습니다.
+            확인되지 않은 시설은 임의로 층을 지정하지 않습니다.
+          </p>
         </div>
       {% else %}
         {% for title in group['items'] %}
