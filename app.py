@@ -561,9 +561,9 @@ def wiki(title):
                            timetable_error=timetable_error, timetable_week=timetable_week,
                            timetable_grade=timetable_grade, timetable_class=timetable_class)
 
-@app.route("/admin/timetable-debug")
-@require_admin
+@app.route("/api/timetable-debug")
 def timetable_debug():
+    """Public, sanitized diagnostics for timetable parsing."""
     try:
         grade = min(3, max(1, int(request.args.get("grade", "2"))))
         class_num = min(20, max(1, int(request.args.get("class", "1"))))
@@ -571,23 +571,32 @@ def timetable_debug():
         grade, class_num = 2, 1
 
     days, error, week = get_nongok_timetable(grade, class_num)
+    cache_item = TIMETABLE_CACHE.get(("comcigan-live-v2", grade, class_num), {})
+    debug = cache_item.get("debug") or {}
+
     parsed = []
     for day in days:
         parsed.append({
             "date": day["date"].isoformat(),
             "weekday": day["weekday"],
-            "classes": day["classes"],
+            "subjects": [item.get("subject", "") for item in day["classes"]],
+            "has_teacher": [bool(item.get("teacher")) for item in day["classes"]],
         })
 
-    cache_item = TIMETABLE_CACHE.get(("comcigan-live-v2", grade, class_num), {})
     return {
         "grade": grade,
         "class": class_num,
         "week": week,
         "error": error,
-        "debug": cache_item.get("debug"),
+        "day_count": debug.get("day_count"),
+        "raw_counts": debug.get("raw_counts"),
+        "source_keys": debug.get("source_keys"),
         "parsed": parsed,
     }
+
+@app.route("/admin/timetable-debug")
+def timetable_debug_legacy():
+    return redirect(url_for("timetable_debug", **request.args))
 
 @app.route("/edit/<path:title>", methods=["GET", "POST"])
 @require_login
