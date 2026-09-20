@@ -411,7 +411,7 @@ def current_user():
     uid = session.get("user_id")
     if not uid:
         return None
-    rows = query("SELECT id, username, real_name, student_no, role FROM users WHERE id = %s", (uid,))
+    rows = query("SELECT id, username, real_name, student_no, school_name, role FROM users WHERE id = %s", (uid,))
     return rows[0] if rows else None
 
 def require_login(fn):
@@ -1163,6 +1163,7 @@ def register():
         check_csrf()
         real_name = request.form.get("real_name", "").strip()
         student_no = request.form.get("student_no", "").strip()
+        school_name = request.form.get("school_name", "").strip()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
@@ -1171,6 +1172,9 @@ def register():
             return redirect(url_for("register"))
         if not re.fullmatch(r"(10|20|30)(0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
             flash("학번 형식이 올바르지 않습니다. 예: 100101 = 1학년 1반 1번", "warning")
+            return redirect(url_for("register"))
+        if len(school_name) < 2 or len(school_name) > 80:
+            flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
             return redirect(url_for("register"))
         if not re.fullmatch(r"[A-Za-z0-9가-힣_]{2,24}", username):
             flash("아이디는 2~24자의 한글/영문/숫자/밑줄만 사용할 수 있습니다.", "warning")
@@ -1186,9 +1190,9 @@ def register():
             return redirect(url_for("register"))
 
         execute(
-            """INSERT INTO users(username,password_hash,real_name,student_no,role,created_at)
-               VALUES (%s,%s,%s,%s,'user',CURRENT_TIMESTAMP)""",
-            (username, generate_password_hash(password), real_name, student_no),
+            """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,created_at)
+               VALUES (%s,%s,%s,%s,%s,'user',CURRENT_TIMESTAMP)""",
+            (username, generate_password_hash(password), real_name, student_no, school_name),
         )
         flash("회원가입이 완료되었습니다. 로그인해 주세요.", "success")
         return redirect(url_for("login"))
@@ -1198,25 +1202,18 @@ def register():
 def login():
     if request.method == "POST":
         check_csrf()
-        school_name = re.sub(r"\s+", "", request.form.get("school_name", "").strip())
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-
-        if school_name != "논곡중학교":
-            flash("학교명이 맞지 않습니다. '논곡중학교'를 정확히 입력해 주세요.", "warning")
-            return render_template(
-                "auth.html",
-                mode="login",
-                next_url=request.form.get("next", "") or request.args.get("next", ""),
-                entered_username=username,
-                entered_school_name=request.form.get("school_name", ""),
-            )
 
         rows = query("SELECT * FROM users WHERE username=%s", (username,))
         if rows and check_password_hash(rows[0]["password_hash"], password):
             session["user_id"] = rows[0]["id"]
             flash("로그인되었습니다.", "success")
-            if rows[0]["role"] != "admin" and (not rows[0].get("real_name") or not rows[0].get("student_no")):
+            if rows[0]["role"] != "admin" and (
+                not rows[0].get("real_name")
+                or not rows[0].get("student_no")
+                or not rows[0].get("school_name")
+            ):
                 return redirect(url_for("identity_setup"))
             return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
         flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
@@ -1225,7 +1222,6 @@ def login():
         mode="login",
         next_url=request.args.get("next", ""),
         entered_username=request.form.get("username", ""),
-        entered_school_name=request.form.get("school_name", ""),
     )
 
 @app.route("/account/identity", methods=["GET", "POST"])
@@ -1234,13 +1230,14 @@ def identity_setup():
     user = current_user()
     if user["role"] == "admin":
         return redirect(url_for("index"))
-    if user.get("real_name") and user.get("student_no"):
+    if user.get("real_name") and user.get("student_no") and user.get("school_name"):
         return redirect(url_for("index"))
 
     if request.method == "POST":
         check_csrf()
         real_name = request.form.get("real_name", "").strip()
         student_no = request.form.get("student_no", "").strip()
+        school_name = request.form.get("school_name", "").strip()
 
         if not re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", real_name):
             flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
@@ -1248,15 +1245,18 @@ def identity_setup():
         if not re.fullmatch(r"(10|20|30)(0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
             flash("학번 형식이 올바르지 않습니다. 예: 100101 = 1학년 1반 1번", "warning")
             return redirect(url_for("identity_setup"))
+        if len(school_name) < 2 or len(school_name) > 80:
+            flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
+            return redirect(url_for("identity_setup"))
         if query("SELECT id FROM users WHERE student_no=%s AND id<>%s", (student_no, user["id"])):
             flash("이미 다른 계정에 등록된 학번입니다.", "warning")
             return redirect(url_for("identity_setup"))
 
         execute(
-            "UPDATE users SET real_name=%s, student_no=%s WHERE id=%s",
-            (real_name, student_no, user["id"]),
+            "UPDATE users SET real_name=%s, student_no=%s, school_name=%s WHERE id=%s",
+            (real_name, student_no, school_name, user["id"]),
         )
-        flash("이름과 학번이 등록되었습니다.", "success")
+        flash("이름, 학번, 학교 정보가 등록되었습니다.", "success")
         return redirect(url_for("index"))
 
     return render_template("identity.html")
@@ -1300,7 +1300,7 @@ def admin():
            LEFT JOIN users u ON u.id=r.user_id
            ORDER BY r.created_at DESC LIMIT 100"""
     )
-    users = query("SELECT id, username, real_name, student_no, role, created_at FROM users ORDER BY created_at DESC LIMIT 100")
+    users = query("SELECT id, username, real_name, student_no, school_name, role, created_at FROM users ORDER BY created_at DESC LIMIT 100")
     return render_template("admin.html", reports=reports, users=users)
 
 @app.route("/admin/report/<int:report_id>/<status>", methods=["POST"])
