@@ -403,3 +403,16 @@
   .admin-reset-result{align-items:stretch;flex-direction:column}
   .admin-reset-result button{width:100%}
 }
+
+
+/* Admin member name search */
+.admin-member-search{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin:12px 0 8px}
+.admin-member-search input{height:42px;margin:0;border:1px solid #c7cbd0;border-radius:8px;padding:0 12px;background:#fff}
+.admin-member-search button{height:42px;margin:0;padding:0 18px;border-radius:8px;background:var(--green);border-color:#78993b;color:#fff;font-weight:700}
+.admin-member-search>a{height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border:1px solid #cbd0d4;border-radius:8px;background:#fff;color:#555;font-weight:700}
+.admin-member-search>a:hover{text-decoration:none;background:#f7f7f7}
+.admin-member-search-result{margin:7px 0 14px;color:#666;font-size:13px}
+@media(max-width:600px){
+  .admin-member-search{grid-template-columns:1fr auto}
+  .admin-member-search>a{grid-column:1/-1;height:38px}
+}

@@ -1992,25 +1992,42 @@ def report():
     flash("신고가 접수되었습니다.", "success")
     return redirect(request.referrer or url_for("index"))
 
-def _admin_page_data():
+def _admin_page_data(member_q=""):
     reports = query(
         """SELECT r.*, w.title, u.username FROM reports r
            LEFT JOIN wiki_pages w ON w.id=r.page_id
            LEFT JOIN users u ON u.id=r.user_id
            ORDER BY r.created_at DESC LIMIT 100"""
     )
-    users = query(
-        "SELECT id, username, real_name, student_no, school_name, role, created_at "
-        "FROM users ORDER BY created_at DESC LIMIT 100"
-    )
+    if member_q:
+        users = query(
+            """SELECT id, username, real_name, student_no, school_name, role, created_at
+               FROM users
+               WHERE COALESCE(real_name, '') ILIKE %s
+               ORDER BY real_name ASC, created_at DESC
+               LIMIT 100""",
+            (f"%{member_q}%",),
+        )
+    else:
+        users = query(
+            "SELECT id, username, real_name, student_no, school_name, role, created_at "
+            "FROM users ORDER BY created_at DESC LIMIT 100"
+        )
     return reports, users
 
 
 @app.route("/admin")
 @require_admin
 def admin():
-    reports, users = _admin_page_data()
-    return render_template("admin.html", reports=reports, users=users, reset_result=None)
+    member_q = request.args.get("member_q", "").strip()[:30]
+    reports, users = _admin_page_data(member_q)
+    return render_template(
+        "admin.html",
+        reports=reports,
+        users=users,
+        reset_result=None,
+        member_q=member_q,
+    )
 
 
 @app.route("/admin/user/<int:user_id>/reset-password", methods=["POST"])
@@ -2031,7 +2048,8 @@ def admin_reset_password(user_id):
         (generate_password_hash(temporary_password), user_id),
     )
 
-    reports, users = _admin_page_data()
+    member_q = request.form.get("member_q", "").strip()[:30]
+    reports, users = _admin_page_data(member_q)
     return render_template(
         "admin.html",
         reports=reports,
@@ -2040,6 +2058,7 @@ def admin_reset_password(user_id):
             "username": target["username"],
             "temporary_password": temporary_password,
         },
+        member_q=member_q,
     )
 
 

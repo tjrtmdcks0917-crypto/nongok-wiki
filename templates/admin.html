@@ -29,6 +29,16 @@
 
 <section class="card">
   <h2>회원 정보</h2>
+
+  <form class="admin-member-search" method="get" action="{{ url_for('admin') }}">
+    <input type="search" name="member_q" maxlength="30" value="{{ member_q or '' }}" placeholder="유저 본명 검색 (예: 석승찬)" aria-label="유저 본명 검색">
+    <button type="submit">검색</button>
+    {% if member_q %}<a href="{{ url_for('admin') }}">초기화</a>{% endif %}
+  </form>
+  {% if member_q %}
+  <p class="admin-member-search-result"><b>‘{{member_q}}’</b> 검색 결과 {{users|length}}명</p>
+  {% endif %}
+
   <p class="hint">
     기존 비밀번호는 관리자도 볼 수 없습니다. 비밀번호를 잊은 회원은
     <b>비밀번호 초기화</b> 버튼을 누르면 비밀번호가 <b>pw12345</b>로 초기화됩니다.
@@ -60,12 +70,13 @@
     {% if u.role != 'admin' %}
     <form class="admin-password-reset" method="post" action="{{ url_for('admin_reset_password', user_id=u.id) }}">
       <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="member_q" value="{{ member_q or '' }}">
       <button type="submit" onclick="return confirm('@{{u.username}} 계정의 비밀번호를 초기화할까요? 기존 비밀번호로는 더 이상 로그인할 수 없습니다.');">비밀번호 초기화</button>
     </form>
     {% endif %}
   </div>
   {% else %}
-  <p>회원이 없습니다.</p>
+  <p>{% if member_q %}검색한 본명의 회원이 없습니다.{% else %}회원이 없습니다.{% endif %}</p>
   {% endfor %}
 </section>
 {% endblock %}
