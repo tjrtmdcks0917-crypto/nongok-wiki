@@ -1193,7 +1193,14 @@ def members():
            ORDER BY COALESCE(NULLIF(u.profile_name,''), u.username) ASC
            LIMIT 200"""
     )
-    return render_template("members.html", members=rows)
+    viewer = current_user()
+    viewer_following = {
+        row["following_id"] for row in query(
+            "SELECT following_id FROM follows WHERE follower_id=%s",
+            (viewer["id"],),
+        )
+    }
+    return render_template("members.html", members=rows, viewer_following=viewer_following)
 
 
 @app.route("/profile/<username>")
@@ -1238,6 +1245,54 @@ def user_profile(username):
         following_count=following_count,
         is_following=is_following,
         gallery_posts=gallery_posts,
+    )
+
+
+@app.route("/profile/<username>/<kind>")
+@require_login
+def profile_connections(username, kind):
+    if kind not in {"followers", "following"}:
+        abort(404)
+    owner_rows = query(
+        "SELECT id, username, profile_name, profile_color, profile_emoji FROM users WHERE username=%s",
+        (username,),
+    )
+    if not owner_rows:
+        abort(404)
+    owner = owner_rows[0]
+
+    if kind == "followers":
+        people = query(
+            """SELECT u.id, u.username, u.profile_name, u.profile_status,
+                      u.profile_color, u.profile_emoji
+               FROM follows f JOIN users u ON u.id=f.follower_id
+               WHERE f.following_id=%s
+               ORDER BY COALESCE(NULLIF(u.profile_name,''), u.username) ASC""",
+            (owner["id"],),
+        )
+    else:
+        people = query(
+            """SELECT u.id, u.username, u.profile_name, u.profile_status,
+                      u.profile_color, u.profile_emoji
+               FROM follows f JOIN users u ON u.id=f.following_id
+               WHERE f.follower_id=%s
+               ORDER BY COALESCE(NULLIF(u.profile_name,''), u.username) ASC""",
+            (owner["id"],),
+        )
+
+    viewer = current_user()
+    viewer_following = {
+        row["following_id"] for row in query(
+            "SELECT following_id FROM follows WHERE follower_id=%s",
+            (viewer["id"],),
+        )
+    }
+    return render_template(
+        "connections.html",
+        owner=owner,
+        people=people,
+        kind=kind,
+        viewer_following=viewer_following,
     )
 
 
