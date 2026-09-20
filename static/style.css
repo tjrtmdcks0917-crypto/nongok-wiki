@@ -251,3 +251,22 @@
 .member-details{display:flex;flex-wrap:wrap;gap:6px 8px}
 .member-details span{display:inline-block;border:1px solid #e0e3e5;background:#fafafa;border-radius:6px;padding:5px 8px;font-size:12px;color:#555}
 @media(max-width:600px){.member-details{display:grid;grid-template-columns:1fr}.member-details span{width:100%}}
+
+/* Nested facility directory */
+.home-doc-links.facility-directory{display:block;padding:0;background:#fff}
+.facility-overview-link{display:block;text-align:center;padding:10px 12px;border-bottom:1px solid #e5e7e9;font-weight:700}
+.facility-subgroups{margin:0 12px 12px;border:1px solid #d5d8da}
+.facility-subgroup{border-bottom:1px solid #dedfe1}
+.facility-subgroup:last-child{border-bottom:0}
+.facility-subtoggle{display:block;width:100%;border:0;background:#fff;margin:0;padding:10px 12px;text-align:center;font:inherit;color:#111;cursor:pointer}
+.facility-subtoggle:hover,.facility-subtoggle[aria-expanded="true"]{background:#fafafa}
+.facility-subtoggle>.arrow{display:inline-block;width:14px}
+.facility-subtoggle>span:last-child{font-size:13px;color:#30415d}
+.facility-sublinks[hidden]{display:none!important}
+.facility-sublinks{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 12px;padding:10px 12px;border-top:1px dashed #e4e5e6;background:#fcfcfc}
+.facility-sublinks a{font-size:14px}
+@media(max-width:650px){
+ .facility-subgroups{margin:0 7px 9px}
+ .facility-subtoggle{padding:9px 6px;font-size:14px}
+ .facility-sublinks{justify-content:flex-start;padding:9px 10px}
+}
