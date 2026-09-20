@@ -59,3 +59,12 @@
   .railbox{display:block}
   .railbox a{display:flex}
 }
+
+
+/* All documents pagination */
+.all-pages-list{border-top:1px solid var(--line);margin-top:20px}
+.all-page-item{display:flex;justify-content:space-between;gap:15px;padding:13px 10px;border-bottom:1px solid #eee}
+.all-page-item small{color:#777;white-space:nowrap}
+.pagination{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:24px 0}
+.pagination a,.pagination .current{min-width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:7px;background:#fff}
+.pagination .current{background:var(--green);color:#fff;border-color:var(--green);font-weight:700}
