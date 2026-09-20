@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}프로필 꾸미기 - 논곡위키{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<article class="document social-page profile-edit-page">
+  <div class="doc-title"><h1>프로필 꾸미기</h1><div class="doc-tools"><a href="{{url_for('user_profile',username=current_user.username)}}">내 프로필</a></div></div>
+  <div class="profile-edit-preview" style="--profile-color:{{profile.profile_color or '#87aa43'}}">
+    <div class="profile-avatar profile-avatar-large">{{profile.profile_emoji or '🙂'}}</div>
+    <div><b>{{profile.profile_name or profile.username}}</b><span>@{{profile.username}}</span></div>
+  </div>
+  <form method="post" class="profile-edit-form">
+    <input type="hidden" name="csrf" value="{{csrf}}">
+    <label>표시 이름
+      <input name="profile_name" maxlength="30" value="{{profile.profile_name or ''}}" placeholder="프로필에 보일 이름">
+    </label>
+    <label>프로필 이모지
+      <input name="profile_emoji" maxlength="8" value="{{profile.profile_emoji or ''}}" placeholder="예: 🚀">
+    </label>
+    <label>상태 메시지
+      <input name="profile_status" maxlength="80" value="{{profile.profile_status or ''}}" placeholder="지금 하고 싶은 말">
+    </label>
+    <label>자기소개
+      <textarea name="profile_bio" maxlength="300" placeholder="취미, 좋아하는 것 등을 소개해 봐.">{{profile.profile_bio or ''}}</textarea>
+    </label>
+    <label>프로필 테마 색상
+      <input type="color" name="profile_color" value="{{profile.profile_color or '#87aa43'}}">
+    </label>
+    <div class="profile-safety">전화번호, 주소, 학번, 비밀번호 같은 개인정보는 프로필에 적지 마.</div>
+    <button class="social-btn profile-save" type="submit">프로필 저장</button>
+  </form>
+</article>
+{% endblock %}
