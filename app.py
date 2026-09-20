@@ -496,6 +496,15 @@ def ensure_schoollife_pages():
         if not query("SELECT id FROM wiki_pages WHERE title=%s AND deleted=FALSE", (title,)):
             execute("INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)", (title, content))
 
+    guideline = query("SELECT id, protected FROM wiki_pages WHERE title=%s AND deleted=FALSE", ("편집지침",))
+    if not guideline:
+        execute(
+            "INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,TRUE,FALSE)",
+            ("편집지침", "논곡위키의 공식 편집지침입니다."),
+        )
+    elif not guideline[0]["protected"]:
+        execute("UPDATE wiki_pages SET protected=TRUE WHERE id=%s", (guideline[0]["id"],))
+
 def seed():
     existing = query("SELECT COUNT(*) AS c FROM wiki_pages")[0]["c"]
     if existing:
