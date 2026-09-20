@@ -166,6 +166,92 @@ CREATE TABLE IF NOT EXISTS site_visits (
 );
 """
 
+BACKUP_TABLE_COLUMNS = {
+    "users": ["id", "username", "password_hash", "real_name", "student_no", "school_name", "profile_name", "profile_bio", "profile_status", "profile_color", "profile_emoji", "role", "account_status", "created_at"],
+    "wiki_pages": ["id", "title", "content", "author_id", "created_at", "updated_at", "views", "protected", "deleted"],
+    "revisions": ["id", "page_id", "title", "content", "author_id", "created_at"],
+    "pending_document_edits": ["id", "page_id", "proposed_content", "submitter_id", "status", "reviewer_id", "created_at", "reviewed_at"],
+    "discussions": ["id", "page_id", "user_id", "body", "created_at"],
+    "chat_messages": ["id", "user_id", "body", "created_at"],
+    "reports": ["id", "page_id", "user_id", "reason", "status", "created_at"],
+    "homepage_sections": ["section_key", "content", "updated_at"],
+    "page_views": ["id", "page_id", "viewed_at"],
+    "polls": ["id", "question", "created_by", "is_open", "created_at"],
+    "poll_options": ["id", "poll_id", "option_text", "sort_order"],
+    "poll_votes": ["id", "poll_id", "option_id", "user_id", "created_at"],
+    "gallery_posts": ["id", "user_id", "title", "body", "views", "deleted", "created_at"],
+    "gallery_images": ["id", "post_id", "mime_type", "image_data", "sort_order", "created_at"],
+    "gallery_comments": ["id", "post_id", "user_id", "body", "deleted", "created_at"],
+    "gallery_reads": ["user_id", "last_seen_post_id", "updated_at"],
+    "follows": ["follower_id", "following_id", "created_at"],
+    "admin_activity_logs": ["id", "actor_id", "action", "target_type", "target_id", "detail", "created_at"],
+    "site_visits": ["id", "visit_date", "visitor_key", "first_seen_at"],
+}
+
+BACKUP_IDENTITY_TABLES = {
+    table for table, columns in BACKUP_TABLE_COLUMNS.items() if "id" in columns
+}
+
+
+def backup_rows():
+    """Read a consistent full application backup using only known tables/columns."""
+    data = {}
+    with connection() as conn:
+        for table, columns in BACKUP_TABLE_COLUMNS.items():
+            column_sql = ", ".join(columns)
+            cur = conn.execute(f"SELECT {column_sql} FROM {table}")
+            data[table] = [dict(row) for row in cur.fetchall()]
+    return data
+
+
+def restore_backup_rows(tables):
+    """Replace all application data from a validated backup in one transaction."""
+    if set(tables) != set(BACKUP_TABLE_COLUMNS):
+        raise ValueError("백업 테이블 구성이 현재 논곡위키와 다릅니다.")
+
+    for table, columns in BACKUP_TABLE_COLUMNS.items():
+        rows = tables.get(table)
+        if not isinstance(rows, list):
+            raise ValueError(f"{table} 데이터 형식이 올바르지 않습니다.")
+        expected = set(columns)
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != expected:
+                raise ValueError(f"{table} 백업 열 구성이 올바르지 않습니다.")
+
+    placeholder = "%s" if USE_POSTGRES else "?"
+    with connection() as conn:
+        # No FK constraints are declared today, but reverse order keeps this safe
+        # if relationships are tightened later.
+        for table in reversed(list(BACKUP_TABLE_COLUMNS)):
+            conn.execute(f"DELETE FROM {table}")
+
+        for table, columns in BACKUP_TABLE_COLUMNS.items():
+            rows = tables[table]
+            if not rows:
+                continue
+            column_sql = ", ".join(columns)
+            values_sql = ", ".join([placeholder] * len(columns))
+            if USE_POSTGRES and table in BACKUP_IDENTITY_TABLES:
+                insert_sql = (
+                    f"INSERT INTO {table} ({column_sql}) "
+                    f"OVERRIDING SYSTEM VALUE VALUES ({values_sql})"
+                )
+            else:
+                insert_sql = f"INSERT INTO {table} ({column_sql}) VALUES ({values_sql})"
+            for row in rows:
+                conn.execute(insert_sql, tuple(row[column] for column in columns))
+
+        if USE_POSTGRES:
+            for table in BACKUP_IDENTITY_TABLES:
+                conn.execute(
+                    f"""SELECT setval(
+                        pg_get_serial_sequence('{table}', 'id'),
+                        COALESCE(MAX(id), 1),
+                        MAX(id) IS NOT NULL
+                    ) FROM {table}"""
+                )
+
+
 def _sqlite_schema():
     return SCHEMA.replace("GENERATED ALWAYS AS IDENTITY", "AUTOINCREMENT").replace("BOOLEAN NOT NULL DEFAULT FALSE", "INTEGER NOT NULL DEFAULT 0")
 

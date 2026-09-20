@@ -504,3 +504,21 @@
   .official-review-actions{display:grid;grid-template-columns:1fr 1fr}
   .official-review-actions form,.official-review-actions button{width:100%}
 }
+
+
+/* Full backup and restore */
+.backup-warning{margin:12px 0 16px;padding:12px 14px;border:1px solid #d9c57b;border-left:4px solid #b88d11;background:#fff9df;color:#66530f;line-height:1.55;font-size:12px}
+.backup-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.backup-actions>div{border:1px solid #dfe2e5;border-radius:8px;padding:15px;background:#fafafa}
+.backup-actions h3{margin:0 0 6px;font-size:17px}
+.backup-actions p{margin:0 0 12px;color:#666;font-size:12px;line-height:1.5}
+.backup-download-button{display:inline-block;padding:9px 12px;border:1px solid #78993b;border-radius:6px;background:var(--green);color:#fff;font-weight:700}
+.backup-download-button:hover{text-decoration:none;background:#78993b}
+.backup-restore form{margin:0}
+.backup-restore input[type=file]{display:block;width:100%;margin:0 0 10px;padding:8px;border:1px solid #d1d5d8;background:#fff}
+.backup-restore label{display:block;font-size:12px;font-weight:700}
+.backup-restore label input{display:block;margin-top:5px;background:#fff}
+.backup-restore-button{margin:10px 0 0;border-color:#b66767;background:#fff;color:#943d3d;font-weight:700}
+@media(max-width:650px){
+  .backup-actions{grid-template-columns:1fr}
+}

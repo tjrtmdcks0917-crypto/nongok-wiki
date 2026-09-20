@@ -4,6 +4,7 @@ import secrets
 import time
 import json
 import base64
+import gzip
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
@@ -16,11 +17,11 @@ from markupsafe import escape
 from werkzeug.security import check_password_hash, generate_password_hash
 from PIL import Image, ImageOps
 
-from db import init_db, query, execute
+from db import init_db, query, execute, backup_rows, restore_backup_rows, BACKUP_TABLE_COLUMNS
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-secret-key")
-app.config["MAX_CONTENT_LENGTH"] = 14 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024
 
 RATE = {}
 RATE_WINDOW = 60
@@ -679,6 +680,68 @@ def _admin_activity_logs():
            ORDER BY l.created_at DESC, l.id DESC
            LIMIT 100"""
     )
+
+
+def _backup_json_value(value):
+    if isinstance(value, memoryview):
+        value = value.tobytes()
+    if isinstance(value, (bytes, bytearray)):
+        return {
+            "__nongok_type__": "bytes",
+            "value": base64.b64encode(bytes(value)).decode("ascii"),
+        }
+    if isinstance(value, datetime):
+        return {"__nongok_type__": "datetime", "value": value.isoformat()}
+    return value
+
+
+def _restore_json_value(value):
+    if isinstance(value, dict) and set(value) == {"__nongok_type__", "value"}:
+        if value["__nongok_type__"] == "bytes":
+            return base64.b64decode(value["value"], validate=True)
+        if value["__nongok_type__"] == "datetime":
+            return value["value"]
+        raise ValueError("지원하지 않는 백업 값 형식입니다.")
+    return value
+
+
+def _build_backup_payload():
+    raw_tables = backup_rows()
+    tables = {}
+    for table, rows in raw_tables.items():
+        tables[table] = [
+            {key: _backup_json_value(value) for key, value in row.items()}
+            for row in rows
+        ]
+    return {
+        "format": "nongok-wiki-backup",
+        "version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "tables": tables,
+    }
+
+
+def _decode_backup_payload(payload):
+    if not isinstance(payload, dict):
+        raise ValueError("백업 파일 형식이 올바르지 않습니다.")
+    if payload.get("format") != "nongok-wiki-backup" or payload.get("version") != 1:
+        raise ValueError("지원하지 않는 논곡위키 백업 파일입니다.")
+    tables = payload.get("tables")
+    if not isinstance(tables, dict) or set(tables) != set(BACKUP_TABLE_COLUMNS):
+        raise ValueError("백업 데이터 구성이 현재 논곡위키와 다릅니다.")
+
+    decoded = {}
+    for table, rows in tables.items():
+        if not isinstance(rows, list):
+            raise ValueError(f"{table} 데이터가 올바르지 않습니다.")
+        decoded[table] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError(f"{table} 행 데이터가 올바르지 않습니다.")
+            decoded[table].append({
+                key: _restore_json_value(value) for key, value in row.items()
+            })
+    return decoded
 
 
 def _pending_document_edits():
@@ -2743,6 +2806,114 @@ def admin_document_review(review_id, status):
         f"{review['title']} 수정안을 {'승인하여 반영했습니다.' if status == 'approved' else '거절했습니다.'}",
         "success",
     )
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/backup/download")
+@require_admin
+def admin_backup_download():
+    payload = _build_backup_payload()
+    raw = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    compressed = gzip.compress(raw, compresslevel=6)
+
+    log_admin_action(
+        "전체 백업 다운로드",
+        "backup",
+        None,
+        f"{sum(len(rows) for rows in payload['tables'].values())}개 데이터 행",
+    )
+
+    stamp = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y%m%d-%H%M%S")
+    response = app.response_class(compressed, mimetype="application/gzip")
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="nongok-wiki-backup-{stamp}.json.gz"'
+    )
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
+
+@app.route("/admin/backup/restore", methods=["POST"])
+@require_admin
+def admin_backup_restore():
+    check_csrf()
+    if request.form.get("confirm_restore", "").strip() != "복구":
+        flash("전체 복구를 실행하려면 확인란에 ‘복구’를 입력해 주세요.", "warning")
+        return redirect(url_for("admin"))
+
+    uploaded = request.files.get("backup_file")
+    if not uploaded or not uploaded.filename:
+        flash("복구할 백업 파일을 선택해 주세요.", "warning")
+        return redirect(url_for("admin"))
+
+    data = uploaded.read(64 * 1024 * 1024 + 1)
+    if len(data) > 64 * 1024 * 1024:
+        flash("백업 파일은 64MB 이하만 복구할 수 있습니다.", "warning")
+        return redirect(url_for("admin"))
+
+    try:
+        if data.startswith(b"\x1f\x8b"):
+            data = gzip.decompress(data)
+        if len(data) > 256 * 1024 * 1024:
+            raise ValueError("압축을 푼 백업 데이터가 너무 큽니다.")
+        payload = json.loads(data.decode("utf-8"))
+        tables = _decode_backup_payload(payload)
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError, OSError, base64.binascii.Error):
+        flash("정상적인 논곡위키 백업 파일이 아닙니다.", "warning")
+        return redirect(url_for("admin"))
+
+    actor = current_user()
+    actor_username = actor["username"]
+    restored_admin = next(
+        (
+            row for row in tables["users"]
+            if row.get("username") == actor_username and row.get("role") == "admin"
+        ),
+        None,
+    )
+    if not restored_admin:
+        flash("현재 최고관리자 계정이 들어 있지 않은 백업은 복구할 수 없습니다.", "warning")
+        return redirect(url_for("admin"))
+
+    try:
+        restore_backup_rows(tables)
+    except Exception:
+        app.logger.exception("Nongok Wiki backup restore failed")
+        flash("백업 복구 중 오류가 발생했습니다. 기존 데이터는 변경되지 않았습니다.", "warning")
+        return redirect(url_for("admin"))
+
+    restored_rows = query(
+        "SELECT id, username, real_name, student_no, school_name, profile_name, profile_bio, "
+        "profile_status, profile_color, profile_emoji, role, account_status "
+        "FROM users WHERE username=%s AND role='admin'",
+        (actor_username,),
+    )
+    if not restored_rows:
+        session.clear()
+        return redirect(url_for("login"))
+
+    restored_actor = restored_rows[0]
+    session["user_id"] = restored_actor["id"]
+    g.current_user_value = restored_actor
+
+    PUBLIC_CONTEXT_CACHE["data"] = None
+    PUBLIC_CONTEXT_CACHE["expires"] = 0
+    PERSON_NAMES_CACHE["names"] = None
+    PERSON_NAMES_CACHE["expires"] = 0
+    REPEATED_TERMS_CACHE["terms"] = None
+    REPEATED_TERMS_CACHE["expires"] = 0
+
+    log_admin_action(
+        "전체 백업 복구",
+        "backup",
+        None,
+        f"{sum(len(rows) for rows in tables.values())}개 데이터 행 복구",
+    )
+    flash("백업 복구가 완료되었습니다.", "success")
     return redirect(url_for("admin"))
 
 
