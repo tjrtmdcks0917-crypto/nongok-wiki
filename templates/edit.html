@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}{{ '문서 편집' if page else '새 문서' }} - 논곡중나무위키{% endblock %}
+{% block content %}<section class="card"><h1>{{ '문서 편집' if page else '새 문서 만들기' }}</h1><form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><label>문서 제목</label><input name="title" maxlength="120" value="{{ page.title if page else title }}" required><label>내용</label><p class="hint">문서 연결은 <code>[[논곡중학교]]</code>처럼 작성할 수 있어.</p><textarea class="editor" name="content" required>{{ page.content if page else '' }}</textarea><button>저장</button></form></section>{% endblock %}
