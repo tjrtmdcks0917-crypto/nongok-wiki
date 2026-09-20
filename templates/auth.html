@@ -16,8 +16,8 @@
       <div class="field-help">논곡갤러리 게시물과 댓글에는 이 이름이 표시됩니다.</div>
 
       <label for="student_no">학번</label>
-      <input id="student_no" name="student_no" maxlength="6" minlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="off" placeholder="예: 100101" required>
-      <div class="field-help">형식: 10/20/30(학년) + 01~04(반) + 01~29(번호). 예: 100101 = 1학년 1반 1번. 학번은 관리자만 확인합니다.</div>
+      <input id="student_no" name="student_no" maxlength="5" minlength="5" inputmode="numeric" pattern="[1-3][0-9]{4}" autocomplete="off" placeholder="예: 10101" required>
+      <div class="field-help">형식: 1~3(학년) + 01~04(반) + 01~29(번호). 예: 10101 = 1학년 1반 1번. 학번은 관리자만 확인합니다.</div>
 
       <label for="school_name">현재 재학 중인 학교</label>
       <input id="school_name" name="school_name" maxlength="80" autocomplete="organization" placeholder="예: 논곡중학교" required>
