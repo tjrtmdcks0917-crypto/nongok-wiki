@@ -365,6 +365,35 @@ def all_pages():
     )
     return render_template("all_pages.html", pages=pages, page=page, total_pages=total_pages, total=total)
 
+@app.route("/chat")
+def chat():
+    return render_template("chat.html")
+
+@app.route("/api/chat/messages")
+def chat_messages():
+    try:
+        after = max(0, int(request.args.get("after", "0")))
+    except ValueError:
+        after = 0
+    rows = query("""SELECT c.id, c.body, c.created_at, u.username
+                    FROM chat_messages c JOIN users u ON u.id=c.user_id
+                    WHERE c.id>%s ORDER BY c.id ASC LIMIT 100""", (after,))
+    for row in rows:
+        if hasattr(row["created_at"], "isoformat"):
+            row["created_at"] = row["created_at"].isoformat()
+    return {"messages": rows}
+
+@app.route("/api/chat/send", methods=["POST"])
+@require_login
+def chat_send():
+    check_csrf()
+    body = request.form.get("body", "").strip()
+    if not body or len(body) > 500:
+        return {"ok": False, "error": "메시지는 1~500자로 작성해 주세요."}, 400
+    user = current_user()
+    execute("INSERT INTO chat_messages(user_id, body, created_at) VALUES (%s,%s,CURRENT_TIMESTAMP)", (user["id"], body))
+    return {"ok": True}
+
 @app.route("/search")
 def search():
     q = request.args.get("q", "").strip()
