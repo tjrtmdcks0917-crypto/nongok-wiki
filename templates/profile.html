@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{profile.profile_name or profile.username}} - 프로필{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<article class="document social-page profile-page" style="--profile-color:{{profile.profile_color or '#87aa43'}}">
+  <section class="profile-hero">
+    <div class="profile-avatar profile-avatar-large">{{profile.profile_emoji or '🙂'}}</div>
+    <div class="profile-main">
+      <div class="profile-name-row">
+        <div><h1>{{profile.profile_name or profile.username}}</h1><span>@{{profile.username}}</span></div>
+        <div class="profile-actions">
+          {% if current_user.id == profile.id %}
+            <a class="social-btn" href="{{url_for('profile_edit')}}">프로필 편집</a>
+          {% else %}
+            <form method="post" action="{{url_for('profile_follow',username=profile.username)}}">
+              <input type="hidden" name="csrf" value="{{csrf}}">
+              <button class="social-btn{% if is_following %} secondary{% endif %}" type="submit">{{'팔로잉' if is_following else '팔로우'}}</button>
+            </form>
+            <a class="social-btn secondary" href="{{url_for('direct_message',username=profile.username)}}">메시지</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="profile-stats">
+        <a href="{{url_for('profile_connections',username=profile.username,kind='followers')}}"><b>{{follower_count}}</b> 팔로워</a>
+        <a href="{{url_for('profile_connections',username=profile.username,kind='following')}}"><b>{{following_count}}</b> 팔로잉</a>
+        <span><b>{{gallery_posts|length}}</b> 최근 게시물</span>
+      </div>
+
+      {% if profile.profile_status %}<div class="profile-status">{{profile.profile_status}}</div>{% endif %}
+      {% if profile.profile_bio %}<p class="profile-bio">{{profile.profile_bio}}</p>{% else %}<p class="profile-bio muted">아직 자기소개가 없습니다.</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="profile-feed">
+    <h2>논곡갤러리 게시물</h2>
+    <div class="profile-post-grid">
+    {% for post in gallery_posts %}
+      <a href="{{url_for('gallery_post',post_id=post.id)}}">
+        <b>{{post.title}}</b>
+        <small>{{post.created_text}}</small>
+      </a>
+    {% else %}
+      <p class="social-empty">아직 논곡갤러리에 올린 게시물이 없습니다.</p>
+    {% endfor %}
+    </div>
+  </section>
+</article>
+{% endblock %}
