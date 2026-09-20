@@ -48,3 +48,14 @@
   .railbox h3{font-size:17px;padding:13px 14px}
   .railbox a,.railbox span{padding:8px 14px}
 }
+
+
+/* Sidebar view statistics */
+.railbox a{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.railbox a>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.railbox a small{flex:0 0 auto;font-size:11px;color:#777;white-space:nowrap}
+@media(max-width:950px){
+  .rail{display:grid;grid-template-columns:1fr;gap:12px;padding:0 14px 24px}
+  .railbox{display:block}
+  .railbox a{display:flex}
+}
