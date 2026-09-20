@@ -383,3 +383,17 @@
   .home-operators tbody th{width:34%;font-size:14px}
   .home-operators tbody td{font-size:14px}
 }
+
+
+/* Secure password recovery */
+.admin-password-reset{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-top:10px;align-items:center}
+.admin-password-reset input{height:38px;margin:0;padding:8px 10px;border:1px solid #cdd1d4;border-radius:6px;background:#fff}
+.admin-password-reset button{height:38px;margin:0;border-color:#7a963e;background:var(--green);color:#fff;font-weight:700;border-radius:6px}
+.profile-password-change{margin:22px 0 4px;padding:15px;border:1px solid #d8dcdf;border-radius:8px;background:#fafbfc}
+.profile-password-change legend{padding:0 7px;font-weight:800}
+.profile-password-change p{margin:0 0 10px;color:#666;font-size:12px;line-height:1.5}
+.profile-password-change label{margin-top:10px}
+@media(max-width:700px){
+  .admin-password-reset{grid-template-columns:1fr}
+  .admin-password-reset button{width:100%}
+}

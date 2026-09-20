@@ -1355,6 +1355,9 @@ def profile_edit():
         profile_bio = request.form.get("profile_bio", "").strip()
         profile_emoji = request.form.get("profile_emoji", "").strip()
         profile_color = request.form.get("profile_color", "#87aa43").strip().lower()
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("new_password", "")
+        new_password_confirm = request.form.get("new_password_confirm", "")
 
         if len(profile_name) > 30:
             flash("프로필 이름은 30자 이하로 입력해 주세요.", "warning")
@@ -1371,6 +1374,20 @@ def profile_edit():
         if not re.fullmatch(r"#[0-9a-f]{6}", profile_color):
             profile_color = "#87aa43"
 
+        password_changed = False
+        if current_password or new_password or new_password_confirm:
+            password_rows = query("SELECT password_hash FROM users WHERE id=%s", (user["id"],))
+            if not password_rows or not check_password_hash(password_rows[0]["password_hash"], current_password):
+                flash("현재 비밀번호가 올바르지 않습니다.", "warning")
+                return redirect(url_for("profile_edit"))
+            if len(new_password) < 6:
+                flash("새 비밀번호는 6자 이상으로 입력해 주세요.", "warning")
+                return redirect(url_for("profile_edit"))
+            if new_password != new_password_confirm:
+                flash("새 비밀번호 확인이 일치하지 않습니다.", "warning")
+                return redirect(url_for("profile_edit"))
+            password_changed = True
+
         execute(
             """UPDATE users
                SET profile_name=%s, profile_status=%s, profile_bio=%s,
@@ -1378,7 +1395,14 @@ def profile_edit():
                WHERE id=%s""",
             (profile_name, profile_status, profile_bio, profile_color, profile_emoji, user["id"]),
         )
-        flash("프로필을 저장했습니다.", "success")
+        if password_changed:
+            execute(
+                "UPDATE users SET password_hash=%s WHERE id=%s",
+                (generate_password_hash(new_password), user["id"]),
+            )
+            flash("프로필과 비밀번호를 저장했습니다.", "success")
+        else:
+            flash("프로필을 저장했습니다.", "success")
         return redirect(url_for("user_profile", username=user["username"]))
 
     return render_template("profile_edit.html", profile=user)
@@ -1979,6 +2003,38 @@ def admin():
     )
     users = query("SELECT id, username, real_name, student_no, school_name, role, created_at FROM users ORDER BY created_at DESC LIMIT 100")
     return render_template("admin.html", reports=reports, users=users)
+
+@app.route("/admin/user/<int:user_id>/reset-password", methods=["POST"])
+@require_admin
+def admin_reset_password(user_id):
+    check_csrf()
+    rows = query("SELECT id, username, role FROM users WHERE id=%s", (user_id,))
+    if not rows:
+        abort(404)
+    target = rows[0]
+    if target["role"] == "admin":
+        flash("관리자 계정의 비밀번호는 회원 관리 화면에서 재설정할 수 없습니다.", "warning")
+        return redirect(url_for("admin"))
+
+    new_password = request.form.get("new_password", "")
+    new_password_confirm = request.form.get("new_password_confirm", "")
+    if len(new_password) < 6:
+        flash("임시 비밀번호는 6자 이상으로 입력해 주세요.", "warning")
+        return redirect(url_for("admin"))
+    if new_password != new_password_confirm:
+        flash("임시 비밀번호 확인이 일치하지 않습니다.", "warning")
+        return redirect(url_for("admin"))
+
+    execute(
+        "UPDATE users SET password_hash=%s WHERE id=%s",
+        (generate_password_hash(new_password), user_id),
+    )
+    flash(
+        f"{target['username']} 계정의 비밀번호를 새 임시 비밀번호로 재설정했습니다. 사용자에게 안전하게 전달해 주세요.",
+        "success",
+    )
+    return redirect(url_for("admin"))
+
 
 @app.route("/admin/report/<int:report_id>/<status>", methods=["POST"])
 @require_admin

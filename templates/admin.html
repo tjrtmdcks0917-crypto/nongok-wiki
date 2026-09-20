@@ -1,3 +1,62 @@
 {% extends "base.html" %}
 {% block title %}관리자 - 논곡위키{% endblock %}
-{% block content %}<section class="card"><h1>관리자</h1><p>문서 보호, 삭제, 신고 처리를 할 수 있습니다.</p><h2>신고</h2>{% for r in reports %}<div class="admin-row"><div><b>{{ r.title or '삭제된 문서' }}</b><br>{{ r.reason }}<br><small>{{ r.username }} · {{ r.created_at }} · {{ r.status }}</small></div><div><form method="post" action="{{ url_for('report_status', report_id=r.id, status='resolved') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button>해결</button></form><form method="post" action="{{ url_for('report_status', report_id=r.id, status='dismissed') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button>기각</button></form></div></div>{% else %}<p>신고가 없습니다.</p>{% endfor %}</section><section class="card"><h2>회원 정보</h2><p class="hint">이름·학번·학교는 관리자 확인용 개인정보입니다. 외부에 공개하거나 복사해 공유하지 마세요. 비밀번호는 보안을 위해 단방향 해시로 저장되어 관리자도 원문을 볼 수 없습니다.</p>{% for u in users %}<div class="admin-member"><div><b>{{ u.real_name or "이름 미등록" }}</b> <span class="member-id">@{{ u.username }}</span></div><div class="member-details"><span>아이디: {{ u.username }}</span><span>학번: {{ u.student_no or "미등록" }}</span><span>학교: {{ u.school_name or "미등록" }}</span><span>권한: {{ u.role }}</span><span>가입일: {{ u.created_at }}</span><span>비밀번호: 보안상 표시 불가</span></div></div>{% else %}<p>회원이 없습니다.</p>{% endfor %}</section>{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>관리자</h1>
+  <p>문서 보호, 삭제, 신고 처리와 회원 비밀번호 재설정을 할 수 있습니다.</p>
+
+  <h2>신고</h2>
+  {% for r in reports %}
+  <div class="admin-row">
+    <div>
+      <b>{{ r.title or '삭제된 문서' }}</b><br>
+      {{ r.reason }}<br>
+      <small>{{ r.username }} · {{ r.created_at }} · {{ r.status }}</small>
+    </div>
+    <div>
+      <form method="post" action="{{ url_for('report_status', report_id=r.id, status='resolved') }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><button>해결</button>
+      </form>
+      <form method="post" action="{{ url_for('report_status', report_id=r.id, status='dismissed') }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><button>기각</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <p>신고가 없습니다.</p>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2>회원 정보</h2>
+  <p class="hint">
+    기존 비밀번호는 단방향 해시로 저장되어 관리자도 볼 수 없습니다.
+    비밀번호를 잊은 회원에게는 아래에서 새 임시 비밀번호를 설정해 주세요.
+  </p>
+
+  {% for u in users %}
+  <div class="admin-member">
+    <div><b>{{ u.real_name or "이름 미등록" }}</b> <span class="member-id">@{{ u.username }}</span></div>
+    <div class="member-details">
+      <span>아이디: {{ u.username }}</span>
+      <span>학번: {{ u.student_no or "미등록" }}</span>
+      <span>학교: {{ u.school_name or "미등록" }}</span>
+      <span>권한: {{ u.role }}</span>
+      <span>가입일: {{ u.created_at }}</span>
+      <span>현재 비밀번호: 확인 불가</span>
+    </div>
+
+    {% if u.role != 'admin' %}
+    <form class="admin-password-reset" method="post" action="{{ url_for('admin_reset_password', user_id=u.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="password" name="new_password" minlength="6" autocomplete="new-password" placeholder="새 임시 비밀번호 (6자 이상)" required>
+      <input type="password" name="new_password_confirm" minlength="6" autocomplete="new-password" placeholder="임시 비밀번호 확인" required>
+      <button type="submit" onclick="return confirm('@{{u.username}} 계정의 비밀번호를 재설정할까요?');">임시 비밀번호로 재설정</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <p>회원이 없습니다.</p>
+  {% endfor %}
+</section>
+{% endblock %}
