@@ -58,6 +58,42 @@
 </section>
 {% endif %}
 
+{% if can_review_official %}
+<section class="card">
+  <h2>공식 문서 수정 검토 <span class="official-review-count">{{pending_edits|length}}</span></h2>
+  <p class="hint">보호된 공식 문서에 학생이 제출한 수정안입니다. 승인 전에는 공개 문서가 바뀌지 않습니다.</p>
+  <div class="official-review-list">
+    {% for item in pending_edits %}
+    <article class="official-review-card">
+      <div class="official-review-head">
+        <div>
+          <b>{{item.title}}</b>
+          <span>{{item.submitter_real_name or item.submitter_username or '알 수 없음'}} · {{item.created_at}}</span>
+        </div>
+        <a href="{{url_for('wiki',title=item.title)}}" target="_blank" rel="noopener">현재 문서 보기</a>
+      </div>
+      <details>
+        <summary>제안된 내용 확인</summary>
+        <pre>{{item.proposed_content}}</pre>
+      </details>
+      <div class="official-review-actions">
+        <form method="post" action="{{url_for('admin_document_review',review_id=item.id,status='approved')}}">
+          <input type="hidden" name="csrf" value="{{csrf}}">
+          <button class="approve-review" type="submit">승인 후 반영</button>
+        </form>
+        <form method="post" action="{{url_for('admin_document_review',review_id=item.id,status='rejected')}}" onsubmit="return confirm('이 수정안을 거절할까요?');">
+          <input type="hidden" name="csrf" value="{{csrf}}">
+          <button class="reject-review" type="submit">거절</button>
+        </form>
+      </div>
+    </article>
+    {% else %}
+    <p class="hint">검토 대기 중인 공식 문서 수정안이 없습니다.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section class="card">
   <h2>관리자 활동 로그</h2>
   <p class="hint">운영진이 수행한 주요 관리 작업을 최근 순서대로 최대 100개까지 표시합니다. 비밀번호 값 자체는 기록하지 않습니다.</p>

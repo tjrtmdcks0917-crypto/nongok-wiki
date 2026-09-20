@@ -1,3 +1,24 @@
 {% extends "base.html" %}
 {% block title %}{{ '문서 편집' if page else '새 문서' }} - 논곡위키{% endblock %}
-{% block content %}<section class="card"><h1>{{ '문서 편집' if page else '새 문서 만들기' }}</h1><form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><label>문서 제목</label><input name="title" maxlength="120" value="{{ page.title if page else title }}" required><label>내용</label><p class="hint">문서 연결은 <code>[[논곡중학교]]</code>처럼 작성하실 수 있습니다.</p><textarea class="editor" name="content" required>{{ (page.content if page else '')|e }}</textarea><button>저장</button></form></section>{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% if official_review %}공식 문서 수정 제안{% else %}{{ '문서 편집' if page else '새 문서 만들기' }}{% endif %}</h1>
+
+  {% if official_review %}
+  <div class="official-review-note">
+    <b>이 문서는 공식 문서입니다.</b>
+    수정 내용은 바로 공개되지 않고 교사 또는 최고관리자의 검토·승인 후 반영됩니다.
+  </div>
+  {% endif %}
+
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>문서 제목</label>
+    <input name="title" maxlength="120" value="{{ page.title if page else title }}" {% if official_review %}readonly{% endif %} required>
+    <label>내용</label>
+    <p class="hint">문서 연결은 <code>[[논곡중학교]]</code>처럼 작성하실 수 있습니다.</p>
+    <textarea class="editor" name="content" required>{{ (page.content if page else '')|e }}</textarea>
+    <button>{% if official_review %}검토 요청 제출{% else %}저장{% endif %}</button>
+  </form>
+</section>
+{% endblock %}

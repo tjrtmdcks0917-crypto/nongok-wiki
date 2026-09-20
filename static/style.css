@@ -478,3 +478,29 @@
   .admin-audit-row{display:block}
   .admin-audit-row small{display:block;margin-top:6px;white-space:normal}
 }
+
+
+/* Official document approval workflow */
+.official-review-note{margin:12px 0 18px;padding:13px 15px;border:1px solid #d7c982;border-left:4px solid #b99116;background:#fffbed;line-height:1.6}
+.official-review-note b{display:block;margin-bottom:3px}
+.official-review-count{font-size:13px;color:#777;font-weight:500}
+.official-review-list{border-top:1px solid #e2e4e6}
+.official-review-card{padding:14px 2px;border-bottom:1px solid #e5e7e9}
+.official-review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.official-review-head b{display:block;font-size:16px}
+.official-review-head span{display:block;margin-top:4px;color:#777;font-size:11px}
+.official-review-head>a{flex:0 0 auto;font-size:12px}
+.official-review-card details{margin-top:11px;border:1px solid #dfe2e5;background:#fafafa}
+.official-review-card summary{cursor:pointer;padding:9px 11px;font-size:12px;font-weight:700}
+.official-review-card pre{margin:0;padding:12px;border-top:1px solid #e2e4e6;background:#fff;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 Consolas,monospace;max-height:360px;overflow:auto}
+.official-review-actions{display:flex;gap:7px;margin-top:10px}
+.official-review-actions form{margin:0}
+.official-review-actions button{margin:0}
+.official-review-actions .approve-review{background:var(--green);border-color:#78993b;color:#fff;font-weight:700}
+.official-review-actions .reject-review{background:#fff;border-color:#c99d9d;color:#963e3e}
+@media(max-width:650px){
+  .official-review-head{display:block}
+  .official-review-head>a{display:inline-block;margin-top:7px}
+  .official-review-actions{display:grid;grid-template-columns:1fr 1fr}
+  .official-review-actions form,.official-review-actions button{width:100%}
+}

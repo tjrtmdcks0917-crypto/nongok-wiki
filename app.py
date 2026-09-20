@@ -680,6 +680,21 @@ def _admin_activity_logs():
            LIMIT 100"""
     )
 
+
+def _pending_document_edits():
+    return query(
+        """SELECT p.id, p.page_id, p.proposed_content, p.status, p.created_at,
+                  w.title,
+                  u.username AS submitter_username,
+                  u.real_name AS submitter_real_name
+           FROM pending_document_edits p
+           JOIN wiki_pages w ON w.id=p.page_id
+           LEFT JOIN users u ON u.id=p.submitter_id
+           WHERE p.status='pending' AND w.deleted=FALSE
+           ORDER BY p.created_at ASC, p.id ASC
+           LIMIT 100"""
+    )
+
 def check_csrf():
     token = request.form.get("csrf")
     if not token or token != session.get("csrf"):
@@ -1614,7 +1629,28 @@ def edit(title):
         if page and page["title"] == "논곡위키:대문" and user["role"] != "admin":
             abort(403)
         if page and page["protected"] and not role_at_least(user, "teacher"):
-            abort(403)
+            existing = query(
+                """SELECT id FROM pending_document_edits
+                   WHERE page_id=%s AND submitter_id=%s AND status='pending'
+                   ORDER BY id DESC LIMIT 1""",
+                (page["id"], user["id"]),
+            )
+            if existing:
+                execute(
+                    """UPDATE pending_document_edits
+                       SET proposed_content=%s, created_at=CURRENT_TIMESTAMP
+                       WHERE id=%s""",
+                    (content, existing[0]["id"]),
+                )
+            else:
+                execute(
+                    """INSERT INTO pending_document_edits
+                       (page_id, proposed_content, submitter_id, status, created_at)
+                       VALUES (%s,%s,%s,'pending',CURRENT_TIMESTAMP)""",
+                    (page["id"], content, user["id"]),
+                )
+            flash("공식 문서 수정안이 검토 대기 상태로 제출되었습니다.", "success")
+            return redirect(url_for("wiki", title=page["title"]))
         if page:
             execute("INSERT INTO revisions(page_id, title, content, author_id, created_at) VALUES (%s,%s,%s,%s,CURRENT_TIMESTAMP)", (page["id"], page["title"], page["content"], user["id"]))
             execute("UPDATE wiki_pages SET title=%s, content=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (new_title, content, page["id"]))
@@ -1622,7 +1658,12 @@ def edit(title):
             execute("INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,%s,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)", (new_title, content, user["id"]))
         flash("문서를 저장했습니다.", "success")
         return redirect(url_for("wiki", title=new_title))
-    return render_template("edit.html", page=page, title=title)
+    return render_template(
+        "edit.html",
+        page=page,
+        title=title,
+        official_review=bool(page and page["protected"] and not role_at_least(current_user(), "teacher")),
+    )
 
 @app.route("/new", methods=["GET", "POST"])
 @require_login
@@ -2539,16 +2580,19 @@ def admin():
     reports, users = _admin_page_data(member_q) if can_manage_members else (_admin_page_data("")[0], [])
     for member in users:
         member["can_manage"] = can_manage_member(actor, member)
+    can_review_official = role_at_least(actor, "teacher")
     return render_template(
         "admin.html",
         reports=reports,
         users=users,
         logs=_admin_activity_logs(),
+        pending_edits=_pending_document_edits() if can_review_official else [],
         reset_result=None,
         member_q=member_q,
         role_labels=ROLE_LABELS,
         can_manage_members=can_manage_members,
         can_change_roles=actor["role"] == "admin",
+        can_review_official=can_review_official,
     )
 
 
@@ -2610,6 +2654,7 @@ def admin_reset_password(user_id):
         reports=reports,
         users=users,
         logs=_admin_activity_logs(),
+        pending_edits=_pending_document_edits(),
         reset_result={
             "username": target["username"],
             "temporary_password": temporary_password,
@@ -2618,6 +2663,7 @@ def admin_reset_password(user_id):
         role_labels=ROLE_LABELS,
         can_manage_members=True,
         can_change_roles=actor["role"] == "admin",
+        can_review_official=True,
     )
 
 
@@ -2645,6 +2691,59 @@ def admin_user_role(user_id):
     flash(f"@{target['username']} 권한을 {ROLE_LABELS[new_role]}(으)로 변경했습니다.", "success")
     member_q = request.form.get("member_q", "").strip()[:30]
     return redirect(url_for("admin", member_q=member_q) if member_q else url_for("admin"))
+
+
+@app.route("/admin/document-review/<int:review_id>/<status>", methods=["POST"])
+@require_teacher
+def admin_document_review(review_id, status):
+    check_csrf()
+    if status not in {"approved", "rejected"}:
+        abort(400)
+
+    rows = query(
+        """SELECT p.id, p.page_id, p.proposed_content, p.submitter_id, p.status,
+                  w.title, w.content, w.protected
+           FROM pending_document_edits p
+           JOIN wiki_pages w ON w.id=p.page_id
+           WHERE p.id=%s AND w.deleted=FALSE""",
+        (review_id,),
+    )
+    if not rows:
+        abort(404)
+    review = rows[0]
+    if review["status"] != "pending":
+        flash("이미 처리된 수정안입니다.", "warning")
+        return redirect(url_for("admin"))
+
+    reviewer = current_user()
+    if status == "approved":
+        execute(
+            """INSERT INTO revisions(page_id, title, content, author_id, created_at)
+               VALUES (%s,%s,%s,%s,CURRENT_TIMESTAMP)""",
+            (review["page_id"], review["title"], review["content"], review["submitter_id"]),
+        )
+        execute(
+            "UPDATE wiki_pages SET content=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+            (review["proposed_content"], review["page_id"]),
+        )
+
+    execute(
+        """UPDATE pending_document_edits
+           SET status=%s, reviewer_id=%s, reviewed_at=CURRENT_TIMESTAMP
+           WHERE id=%s""",
+        (status, reviewer["id"], review_id),
+    )
+    log_admin_action(
+        "공식 문서 수정 승인" if status == "approved" else "공식 문서 수정 거절",
+        "document_review",
+        review_id,
+        review["title"],
+    )
+    flash(
+        f"{review['title']} 수정안을 {'승인하여 반영했습니다.' if status == 'approved' else '거절했습니다.'}",
+        "success",
+    )
+    return redirect(url_for("admin"))
 
 
 @app.route("/admin/report/<int:report_id>/<status>", methods=["POST"])
