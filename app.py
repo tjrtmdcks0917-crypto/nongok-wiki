@@ -41,11 +41,11 @@ def get_nongok_meals():
     friday = monday + timedelta(days=4)
     params = {
         "KEY": os.environ.get("NEIS_API_KEY", "sample"),
-        "Type": "json", "pIndex": 1, "pSize": 100,
+        "Type": "json", "pIndex": 1, "pSize": 5,
         "ATPT_OFCDC_SC_CODE": "E10",
         # Exact NEIS school code for Nongok Middle School can be set in Render.
         # Keeping the school name as well prevents similarly named schools from matching.
-        "SD_SCHUL_CODE": os.environ.get("NEIS_SCHOOL_CODE", ""),
+        "SD_SCHUL_CODE": os.environ.get("NEIS_SCHOOL_CODE", "7341070"),
         "SCHUL_NM": "논곡중학교",
         "MLSV_FROM_YMD": monday.strftime("%Y%m%d"),
         "MLSV_TO_YMD": friday.strftime("%Y%m%d"),
