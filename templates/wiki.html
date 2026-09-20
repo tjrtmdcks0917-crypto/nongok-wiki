@@ -65,7 +65,93 @@
   <p class="timetable-note">컴시간학생.kr에 표시되는 실시간 시간표만 사용합니다. 없는 칸은 그대로 비워 두고, 조회 오류 시 정보없음으로 표시합니다.</p>
 </section>
 {% endif %}
-<div class="wiki-body">{{content_html|safe}}</div><div class="meta">조회수 {{page.views}}</div>
+{% if page.title == '도움말' %}
+<section class="help-intro">
+  <div class="help-intro-mark">?</div>
+  <div>
+    <h2>논곡위키를 처음 이용하시나요?</h2>
+    <p>문서를 읽는 것부터 작성·편집·토론까지, 논곡위키를 이용하는 데 필요한 내용을 한곳에 정리했습니다.</p>
+  </div>
+</section>
+
+<nav class="help-quick">
+  <a href="#help-read"><b>문서 보기</b><span>찾고 읽기</span></a>
+  <a href="#help-edit"><b>문서 편집</b><span>내용 고치기</span></a>
+  <a href="#help-new"><b>새 문서</b><span>문서 만들기</span></a>
+  <a href="#help-rule"><b>이용 수칙</b><span>꼭 지켜주세요</span></a>
+</nav>
+
+<section class="help-section" id="help-read">
+  <h2><span>1</span> 문서를 찾아보고 싶어요</h2>
+  <p>상단 검색창에서 원하는 문서 이름이나 내용을 검색할 수 있습니다. 전체 문서를 보고 싶다면 <a href="{{url_for('all_pages')}}">모든 문서</a>를 이용하세요.</p>
+  <div class="help-links">
+    <a href="{{url_for('wiki',title='학교생활')}}">학교생활</a>
+    <a href="{{url_for('wiki',title='급식')}}">급식</a>
+    <a href="{{url_for('wiki',title='시간표')}}">시간표</a>
+    <a href="{{url_for('wiki',title='학교 행사')}}">학교 행사</a>
+    <a href="{{url_for('wiki',title='동아리')}}">동아리</a>
+  </div>
+</section>
+
+<section class="help-section" id="help-account">
+  <h2><span>2</span> 로그인은 언제 필요한가요?</h2>
+  <p>문서를 읽거나 검색하는 것은 로그인 없이 가능합니다. 문서를 편집하거나 새 문서를 만들고, 토론이나 공용 채팅에 글을 쓰려면 로그인이 필요합니다.</p>
+  {% if current_user %}
+  <div class="help-status ok">현재 <b>{{current_user.username}}</b> 계정으로 로그인되어 있습니다.</div>
+  {% else %}
+  <div class="help-actions"><a class="button" href="{{url_for('login')}}">로그인</a><a class="button" href="{{url_for('register')}}">회원가입</a></div>
+  {% endif %}
+</section>
+
+<section class="help-section" id="help-edit">
+  <h2><span>3</span> 문서를 수정하고 싶어요</h2>
+  <p>문서 위쪽의 <b>편집</b>을 누르면 내용을 수정할 수 있습니다. 확인되지 않은 내용은 사실처럼 단정하지 말고, 기존의 유용한 내용을 이유 없이 지우지 마세요.</p>
+  <div class="help-example">
+    <b>논곡위키에서 사용할 수 있는 기본 문법</b>
+    <code>== 큰 제목 ==</code>
+    <code>=== 작은 제목 ===</code>
+    <code>[[시간표]]</code>
+    <code>[논곡중학교 홈페이지](https://example.com)</code>
+  </div>
+  <p class="help-small">문법을 시험해 보고 싶다면 <a href="{{url_for('wiki',title='연습장')}}">연습장</a>을 이용하는 것을 권장합니다.</p>
+</section>
+
+<section class="help-section" id="help-new">
+  <h2><span>4</span> 새 문서를 만들고 싶어요</h2>
+  <p>로그인 후 상단의 <b>＋</b> 버튼을 누르면 새 문서를 만들 수 있습니다. 이미 비슷한 문서가 있는지 먼저 검색한 뒤 만드는 것이 좋습니다.</p>
+  {% if current_user %}<a class="help-main-button" href="{{url_for('new_page')}}">＋ 새 문서 만들기</a>{% else %}<a class="help-main-button" href="{{url_for('login')}}">로그인 후 새 문서 만들기</a>{% endif %}
+</section>
+
+<section class="help-section" id="help-discuss">
+  <h2><span>5</span> 내용에 의견이 있어요</h2>
+  <p>문서 내용에 이견이 있거나 바로 수정하기 애매한 경우 문서 아래쪽의 <b>토론</b>을 이용하세요. 사이트 전체에 관한 간단한 대화는 <a href="{{url_for('chat')}}">공용 채팅방</a>을 이용할 수 있습니다.</p>
+</section>
+
+<section class="help-section help-rule" id="help-rule">
+  <h2><span>6</span> 논곡위키 이용 수칙</h2>
+  <ul>
+    <li><b>개인정보 보호:</b> 학생·교직원의 전화번호, 주소, 개인 계정 등 사적인 정보를 올리지 마세요.</li>
+    <li><b>비방 금지:</b> 특정 학생이나 교직원을 조롱하거나 공격하기 위한 내용은 작성하지 마세요.</li>
+    <li><b>공개 정보 중심:</b> 학교생활, 시설, 행사, 동아리처럼 함께 확인할 수 있는 정보를 중심으로 작성해 주세요.</li>
+    <li><b>사실 확인:</b> 소문이나 추측을 사실처럼 적지 말고, 틀린 내용을 발견하면 근거를 확인한 뒤 수정해 주세요.</li>
+    <li><b>저작권:</b> 다른 사이트의 글이나 이미지를 그대로 복사하기보다 직접 정리하고, 필요한 경우 출처를 밝혀 주세요.</li>
+  </ul>
+  <p>더 자세한 기준은 <a href="{{url_for('wiki',title='편집지침')}}">편집지침</a>을 확인해 주세요.</p>
+</section>
+
+<section class="help-section" id="help-live">
+  <h2><span>7</span> 급식·시간표가 궁금해요</h2>
+  <p><a href="{{url_for('wiki',title='급식')}}">급식</a>은 나이스 정보를, <a href="{{url_for('wiki',title='시간표')}}">시간표</a>는 컴시간학생에 표시되는 논곡중학교 시간표 정보를 바탕으로 보여줍니다. 시간표에서 정보가 없는 날과 교시는 빈칸으로 표시됩니다.</p>
+</section>
+
+<section class="help-section" id="help-problem">
+  <h2><span>8</span> 문제가 생겼어요</h2>
+  <p>페이지가 정상적으로 보이지 않거나 잘못된 정보가 있다면 해당 문서의 토론에 남기거나 관리자에게 알려 주세요. 편집 연습이 필요하면 실제 문서 대신 <a href="{{url_for('wiki',title='연습장')}}">연습장</a>을 사용하세요.</p>
+</section>
+{% else %}
+<div class="wiki-body">{{content_html|safe}}</div>
+{% endif %}
+<div class="meta">조회수 {{page.views}}</div>
 <h2 class="section" id="discussion">토론</h2>{% if current_user %}<form method="post" action="{{url_for('discuss',page_id=page.id)}}"><input type="hidden" name="csrf" value="{{csrf}}"><textarea name="body" maxlength="2000" placeholder="문서에 관한 의견"></textarea><button>토론 작성</button></form>{% else %}<p><a href="{{url_for('login')}}">로그인</a>하면 토론에 참여할 수 있습니다.</p>{% endif %}
 {% for d in discussions %}<div class="discussion"><b>{{d.username or '탈퇴 사용자'}}</b> <small>{{d.created_at}}</small><p>{{d.body}}</p></div>{% endfor %}
 </article>{% endblock %}
