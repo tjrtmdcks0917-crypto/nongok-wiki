@@ -706,12 +706,12 @@ def _sanitize_gallery_image(data):
     try:
         Image.MAX_IMAGE_PIXELS = 25_000_000
         with Image.open(BytesIO(data)) as image:
+            source_format = (image.format or "").upper()
             image.load()
             image = ImageOps.exif_transpose(image)
             if image.width < 1 or image.height < 1 or image.width * image.height > 25_000_000:
                 return None, None
 
-            source_format = (image.format or "").upper()
             output = BytesIO()
 
             if source_format in {"JPEG", "JPG"}:
@@ -980,8 +980,9 @@ def gallery_image(image_id):
     raw = rows[0]["image_data"]
     data = bytes(raw) if not isinstance(raw, bytes) else raw
     response = app.response_class(data, mimetype=rows[0]["mime_type"])
-    response.headers["Cache-Control"] = "public, max-age=86400"
+    response.headers["Cache-Control"] = "private, max-age=3600"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Robots-Tag"] = "noindex, noimageindex"
     return response
 
 
