@@ -3,26 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}논곡중나무위키{% endblock %}</title>
+<title>{% block title %}NOGOK{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <header class="wiki-topbar">
   <div class="wiki-topbar-inner">
-    <a class="wiki-logo" href="{{ url_for('index') }}">논곡중나무위키</a>
+    <a class="wiki-logo" href="{{ url_for('index') }}">NOGOK</a>
     <form class="wiki-search" action="{{ url_for('search') }}">
-      <input name="q" value="{{ request.args.get('q','') }}" placeholder="검색">
-      <button aria-label="검색">검색</button>
+      <input name="q" value="{{ request.args.get('q','') }}" placeholder="Search">
+      <button aria-label="Search">Search</button>
     </form>
     <nav class="wiki-usernav">
       {% if current_user %}
         <span class="wiki-user">{{ current_user.username }}</span>
-        {% if current_user.role == 'admin' %}<a href="{{ url_for('admin') }}">관리자</a>{% endif %}
-        <a href="{{ url_for('new_page') }}">새 문서</a>
-        <a href="{{ url_for('logout') }}">로그아웃</a>
+        {% if current_user.role == 'admin' %}<a href="{{ url_for('admin') }}">Admin</a>{% endif %}
+        <a href="{{ url_for('new_page') }}">New</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
       {% else %}
-        <a href="{{ url_for('login') }}">로그인</a>
-        <a href="{{ url_for('register') }}">회원가입</a>
+        <a href="{{ url_for('login') }}">Login</a>
+        <a href="{{ url_for('register') }}">Sign up</a>
       {% endif %}
     </nav>
   </div>
@@ -30,13 +30,11 @@
 
 <div class="wiki-shell">
   <aside class="wiki-sidebar">
-    <div class="wiki-sidebar-title">논곡중나무위키</div>
-    <a href="{{ url_for('index') }}">대문</a>
-    <a href="{{ url_for('search') }}">문서 검색</a>
-    {% if current_user %}<a href="{{ url_for('new_page') }}">새 문서 작성</a>{% endif %}
-    {% if current_user and current_user.role == 'admin' %}<a href="{{ url_for('admin') }}">관리자 도구</a>{% endif %}
-    <div class="wiki-sidebar-divider"></div>
-    <div class="wiki-sidebar-note">학교 공개 정보 중심으로 작성해 주세요.</div>
+    <div class="wiki-sidebar-title">NOGOK</div>
+    <a href="{{ url_for('index') }}">Main</a>
+    <a href="{{ url_for('search') }}">Search</a>
+    {% if current_user %}<a href="{{ url_for('new_page') }}">New page</a>{% endif %}
+    {% if current_user and current_user.role == 'admin' %}<a href="{{ url_for('admin') }}">Admin</a>{% endif %}
   </aside>
 
   <main class="wiki-main">
@@ -48,8 +46,7 @@
 </div>
 
 <footer class="wiki-footer">
-  <p>논곡중나무위키 · 학교 공개 정보 정리 프로젝트</p>
-  <p>학생의 전화번호·주소·사적인 정보·동의 없는 사진은 게시하지 마세요.</p>
+  <p>NOGOK WIKI</p>
 </footer>
 </body>
 </html>
