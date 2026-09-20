@@ -1,9 +1,9 @@
-{% extends "base.html" %}{% block title %}{% if page.title == '도움말' %}논곡위키 도움말 | 사용법·편집 방법{% else %}{{page.title}} - NOGOK Wiki{% endif %}{% endblock %}
-{% block meta_description %}{% if page.title == '도움말' %}논곡위키 도움말입니다. 논곡중학교 학생 위키의 문서 검색, 편집, 새 문서 만들기, 토론, 이용 수칙과 시간표·급식 이용 방법을 안내합니다.{% else %}논곡위키의 {{page.title}} 문서입니다. 논곡중학교에 관한 공개 정보를 함께 기록합니다.{% endif %}{% endblock %}
-{% block og_title %}{% if page.title == '도움말' %}논곡위키 도움말 | NONGOK Wiki{% else %}{{page.title}} | NONGOK Wiki{% endif %}{% endblock %}
-{% block og_description %}{% if page.title == '도움말' %}논곡위키 사용법, 문서 편집 방법, 새 문서 만들기, 토론과 이용 수칙을 확인하세요.{% else %}논곡중학교에 관한 {{page.title}} 정보를 확인하세요.{% endif %}{% endblock %}
+{% extends "base.html" %}{% block title %}{% if page.title == '도움말' %}논곡위키 도움말 | 사용법·편집 방법{% elif page.title == '편집지침' %}논곡위키 편집지침 | 문서 작성 규칙{% else %}{{page.title}} - NOGOK Wiki{% endif %}{% endblock %}
+{% block meta_description %}{% if page.title == '도움말' %}논곡위키 도움말입니다. 논곡중학교 학생 위키의 문서 검색, 편집, 새 문서 만들기, 토론, 이용 수칙과 시간표·급식 이용 방법을 안내합니다.{% elif page.title == '편집지침' %}논곡위키의 공식 편집지침입니다. 문서 작성, 개인정보, 인물 서술, 출처, 저작권, 사건·사고 및 분쟁 처리 기준을 안내합니다.{% else %}논곡위키의 {{page.title}} 문서입니다. 논곡중학교에 관한 공개 정보를 함께 기록합니다.{% endif %}{% endblock %}
+{% block og_title %}{% if page.title == '도움말' %}논곡위키 도움말 | NONGOK Wiki{% elif page.title == '편집지침' %}논곡위키 편집지침 | NONGOK Wiki{% else %}{{page.title}} | NONGOK Wiki{% endif %}{% endblock %}
+{% block og_description %}{% if page.title == '도움말' %}논곡위키 사용법, 문서 편집 방법, 새 문서 만들기, 토론과 이용 수칙을 확인하세요.{% elif page.title == '편집지침' %}논곡위키 문서 작성과 편집에 적용되는 공식 기준을 확인하세요.{% else %}논곡중학교에 관한 {{page.title}} 정보를 확인하세요.{% endif %}{% endblock %}
 {% block content %}
-<article class="document"><div class="doc-title"><h1>{{page.title}}</h1><div class="doc-tools"><span>☆</span>{% if current_user %}<a href="{{url_for('edit',title=page.title)}}">편집</a>{% endif %}{% if current_user and current_user.role=='admin' %}<form method="post" action="{{url_for('delete_page',page_id=page.id)}}" style="display:inline" onsubmit="return confirm('이 문서를 삭제하시겠습니까?');"><input type="hidden" name="csrf" value="{{csrf}}"><button type="submit" class="admin-delete">삭제</button></form>{% endif %}<a href="#discussion">토론</a><a href="{{url_for('history',title=page.title)}}">역사</a></div></div>
+<article class="document"><div class="doc-title"><h1>{{page.title}}</h1><div class="doc-tools"><span>☆</span>{% if current_user and (not page.protected or current_user.role=='admin') %}<a href="{{url_for('edit',title=page.title)}}">편집</a>{% endif %}{% if current_user and current_user.role=='admin' %}<form method="post" action="{{url_for('delete_page',page_id=page.id)}}" style="display:inline" onsubmit="return confirm('이 문서를 삭제하시겠습니까?');"><input type="hidden" name="csrf" value="{{csrf}}"><button type="submit" class="admin-delete">삭제</button></form>{% endif %}<a href="#discussion">토론</a><a href="{{url_for('history',title=page.title)}}">역사</a></div></div>
 {% if page.protected %}<div class="official">🔒 관리자에 의해 보호된 문서입니다.</div>{% endif %}
 {% if page.title == '급식' or page.title == '학교생활' %}
 <section class="meal-live">
@@ -79,7 +79,143 @@
   <p class="timetable-note">컴시간학생.kr에 표시되는 실시간 시간표만 사용합니다. 없는 칸은 그대로 비워 두고, 조회 오류 시 정보없음으로 표시합니다.</p>
 </section>
 {% endif %}
-{% if page.title == '도움말' %}
+{% if page.title == '편집지침' %}
+<section class="guideline-intro">
+  <div class="guideline-badge">!</div>
+  <div>
+    <h2>논곡위키 공식 편집지침</h2>
+    <p>논곡중학교에 관한 정보를 안전하고 정확하게 기록하기 위한 기준입니다. 문서를 작성하거나 수정하기 전에 아래 내용을 확인해 주세요.</p>
+  </div>
+</section>
+
+<div class="guideline-summary">
+  <b>핵심 원칙</b>
+  <span>사실에 근거하기</span>
+  <span>개인정보 보호하기</span>
+  <span>사람을 공격하지 않기</span>
+  <span>출처와 저작권 지키기</span>
+</div>
+
+<nav class="guideline-toc">
+  <a href="#rule-basic">1. 기본 원칙</a>
+  <a href="#rule-create">2. 문서 생성</a>
+  <a href="#rule-person">3. 인물 서술</a>
+  <a href="#rule-school">4. 학교생활·시설</a>
+  <a href="#rule-incident">5. 사건·논란</a>
+  <a href="#rule-source">6. 출처·저작권</a>
+  <a href="#rule-expression">7. 표현 기준</a>
+  <a href="#rule-privacy">8. 개인정보·사진</a>
+  <a href="#rule-damage">9. 문서 훼손</a>
+  <a href="#rule-dispute">10. 편집 분쟁</a>
+</nav>
+
+<section class="guideline-section" id="rule-basic">
+  <h2><span>1</span> 기본 원칙</h2>
+  <ul>
+    <li>논곡위키는 <b>논곡중학교의 학교생활과 공개 정보를 함께 정리하는 학생 위키</b>입니다.</li>
+    <li>직접 확인한 사실이나 신뢰할 수 있는 공개 자료를 바탕으로 작성해 주세요.</li>
+    <li>확인되지 않은 소문, 추측, 과장된 표현을 사실처럼 적지 않습니다.</li>
+    <li>문서의 목적과 관계없는 내용, 광고, 도배, 장난성 편집은 삭제될 수 있습니다.</li>
+  </ul>
+</section>
+
+<section class="guideline-section" id="rule-create">
+  <h2><span>2</span> 문서 생성과 문서명</h2>
+  <ul>
+    <li>새 문서를 만들기 전에 같은 주제의 문서가 이미 있는지 검색해 주세요.</li>
+    <li>문서명은 실제 학교에서 일반적으로 사용하는 명칭이나 공식 명칭을 우선합니다.</li>
+    <li>내용이 매우 짧거나 기존 문서의 하위 내용으로 충분한 경우에는 새 문서를 만들기보다 기존 문서에 추가합니다.</li>
+    <li>특정인을 놀리거나 공격하기 위한 문서, 별명만으로 만든 인물 문서, 의미 없는 테스트 문서는 만들지 않습니다. 문법 시험은 [[연습장]]을 이용해 주세요.</li>
+  </ul>
+</section>
+
+<section class="guideline-section guideline-important" id="rule-person">
+  <h2><span>3</span> 학생·교직원 등 인물에 관한 서술</h2>
+  <p>논곡위키는 공개 사이트이므로 인물에 관한 내용은 특히 신중하게 작성해야 합니다.</p>
+  <ul>
+    <li><b>재학생 개인을 소개하거나 평가하는 문서는 원칙적으로 만들지 않습니다.</b> 당사자의 이름, 학번, 반, 연락처, SNS 계정 등 개인정보를 문서에 게시하지 마세요.</li>
+    <li>교직원에 대해서도 수업 외 사생활, 가족관계, 연락처, 개인 SNS, 확인되지 않은 평판이나 소문을 작성하지 않습니다.</li>
+    <li>학교 공식 자료에 공개된 직책·업무처럼 문서 작성에 꼭 필요한 공개 정보만 중립적으로 사용할 수 있습니다.</li>
+    <li>칭찬을 목적으로 하더라도 외모, 성격, 연애, 인간관계 등 개인을 평가하는 내용은 작성하지 않습니다.</li>
+  </ul>
+</section>
+
+<section class="guideline-section" id="rule-school">
+  <h2><span>4</span> 학교생활·시설·행사</h2>
+  <ul>
+    <li>학교 시설, 행사, 동아리, 급식, 시간표 등은 실제 확인 가능한 정보를 중심으로 작성합니다.</li>
+    <li>공식 안내와 현재 상황이 다를 수 있다면 기준 날짜를 함께 적어 주세요.</li>
+    <li>학급·동아리 내부에서만 공유되는 비공개 자료나 단체 채팅 내용을 허락 없이 옮기지 않습니다.</li>
+    <li>다른 학교와의 우열을 단정하거나 학생·학교의 수준을 비하하는 서술은 피합니다.</li>
+  </ul>
+</section>
+
+<section class="guideline-section guideline-important" id="rule-incident">
+  <h2><span>5</span> 사건·사고·논란</h2>
+  <ul>
+    <li>소문만으로 사건·사고 문서를 만들거나 특정 학생·교직원을 가해자·피해자로 지목하지 않습니다.</li>
+    <li>학교의 공식 공지, 교육기관 발표, 신뢰할 수 있는 언론 보도처럼 공개적으로 확인 가능한 근거가 있을 때만 최소한의 사실을 중립적으로 정리합니다.</li>
+    <li>진행 중인 징계, 학교폭력, 수사, 상담, 건강 문제 등 민감한 개인 사안은 게시하지 않습니다.</li>
+    <li>사실이라도 개인을 특정할 필요가 없는 내용이라면 이름·학번·사진 등 식별정보를 제거합니다.</li>
+  </ul>
+</section>
+
+<section class="guideline-section" id="rule-source">
+  <h2><span>6</span> 출처와 저작권</h2>
+  <ul>
+    <li>학교 홈페이지, 교육청, 공공기관, 공식 안내문 등 공개 자료를 우선적으로 참고합니다.</li>
+    <li>다른 위키나 웹사이트의 글을 통째로 복사하지 말고, 내용을 확인한 뒤 자신의 문장으로 정리해 주세요.</li>
+    <li>문장·사진·표 등을 인용하거나 가져올 때에는 해당 자료의 이용 조건을 확인하고 필요한 경우 출처를 표시합니다.</li>
+    <li>유료 자료, 교과서, 문제집, 타인의 사진 등 저작권이 있는 자료를 허가 없이 그대로 게시하지 않습니다.</li>
+  </ul>
+</section>
+
+<section class="guideline-section" id="rule-expression">
+  <h2><span>7</span> 표현과 문체</h2>
+  <ul>
+    <li>욕설, 혐오 표현, 성적 표현, 조롱, 모욕, 집단 따돌림을 유도하는 표현은 금지합니다.</li>
+    <li>특정 학생이나 교직원을 대상으로 한 별명·밈·유행어는 당사자에게 피해가 될 수 있으므로 문서의 사실 정보로 사용하지 않습니다.</li>
+    <li>주관적인 평가는 가능한 한 줄이고, 필요한 경우 누구의 의견인지 명확하게 구분합니다.</li>
+    <li>장난스러운 문장을 넣더라도 사실관계를 흐리거나 누군가를 공격하는 방식으로 작성해서는 안 됩니다.</li>
+  </ul>
+</section>
+
+<section class="guideline-section guideline-important" id="rule-privacy">
+  <h2><span>8</span> 개인정보와 사진</h2>
+  <ul>
+    <li><b>학번은 회원 확인용 정보이며 공개 문서, 댓글, 갤러리 게시물에 적지 않습니다.</b></li>
+    <li>전화번호, 집 주소, 이메일, 개인 SNS, 계정 비밀번호, 건강정보 등 사적인 정보는 게시하지 않습니다.</li>
+    <li>논곡갤러리에 다른 학생이나 교직원의 얼굴이 나온 사진을 올릴 때에는 당사자의 동의를 받아야 합니다.</li>
+    <li>칠판, 명찰, 학생증, 시험지, 알림장 등에 개인정보가 찍힌 경우 사진을 올리기 전에 가리거나 잘라내야 합니다.</li>
+    <li>개인정보가 노출된 편집이나 사진을 발견하면 재공유하지 말고 관리자에게 알려 주세요.</li>
+  </ul>
+</section>
+
+<section class="guideline-section" id="rule-damage">
+  <h2><span>9</span> 문서 훼손과 금지 행위</h2>
+  <ul>
+    <li>정상적인 내용을 이유 없이 지우거나 의미 없는 글자로 덮는 행위</li>
+    <li>같은 내용을 반복해서 올리는 도배, 광고, 스팸</li>
+    <li>다른 사람인 것처럼 가장하거나 타인의 이름·학번을 이용하는 행위</li>
+    <li>의도적으로 허위정보를 추가하거나 이미 확인된 내용을 반복해서 허위로 바꾸는 행위</li>
+  </ul>
+  <p>반복적이거나 심각한 경우 관리자가 게시물·문서를 복구 또는 삭제하고 필요한 운영 조치를 할 수 있습니다.</p>
+</section>
+
+<section class="guideline-section" id="rule-dispute">
+  <h2><span>10</span> 편집 분쟁과 토론</h2>
+  <ul>
+    <li>같은 내용을 서로 되돌리는 편집을 반복하지 말고 해당 문서의 <b>토론</b>에서 근거를 제시해 주세요.</li>
+    <li>상대 편집자의 신상이나 의도를 공격하지 말고 어떤 문장이 왜 부정확한지만 이야기합니다.</li>
+    <li>합의가 어려운 경우 현재 확인 가능한 공개 자료를 우선하고, 필요하면 관리자에게 중재를 요청할 수 있습니다.</li>
+  </ul>
+</section>
+
+<div class="guideline-footer">
+  이 지침은 논곡위키의 안전한 운영을 위한 기본 기준입니다. 구체적인 상황에서는 개인정보 보호와 당사자 피해 방지를 우선합니다.
+  처음 편집한다면 <a href="{{url_for('wiki',title='도움말')}}">도움말</a>도 함께 확인해 주세요.
+</div>
+{% elif page.title == '도움말' %}
 <section class="help-intro">
   <div class="help-intro-mark">?</div>
   <div>
