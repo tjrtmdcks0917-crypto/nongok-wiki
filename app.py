@@ -119,6 +119,10 @@ def get_nongok_timetable(grade, class_num):
                 continue
             perio = int(row.get("PERIO", 0) or 0)
             subject = row.get("ITRT_CNTNT", "").strip()
+            # NEIS may concatenate separate Technology/Home Economics labels.
+            # Keep them distinguishable in the timetable display.
+            if subject == "기술가정":
+                subject = "기술·가정"
             by_date.setdefault(ymd, {})[perio] = subject
         weekdays = ["월", "화", "수", "목", "금"]
         days = []
