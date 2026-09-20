@@ -719,30 +719,48 @@ def index():
         popular=popular,
         sections=sections,
         document_groups=document_groups,
-        facility_layout=[
+        facility_floors=[
+            {
+                "floor": "4층",
+                "rooms": ["소강당"],
+                "status": "확인",
+            },
+            {
+                "floor": "3층",
+                "rooms": [],
+                "status": "확인 중",
+            },
+            {
+                "floor": "2층",
+                "rooms": [],
+                "status": "확인 중",
+            },
+            {
+                "floor": "1층",
+                "rooms": ["로비"],
+                "status": "확인",
+            },
+        ],
+        facility_wings=[
             {
                 "area": "전관",
-                "floor": "층별 위치 미등록",
                 "rooms": ["교장실", "교무실", "1~3학년 교실", "Wee Class", "보건실"],
+                "note": "층별 위치 확인 중",
             },
             {
                 "area": "후관",
-                "floor": "층별 위치 미등록",
                 "rooms": ["과학실", "기술실", "음악실", "정보실", "학생자치실"],
+                "note": "층별 위치 확인 중",
             },
             {
-                "area": "공용·기타",
-                "floor": "위치 미등록",
-                "rooms": [
-                    "도서관", "식당(급식실)", "미술실", "강당", "건강체력교실",
-                    "다목적실", "통합교육지원실", "방송실", "학습자료실",
-                    "교원연구실", "행정실", "교직원 휴게실", "탈의실",
-                ],
+                "area": "논곡관",
+                "rooms": ["강당"],
+                "note": "별동",
             },
             {
-                "area": "야외",
-                "floor": "야외",
+                "area": "야외 시설",
                 "rooms": ["운동장"],
+                "note": "야외",
             },
         ],
         all_document_titles=[title for title in titles if title != "논곡위키:대문"],
