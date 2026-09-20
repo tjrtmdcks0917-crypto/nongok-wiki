@@ -54,6 +54,11 @@ CREATE TABLE IF NOT EXISTS reports (
     status VARCHAR(16) NOT NULL DEFAULT 'open',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS homepage_sections (
+    section_key VARCHAR(32) PRIMARY KEY,
+    content TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 def _sqlite_schema():
