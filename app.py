@@ -2,6 +2,10 @@ import os
 import re
 import secrets
 import time
+import json
+from datetime import datetime, timedelta
+from urllib.parse import urlencode
+from urllib.request import urlopen
 from functools import wraps
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
@@ -17,6 +21,46 @@ app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 RATE = {}
 RATE_WINDOW = 60
 RATE_MAX = 60
+
+MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
+
+def get_nongok_meals():
+    """Fetch this week's Nongok Middle School lunches from NEIS; cache for 30 min."""
+    now = time.time()
+    if MEAL_CACHE["expires"] > now:
+        return MEAL_CACHE["meals"], MEAL_CACHE["error"]
+    today = datetime.now().date()
+    monday = today - timedelta(days=today.weekday())
+    friday = monday + timedelta(days=4)
+    params = {
+        "KEY": os.environ.get("NEIS_API_KEY", "sample"),
+        "Type": "json", "pIndex": 1, "pSize": 100,
+        "ATPT_OFCDC_SC_CODE": "E10",
+        "SCHUL_NM": "논곡중학교",
+        "MLSV_FROM_YMD": monday.strftime("%Y%m%d"),
+        "MLSV_TO_YMD": friday.strftime("%Y%m%d"),
+    }
+    try:
+        url = "https://open.neis.go.kr/hub/mealServiceDietInfo?" + urlencode(params)
+        with urlopen(url, timeout=4) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        rows = []
+        for block in data.get("mealServiceDietInfo", []):
+            if isinstance(block, dict) and "row" in block:
+                rows = block["row"]
+                break
+        meals = []
+        weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+        for row in rows:
+            date = datetime.strptime(row["MLSV_YMD"], "%Y%m%d").date()
+            dishes = re.sub(r"<br\s*/?>", "\n", row.get("DDISH_NM", ""), flags=re.I)
+            meals.append({"date": date, "weekday": weekdays[date.weekday()], "dishes": dishes,
+                          "calories": row.get("CAL_INFO", ""), "today": date == today})
+        MEAL_CACHE.update({"expires": now + 1800, "meals": meals, "error": None})
+    except Exception:
+        MEAL_CACHE.update({"expires": now + 300, "meals": [], "error": "급식 정보를 불러오지 못했습니다."})
+    return MEAL_CACHE["meals"], MEAL_CACHE["error"]
+
 
 def rate_limit():
     ip = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0]
@@ -231,7 +275,11 @@ def wiki(title):
            WHERE d.page_id=%s ORDER BY d.created_at DESC LIMIT 50""",
         (page["id"],),
     )
-    return render_template("wiki.html", page=page, content_html=render_wiki(page["content"]), discussions=discussions)
+    meals, meal_error = ([], None)
+    if page["title"] == "급식":
+        meals, meal_error = get_nongok_meals()
+    return render_template("wiki.html", page=page, content_html=render_wiki(page["content"]), discussions=discussions,
+                           meals=meals, meal_error=meal_error)
 
 @app.route("/edit/<path:title>", methods=["GET", "POST"])
 @require_login
