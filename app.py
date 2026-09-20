@@ -151,7 +151,36 @@ def sitemap_xml():
 def index():
     recent = query("SELECT title, updated_at FROM wiki_pages WHERE deleted=FALSE ORDER BY updated_at DESC LIMIT 10")
     popular = query("SELECT title, views FROM wiki_pages WHERE deleted=FALSE ORDER BY views DESC, updated_at DESC LIMIT 10")
-    return render_template("index.html", recent=recent, popular=popular)
+    defaults = {
+        "notice": "다른 사람의 연락처, 주소 등 사적인 개인정보는 보호해 주세요.\n친구를 공격하거나 괴롭히는 내용은 작성하지 말아 주세요.\n학교생활, 추억, 정보 등 다양한 내용을 자유롭게 작성해 주세요.",
+        "news": "논곡위키 공개 베타 운영 중입니다.\n문서 편집과 토론 기능을 사용할 수 있습니다.",
+        "feedback": "오류나 개선할 점은 문서 토론 또는 관리자에게 알려주세요.",
+        "supporters": "아직 등록된 후원자가 없습니다.",
+    }
+    rows = query("SELECT section_key, content FROM homepage_sections")
+    sections = defaults.copy()
+    sections.update({row["section_key"]: row["content"] for row in rows})
+    return render_template("index.html", recent=recent, popular=popular, sections=sections)
+
+@app.route("/admin/homepage/<section_key>", methods=["GET", "POST"])
+@require_admin
+def edit_homepage_section(section_key):
+    labels = {"notice": "유의사항", "news": "공지사항", "feedback": "피드백", "supporters": "후원자"}
+    if section_key not in labels:
+        abort(404)
+    rows = query("SELECT content FROM homepage_sections WHERE section_key=%s", (section_key,))
+    content = rows[0]["content"] if rows else ""
+    if request.method == "POST":
+        check_csrf()
+        content = request.form.get("content", "").strip()
+        existing = query("SELECT section_key FROM homepage_sections WHERE section_key=%s", (section_key,))
+        if existing:
+            execute("UPDATE homepage_sections SET content=%s, updated_at=CURRENT_TIMESTAMP WHERE section_key=%s", (content, section_key))
+        else:
+            execute("INSERT INTO homepage_sections(section_key, content, updated_at) VALUES (%s,%s,CURRENT_TIMESTAMP)", (section_key, content))
+        flash(f'{labels[section_key]} 내용을 저장했습니다.', "success")
+        return redirect(url_for("index"))
+    return render_template("homepage_edit.html", section_key=section_key, section_label=labels[section_key], content=content)
 
 @app.route("/wiki/<path:title>")
 def wiki(title):
