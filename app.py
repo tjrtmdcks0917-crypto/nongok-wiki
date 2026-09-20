@@ -1198,8 +1198,20 @@ def register():
 def login():
     if request.method == "POST":
         check_csrf()
+        school_name = re.sub(r"\s+", "", request.form.get("school_name", "").strip())
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+
+        if school_name != "논곡중학교":
+            flash("학교명이 맞지 않습니다. '논곡중학교'를 정확히 입력해 주세요.", "warning")
+            return render_template(
+                "auth.html",
+                mode="login",
+                next_url=request.form.get("next", "") or request.args.get("next", ""),
+                entered_username=username,
+                entered_school_name=request.form.get("school_name", ""),
+            )
+
         rows = query("SELECT * FROM users WHERE username=%s", (username,))
         if rows and check_password_hash(rows[0]["password_hash"], password):
             session["user_id"] = rows[0]["id"]
@@ -1208,7 +1220,13 @@ def login():
                 return redirect(url_for("identity_setup"))
             return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
         flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
-    return render_template("auth.html", mode="login", next_url=request.args.get("next", ""), entered_username=request.form.get("username", ""))
+    return render_template(
+        "auth.html",
+        mode="login",
+        next_url=request.args.get("next", ""),
+        entered_username=request.form.get("username", ""),
+        entered_school_name=request.form.get("school_name", ""),
+    )
 
 @app.route("/account/identity", methods=["GET", "POST"])
 @require_login
