@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block title %}{{page.title}} - NOGOK Wiki{% endblock %}{% block content %}
 <article class="document"><div class="doc-title"><h1>{{page.title}}</h1><div class="doc-tools"><span>☆</span>{% if current_user %}<a href="{{url_for('edit',title=page.title)}}">편집</a>{% endif %}{% if current_user and current_user.role=='admin' %}<form method="post" action="{{url_for('delete_page',page_id=page.id)}}" style="display:inline" onsubmit="return confirm('이 문서를 삭제하시겠습니까?');"><input type="hidden" name="csrf" value="{{csrf}}"><button type="submit" class="admin-delete">삭제</button></form>{% endif %}<a href="#discussion">토론</a><a href="{{url_for('history',title=page.title)}}">역사</a></div></div>
 {% if page.protected %}<div class="official">🔒 관리자에 의해 보호된 문서입니다.</div>{% endif %}
-{% if page.title == '급식' %}
+{% if page.title == '급식' or page.title == '학교생활' %}
 <section class="meal-live">
   <div class="meal-live-head"><h2>이번 주 논곡중학교 급식</h2><span>나이스 급식정보 자동 반영</span></div>
   {% if meal_error %}<p class="meal-error">{{ meal_error }}</p>{% elif meals %}
