@@ -65,13 +65,13 @@ def get_nongok_timetable(grade, class_num):
         # Comcigan school codes may be encoded strings such as "\\u003E21009".
         # The client expects that value unchanged and parses it internally.
         code = school["school_code"]
-        # comci search currently returns an HTML-escaped code such as '>21009'.
-        # get_timetable expects the numeric portion, so normalize it here.
+        # Search results may contain escaped prefixes such as '>21009'.
+        # Avoid regex/escape ambiguity: retain only decimal digits.
         if isinstance(code, str):
-            m = re.search(r"(\\d+)$", code)
-            if not m:
+            digits = "".join(ch for ch in code if ch.isdigit())
+            if not digits:
                 raise RuntimeError(f"알 수 없는 컴시간 학교 코드: {code!r}")
-            code = int(m.group(1))
+            code = int(digits)
 
         errors = []
         table = None
