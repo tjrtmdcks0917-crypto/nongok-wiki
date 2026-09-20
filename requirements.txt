@@ -2,4 +2,3 @@ Flask>=3.1,<4
 gunicorn>=23,<24
 psycopg[binary]>=3.2,<4
 python-dotenv>=1.1,<2
-comci==0.7.0
