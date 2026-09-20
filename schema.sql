@@ -1,0 +1,1 @@
+-- PostgreSQL schema is created automatically by db.py.
