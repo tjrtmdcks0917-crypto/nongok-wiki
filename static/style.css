@@ -252,25 +252,31 @@
 .member-details span{display:inline-block;border:1px solid #e0e3e5;background:#fafafa;border-radius:6px;padding:5px 8px;font-size:12px;color:#555}
 @media(max-width:600px){.member-details{display:grid;grid-template-columns:1fr}.member-details span{width:100%}}
 
-/* Nested facility directory */
+/* School facilities: one expand shows the whole building overview */
 .home-doc-links.facility-directory{display:block;padding:0;background:#fff}
-.facility-overview-link{display:block;text-align:center;padding:10px 12px;border-bottom:1px solid #e5e7e9;font-weight:700}
-.facility-subgroups{margin:0 12px 12px;border:1px solid #d5d8da}
-.facility-subgroup{border-bottom:1px solid #dedfe1}
-.facility-subgroup:last-child{border-bottom:0}
-.facility-subtoggle{display:block;width:100%;border:0;background:#fff;margin:0;padding:10px 12px;text-align:center;font:inherit;color:#111;cursor:pointer}
-.facility-subtoggle:hover,.facility-subtoggle[aria-expanded="true"]{background:#fafafa}
-.facility-subtoggle>.arrow{display:inline-block;width:14px}
-.facility-subtoggle>span:last-child{font-size:13px;color:#30415d}
-.facility-sublinks[hidden]{display:none!important}
-.facility-sublinks{display:block;padding:10px;border-top:1px solid #e4e5e6;background:#fff}
-.facility-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}
-.facility-table th,.facility-table td{border:1px solid #d9dcde;padding:9px 10px;text-align:center;font-size:14px;line-height:1.35}
-.facility-table th{width:64%;font-weight:500;color:#2d3d72;background:#fff}
-.facility-table td{width:36%;color:#333}
-.facility-detail-link{display:block;text-align:center;margin-top:10px;font-size:13px;font-weight:700}
+.facility-oneview{padding:10px 12px 12px}
+.facility-oneview-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 2px 10px}
+.facility-oneview-head>a{font-weight:800}
+.facility-oneview-head>span{font-size:12px;color:#777}
+.facility-overview-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}
+.facility-overview-table th,.facility-overview-table td{border:1px solid #d6d9dc;padding:10px 9px;vertical-align:middle}
+.facility-overview-table thead th{text-align:center;background:#fafafa;font-size:14px}
+.facility-overview-table thead th:nth-child(1){width:14%}
+.facility-overview-table thead th:nth-child(2){width:18%}
+.facility-overview-table thead th:nth-child(3){width:68%}
+.facility-area{text-align:center;font-size:15px;background:#fbfbfb}
+.facility-floor{text-align:center;color:#777;font-size:13px}
+.facility-rooms{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.facility-rooms span{display:inline-block;border:1px solid #dfe2e5;background:#fff;border-radius:5px;padding:5px 8px;font-size:13px}
+.facility-layout-note{margin:9px 2px 0;font-size:12px;line-height:1.5;color:#777}
 @media(max-width:650px){
- .facility-subgroups{margin:0 7px 9px}
- .facility-subtoggle{padding:9px 6px;font-size:14px}
- .facility-sublinks{padding:8px}.facility-table th,.facility-table td{padding:8px 5px;font-size:12px}
+ .facility-oneview{padding:7px}
+ .facility-oneview-head{display:block}
+ .facility-oneview-head>span{display:block;margin-top:4px}
+ .facility-overview-table th,.facility-overview-table td{padding:7px 5px}
+ .facility-overview-table thead th:nth-child(1){width:18%}
+ .facility-overview-table thead th:nth-child(2){width:22%}
+ .facility-overview-table thead th:nth-child(3){width:60%}
+ .facility-area{font-size:13px}.facility-floor{font-size:11px}
+ .facility-rooms{gap:4px}.facility-rooms span{font-size:11px;padding:4px 5px}
 }
