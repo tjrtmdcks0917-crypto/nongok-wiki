@@ -91,7 +91,29 @@
 }
 
 /* Live Comcigan timetable */
-.timetable-live{margin:18px 0 28px}.timetable-picker{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:14px 0}.timetable-picker label{font-weight:700}.timetable-picker select{display:block;margin-top:5px;min-width:110px;padding:9px;border:1px solid var(--line);border-radius:7px;background:#fff}.timetable-picker button{margin:0}.timetable-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}.timetable-day{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}.timetable-day h3{margin:0;padding:11px;text-align:center;background:#fafafa;border-bottom:1px solid var(--line)}.timetable-period{display:flex;gap:7px;padding:9px;border-bottom:1px solid #eee;min-height:40px}.timetable-period:last-child{border-bottom:0}.timetable-period b{font-size:12px;white-space:nowrap}.timetable-period span{overflow-wrap:anywhere}.timetable-note{font-size:12px;color:#777;margin-top:10px}
-@media(max-width:950px){.timetable-grid{grid-template-columns:1fr}.timetable-picker label{flex:1}.timetable-picker select{width:100%}.timetable-picker button{width:100%}}
-
-.timetable-teacher{display:block;margin-top:3px;color:#777;font-size:11px;font-weight:400}
+.timetable-live{margin:18px 0 28px}
+.timetable-picker{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:14px 0}
+.timetable-picker label{font-weight:700}
+.timetable-picker select{display:block;margin-top:5px;min-width:110px;padding:9px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.timetable-picker button{margin:0}
+.timetable-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+.timetable-table{width:100%;min-width:700px;border-collapse:collapse;table-layout:fixed;background:#fff}
+.timetable-table th,.timetable-table td{border-right:1px solid #d9d9d9;border-bottom:1px solid #d9d9d9;text-align:center;vertical-align:middle}
+.timetable-table tr:last-child th,.timetable-table tr:last-child td{border-bottom:0}
+.timetable-table th:last-child,.timetable-table td:last-child{border-right:0}
+.timetable-table thead th{padding:11px 6px;background:#f3f3fb;font-size:14px}
+.timetable-table .period-head,.timetable-table .period-cell{width:92px}
+.timetable-table .period-cell{padding:13px 5px;background:#f7f7fb;font-size:13px;font-weight:600;white-space:nowrap}
+.timetable-table .lesson-cell{height:62px;padding:7px 5px;background:#fff}
+.timetable-table .lesson-cell.changed{background:#fffca1}
+.timetable-table .lesson-cell strong{display:block;font-size:14px;font-weight:600;line-height:1.35}
+.timetable-table .lesson-cell span{display:block;margin-top:2px;font-size:13px;line-height:1.3;color:#333}
+.timetable-note{font-size:12px;color:#777;margin-top:10px}
+@media(max-width:600px){
+ .timetable-picker label{flex:1}
+ .timetable-picker select{width:100%}
+ .timetable-picker button{width:100%}
+ .timetable-table{min-width:620px}
+ .timetable-table .period-head,.timetable-table .period-cell{width:82px}
+ .timetable-table .lesson-cell{height:58px}
+}
