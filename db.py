@@ -2,6 +2,8 @@ import os
 import sqlite3
 from contextlib import contextmanager
 
+_PG_CONN = None
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_POSTGRES = bool(DATABASE_URL)
 
@@ -74,16 +76,22 @@ def get_db_type():
 
 @contextmanager
 def connection():
+    global _PG_CONN
     if USE_POSTGRES:
-        conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        # Reuse one PostgreSQL connection instead of opening a new TLS/database
+        # connection for every small query. Reconnect automatically if needed.
+        if _PG_CONN is None or _PG_CONN.closed:
+            _PG_CONN = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        conn = _PG_CONN
         try:
             yield conn
             conn.commit()
         except Exception:
             conn.rollback()
+            # A broken network connection should be recreated on the next query.
+            if conn.closed:
+                _PG_CONN = None
             raise
-        finally:
-            conn.close()
     else:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
