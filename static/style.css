@@ -38,3 +38,21 @@
   .portal{display:block;overflow-x:auto;white-space:nowrap}
   .content{width:100%;min-width:0;padding:16px 14px 45px}
 }
+
+
+/* Mobile: keep the same layout and controls as desktop */
+@media(max-width:950px){
+  .site-grid{grid-template-columns:minmax(0,1050px) 285px}
+  .rail{display:block}
+  .menus,.users{display:flex}
+  .mobile-nav,.mobile-users{display:none}
+  .search{width:330px;flex:none;margin-left:auto}
+  .top{height:66px;min-height:66px}
+  .top-inner{flex-wrap:nowrap;gap:30px;padding-top:0;padding-bottom:0}
+  .content{padding:25px 32px 60px;width:auto}
+  .doc-title{flex-direction:row;align-items:end}
+  .doc-tools{width:auto;overflow:visible}
+  .portal{display:table;overflow:visible;white-space:normal}
+  .wiki-body{font-size:15px;line-height:1.85}
+  body{min-width:1180px}
+}
