@@ -24,7 +24,40 @@ RATE_WINDOW = 60
 RATE_MAX = 60
 
 MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
-TIMETABLE_CACHE = {}
+TIMETABLE_CACHE = {}\nTEACHER_CACHE = {}
+
+def get_masked_comcigan_teachers(grade, class_num, target):
+    """Best-effort masked teacher labels; failure never breaks the NEIS timetable."""
+    monday = target - timedelta(days=target.weekday())
+    key = (grade, class_num, monday.isoformat())
+    now = time.time()
+    cached = TEACHER_CACHE.get(key)
+    if cached and cached["expires"] > now:
+        return cached["teachers"]
+    teachers = {}
+    try:
+        from comci import search_schools, get_timetable
+        schools = search_schools("논곡중학교") or []
+        exact = [x for x in schools if x.get("school_name") == "논곡중학교"]
+        school = next((x for x in exact if x.get("region") == "인천"), exact[0] if exact else None)
+        if not school:
+            raise RuntimeError("컴시간 학교 검색 실패")
+        digits = "".join(ch for ch in str(school["school_code"]) if ch.isdigit())
+        if not digits:
+            raise RuntimeError("컴시간 학교 코드 해석 실패")
+        table = get_timetable(int(digits), grade=grade, class_num=class_num, on=target) or {}
+        for weekday in ["월", "화", "수", "목", "금"]:
+            teachers[weekday] = []
+            for item in (table.get(weekday) or []):
+                teacher = item.get("teacher", "") if isinstance(item, dict) else ""
+                # Keep only names already masked by Comcigan; never reconstruct hidden letters.
+                teachers[weekday].append(teacher if "*" in teacher else "")
+    except Exception:
+        app.logger.warning("Comcigan teacher enrichment failed", exc_info=True)
+        teachers = {}
+    TEACHER_CACHE[key] = {"expires": now + (300 if teachers else 60), "teachers": teachers}
+    return teachers
+
 
 def get_nongok_timetable(grade, class_num):
     """Fetch weekly timetable from NEIS using the same HTTP pattern as meals."""
