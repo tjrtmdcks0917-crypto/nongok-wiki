@@ -30,7 +30,12 @@ def get_nongok_meals():
     if MEAL_CACHE["expires"] > now:
         return MEAL_CACHE["meals"], MEAL_CACHE["error"]
     today = datetime.now().date()
-    monday = today - timedelta(days=today.weekday())
+    # Mon-Sat: keep showing the current week's Mon-Fri meals.
+    # Sun: switch ahead and show the coming week's Mon-Fri meals.
+    if today.weekday() == 6:
+        monday = today + timedelta(days=1)
+    else:
+        monday = today - timedelta(days=today.weekday())
     friday = monday + timedelta(days=4)
     params = {
         "KEY": os.environ.get("NEIS_API_KEY", "sample"),
