@@ -77,7 +77,7 @@
                 <td>
                   {% if floor['rooms'] %}
                     {% for room in floor['rooms'] %}
-                      <span class="facility-room verified">{{room}}</span>
+                      <a class="facility-room verified" href="{{url_for('wiki',title=room.title)}}">{{room.label}}</a>
                     {% endfor %}
                   {% else %}
                     <span class="facility-pending">세부 시설 위치 확인 중</span>
@@ -96,7 +96,7 @@
                 <th>{{wing.area}}</th>
                 <td>
                   {% for room in wing['rooms'] %}
-                    <span class="facility-room">{{room}}</span>
+                    <a class="facility-room" href="{{url_for('wiki',title=room.title)}}">{{room.label}}</a>
                   {% endfor %}
                 </td>
                 <td class="facility-wing-note">{{wing.note}}</td>
@@ -106,8 +106,8 @@
           </table>
 
           <p class="facility-source-note">
-            층별 위치는 공개 자료에서 확인되는 항목부터 반영하고 있습니다.
-            확인되지 않은 시설은 임의로 층을 지정하지 않습니다.
+            시설 이름을 누르면 해당 장소 문서로 이동합니다. 각 문서에서 그 장소와 함께한 기억을 자유롭게 기록할 수 있습니다.
+            ‘민주 관련 부서’는 정확한 부서 명칭을 확인하면 수정할 예정입니다.
           </p>
         </div>
       {% else %}
