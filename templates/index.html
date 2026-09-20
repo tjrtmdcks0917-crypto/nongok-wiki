@@ -1,4 +1,21 @@
-{% extends "base.html" %}{% block title %}논곡위키:대문 - NOGOK Wiki{% endblock %}{% block content %}
+{% extends "base.html" %}
+{% block title %}논곡위키 | 논곡중학교 학생 위키 NONGOK Wiki{% endblock %}
+{% block meta_description %}논곡위키는 논곡중학교의 학교생활, 시설, 동아리, 급식, 시간표, 행사 등을 함께 기록하는 학생 위키입니다.{% endblock %}
+{% block og_title %}논곡위키 | NONGOK Wiki{% endblock %}
+{% block og_description %}논곡중학교에 관한 학교생활과 공개 정보를 함께 기록하는 학생 위키입니다.{% endblock %}
+{% block canonical_url %}https://nongok-wiki.onrender.com/{% endblock %}
+{% block og_url %}https://nongok-wiki.onrender.com/{% endblock %}
+{% block content %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "논곡위키",
+  "alternateName": "NONGOK Wiki",
+  "url": "https://nongok-wiki.onrender.com/",
+  "description": "논곡중학교의 학교생활과 공개 정보를 함께 기록하는 학생 위키"
+}
+</script>
 <article class="document">
 <div class="doc-title"><h1>논곡위키:대문</h1><div class="doc-tools"><span>☆</span>{% if current_user and current_user.role=='admin' %}<span>각 항목의 편집 버튼을 눌러 수정하세요</span>{% endif %}<a href="{{url_for('wiki',title='논곡위키:대문')}}">문서</a><a href="{{url_for('wiki',title='도움말')}}">도움말</a></div></div>
 <div class="official">이 문서는 <b>논곡위키의 공식 대문</b>입니다.<br>대문 내용은 관리자만 수정할 수 있습니다.</div>
