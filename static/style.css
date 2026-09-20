@@ -158,3 +158,30 @@
 .poll-vote-form{margin-bottom:16px}.poll-choice{display:flex;align-items:center;gap:9px;border:1px solid #e1e3e5;border-radius:7px;padding:10px 11px;margin:7px 0;cursor:pointer}.poll-choice:hover{background:#fafafa}.poll-choice input{width:auto;margin:0}.poll-choice span{line-height:1.4}.poll-vote-form button{background:var(--green);color:#fff;border-color:#78993b;font-weight:700}
 .poll-login-note,.poll-voted-note{padding:9px 11px;background:#f7f7f7;border:1px solid #e2e2e2}.poll-results{margin-top:13px}.poll-result{margin:10px 0}.poll-result-label{display:flex;justify-content:space-between;gap:12px;font-size:13px}.poll-result-label b{white-space:nowrap}.poll-bar{height:9px;background:#eceff1;border-radius:999px;overflow:hidden;margin-top:5px}.poll-bar span{display:block;height:100%;background:#9caf6a}.poll-result.mine .poll-bar span{background:var(--green)}.poll-empty{padding:28px;text-align:center;border:1px dashed #c9cdd1;color:#777}
 @media(max-width:600px){.poll-card{padding:14px}.poll-head{display:block}.poll-head form{margin-top:10px}.poll-result-label{font-size:12px}.poll-create{padding:14px}}
+
+/* Nongok Gallery */
+.schoollife-gallery-link{display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid #cfd8c0;background:#f8fbf2;border-radius:10px;padding:18px 20px;margin:18px 0 28px}
+.schoollife-gallery-link h2{margin:0 0 6px;font-size:22px}.schoollife-gallery-link p{margin:0;line-height:1.65;color:#555}.schoollife-gallery-link>a{flex:0 0 auto;background:var(--green);color:#fff;font-weight:700;padding:10px 13px;border-radius:7px}
+.schoollife-gallery-link>a:hover{text-decoration:none;background:#78993b}
+
+.gallery-notice{border:1px solid #d6c98f;background:#fffbe9;padding:13px 15px;line-height:1.65;margin:10px 0 18px}
+.gallery-compose{border:1px solid var(--line);border-radius:9px;background:#fafafa;margin-bottom:22px;overflow:hidden}.gallery-compose summary{cursor:pointer;padding:13px 15px;font-weight:700;background:#f5f6f7}.gallery-compose form{padding:15px}.gallery-compose label{display:block;font-weight:700;margin:10px 0}.gallery-compose label small{font-weight:400;color:#777}.gallery-compose input,.gallery-compose textarea{display:block;margin-top:6px;background:#fff}.gallery-compose input[type=file]{padding:8px}.gallery-compose textarea{min-height:130px}.gallery-identity{font-size:13px;color:#666}.gallery-compose button{background:var(--green);border-color:#78993b;color:#fff;font-weight:700}
+.gallery-login{padding:13px 15px;border:1px solid var(--line);background:#fafafa;margin-bottom:20px}
+
+.gallery-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.gallery-card{display:block;color:var(--text);border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 3px 12px #00000008}.gallery-card:hover{text-decoration:none;border-color:#aeb7bd;box-shadow:0 5px 16px #00000010}.gallery-thumb{aspect-ratio:4/3;background:#eceff1;overflow:hidden}.gallery-thumb img{width:100%;height:100%;object-fit:cover;display:block}.gallery-no-image{display:grid;place-items:center;background:linear-gradient(135deg,#edf3df,#f7f9f2);color:#71834c;font-weight:800}.gallery-card-body{padding:13px}.gallery-card h2{font-size:18px;margin:0 0 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gallery-card p{font-size:13px;line-height:1.55;color:#555;margin:0 0 12px;min-height:40px}.gallery-card-meta{display:flex;justify-content:space-between;gap:8px;font-size:12px}.gallery-card-meta span{color:#888;white-space:nowrap}.gallery-card-stats{font-size:11px;color:#888;margin-top:6px}.gallery-empty{grid-column:1/-1;padding:40px 20px;text-align:center;border:1px dashed #c8cdd1;color:#777}
+
+.gallery-author{display:flex;align-items:center;gap:10px;color:#777;font-size:13px;margin:4px 0 20px}.gallery-author b{color:#333}.gallery-post-body{font-size:16px;line-height:1.85;overflow-wrap:anywhere;margin-bottom:22px}
+.gallery-images{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:18px 0 30px}.gallery-images.single{grid-template-columns:1fr}.gallery-images a{display:block;border:1px solid #e0e2e4;background:#f6f6f6}.gallery-images img{display:block;width:100%;height:auto;max-height:760px;object-fit:contain;margin:auto}
+.inline-form{display:inline}.inline-form button{margin:0}.gallery-delete{border-color:#c9a4a4;color:#9a3333}
+.gallery-comments{border-top:1px solid #ccc;padding-top:20px;margin-top:25px}.gallery-comments>h2{font-size:22px;margin:0 0 14px}.gallery-comments>h2 span{font-size:14px;color:#777}.gallery-comment-form{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:22px}.gallery-comment-form textarea{min-height:78px}.gallery-comment-form button{margin:0;height:42px;background:var(--green);color:#fff;border-color:#78993b}
+.gallery-comment{border-top:1px solid #eee;padding:13px 2px}.gallery-comment>div{display:flex;align-items:center;gap:9px}.gallery-comment small{color:#888}.gallery-comment .inline-form{margin-left:auto}.gallery-comment .inline-form button{border:0;background:transparent;color:#999;padding:2px 5px;font-size:12px}.gallery-comment p{margin:7px 0 0;line-height:1.65;overflow-wrap:anywhere}.gallery-empty-comment{color:#777;padding:12px 0}
+
+@media(max-width:800px){
+ .gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .schoollife-gallery-link{align-items:flex-start;flex-direction:column}.schoollife-gallery-link>a{width:100%;text-align:center}
+}
+@media(max-width:520px){
+ .gallery-grid{grid-template-columns:1fr}.gallery-card{display:grid;grid-template-columns:120px minmax(0,1fr)}.gallery-thumb{aspect-ratio:1/1;height:100%}.gallery-card-body{min-width:0}
+ .gallery-card p{min-height:0}.gallery-images{grid-template-columns:1fr}.gallery-comment-form{grid-template-columns:1fr}.gallery-comment-form button{width:100%}
+ .gallery-author{flex-wrap:wrap}
+}
