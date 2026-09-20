@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}실시간 소통 - NONGOK Wiki{% endblock %}
+{% block content %}
+<section class="card chat-page">
+  <div class="chat-title"><h1>실시간 소통</h1><span>새 메시지가 자동으로 표시됩니다.</span></div>
+  <div id="chatMessages" class="chat-messages"><p class="chat-loading">메시지를 불러오는 중...</p></div>
+  {% if current_user %}
+  <form id="chatForm" class="chat-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input id="chatInput" name="body" maxlength="500" autocomplete="off" placeholder="메시지를 입력하세요." required>
+    <button type="submit">전송</button>
+  </form>
+  <p class="hint">개인정보를 올리거나 다른 사람을 공격하는 내용은 작성하지 말아 주세요.</p>
+  {% else %}
+  <p><a href="{{ url_for('login') }}">로그인</a>하면 메시지를 보낼 수 있습니다.</p>
+  {% endif %}
+</section>
+<script>
+(() => {
+ const box=document.getElementById('chatMessages'), form=document.getElementById('chatForm'), input=document.getElementById('chatInput');
+ let last=0, first=true;
+ const esc=s=>{const d=document.createElement('div');d.textContent=s;return d.innerHTML};
+ async function load(){
+  try{
+   const r=await fetch('{{ url_for("chat_messages") }}?after='+last,{cache:'no-store'});
+   const data=await r.json();
+   if(first){box.innerHTML='';first=false}
+   for(const m of data.messages){
+    last=Math.max(last,m.id);
+    const el=document.createElement('div'); el.className='chat-message';
+    const dt=new Date(m.created_at); const tm=isNaN(dt)?'':dt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    el.innerHTML='<div><b>'+esc(m.username)+'</b><small>'+tm+'</small></div><p>'+esc(m.body)+'</p>';
+    box.appendChild(el);
+   }
+   if(data.messages.length) box.scrollTop=box.scrollHeight;
+  }catch(e){}
+ }
+ if(form) form.addEventListener('submit',async e=>{
+  e.preventDefault(); const body=input.value.trim(); if(!body)return;
+  const fd=new FormData(form); input.disabled=true;
+  try{const r=await fetch('{{ url_for("chat_send") }}',{method:'POST',body:fd}); if(r.ok){input.value='';await load()}}
+  finally{input.disabled=false;input.focus()}
+ });
+ load(); setInterval(load,3000);
+})();
+</script>
+{% endblock %}
