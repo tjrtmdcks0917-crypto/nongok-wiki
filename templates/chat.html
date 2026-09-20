@@ -41,7 +41,7 @@
   try{const r=await fetch('{{ url_for("chat_send") }}',{method:'POST',body:fd}); if(r.ok){input.value='';await load()}}
   finally{input.disabled=false;input.focus()}
  });
- load(); setInterval(load,3000);
+ load(); setInterval(load,1000);
 })();
 </script>
 {% endblock %}
