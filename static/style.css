@@ -1,24 +1,57 @@
-*{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#202124;font-family:Arial,"Malgun Gothic",sans-serif}.top{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #ddd;display:flex;align-items:center;gap:18px;padding:12px max(18px,calc((100% - 1100px)/2))}.brand{font-size:20px;font-weight:800;color:#111;text-decoration:none;white-space:nowrap}.search{display:flex;flex:1;max-width:560px}.search input{flex:1;padding:10px;border:1px solid #bbb;border-right:0;border-radius:8px 0 0 8px}.search button{border-radius:0 8px 8px 0}.top nav{display:flex;gap:12px;align-items:center;white-space:nowrap}.top a{color:#3158a6;text-decoration:none}.container{max-width:1100px;margin:28px auto;padding:0 18px}.hero,.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:28px;margin-bottom:20px;box-shadow:0 1px 2px #00000008}.hero h1{font-size:38px;margin-top:0}.notice{background:#fff5d6;border-radius:8px;padding:12px;margin:16px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.row{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #eee;color:#3158a6;text-decoration:none}.row small{color:#777}.article h1{font-size:34px}.article-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee}.actions{display:flex;gap:12px}.wiki-body{font-size:17px;line-height:1.8;padding-top:18px}.wiki-body a{color:#3158a6}.flash{padding:12px;border-radius:8px;margin-bottom:14px}.flash.success{background:#e6f4ea}.flash.warning{background:#fff0f0}.search-result{display:block;border-bottom:1px solid #eee;padding:15px 0;text-decoration:none;color:inherit}.search-result h3{color:#3158a6;margin:0 0 6px}.search-result p{margin:0;color:#666}.auth{max-width:520px;margin:40px auto}label{display:block;margin:14px 0 6px;font-weight:700}input,textarea{width:100%;padding:11px;border:1px solid #bbb;border-radius:8px;font:inherit}textarea{min-height:110px}.editor{min-height:420px}button,.button{display:inline-block;margin-top:12px;padding:10px 15px;border:0;border-radius:8px;background:#222;color:#fff;cursor:pointer;text-decoration:none}.discussion,.revision{border-top:1px solid #eee;padding:14px 0}.discussion small{margin-left:8px;color:#777}.discussion p{white-space:pre-wrap}.admin-row{display:flex;justify-content:space-between;gap:16px;border-top:1px solid #eee;padding:14px 0}footer{text-align:center;color:#777;font-size:13px;padding:35px 18px}.hint{color:#666}code,pre{background:#f4f4f4;border-radius:5px;padding:2px 5px}pre{padding:12px;white-space:pre-wrap}@media(max-width:760px){.top{flex-wrap:wrap}.search{order:3;flex-basis:100%}.grid{grid-template-columns:1fr}.hero h1{font-size:30px}.admin-row{display:block}}
-/* openNAMU-inspired wiki skin */
-body{background:#eceff1;color:#222}
-.top{background:#2f3438;border-bottom:3px solid #00a495;padding:10px max(18px,calc((100% - 1180px)/2));box-shadow:none}
-.brand{color:#fff;font-size:21px}
-.top a{color:#fff}
-.search input{border-color:#1f2326;border-radius:3px 0 0 3px;height:36px}
-.search button{background:#00a495;color:#fff;border:0;border-radius:0 3px 3px 0;padding:0 16px}
-.container{max-width:1180px;margin:20px auto;padding:0 18px}
-.hero,.card{border-radius:3px;box-shadow:none;border:1px solid #cfd4d7;background:#fff}
-.hero{border-top:4px solid #00a495}
-.hero h1{font-size:30px;letter-spacing:-1px}
-.notice{background:#f3fffc;border:1px solid #b8e7df;border-left:4px solid #00a495;border-radius:2px}
-.card h2{border-bottom:2px solid #444;padding-bottom:8px}
-.row{padding:11px 0}
+*{box-sizing:border-box}
+:root{--bg:#eceff1;--panel:#fff;--line:#cfd4d7;--text:#222;--muted:#777;--accent:#00a495;--top:#2f3438;--link:#0275d8}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Malgun Gothic",sans-serif;font-size:14px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+.wiki-topbar{background:var(--top);border-bottom:3px solid var(--accent);position:sticky;top:0;z-index:50}
+.wiki-topbar-inner{max-width:1180px;margin:0 auto;min-height:54px;padding:9px 18px;display:flex;align-items:center;gap:18px}
+.wiki-logo{color:#fff;font-size:22px;font-weight:800;letter-spacing:.4px;white-space:nowrap}
+.wiki-logo:hover{text-decoration:none}
+.wiki-search{display:flex;flex:1;max-width:560px}
+.wiki-search input{flex:1;height:36px;border:1px solid #1f2326;border-right:0;border-radius:3px 0 0 3px;background:#fff;padding:0 12px}
+.wiki-search button{height:36px;border:0;background:var(--accent);color:#fff;padding:0 16px;border-radius:0 3px 3px 0;cursor:pointer}
+.wiki-usernav{display:flex;gap:12px;align-items:center;white-space:nowrap}
+.wiki-usernav a{color:#fff}
+.wiki-user{color:#ccc}
+.wiki-shell{max-width:1180px;margin:20px auto;padding:0 18px;display:grid;grid-template-columns:210px minmax(0,1fr);gap:16px;align-items:start}
+.wiki-sidebar{background:#fff;border:1px solid var(--line);border-radius:2px;padding:10px 0;position:sticky;top:74px}
+.wiki-sidebar-title{font-weight:800;font-size:17px;padding:4px 14px 10px}
+.wiki-sidebar>a{display:block;padding:8px 14px;color:#333}
+.wiki-sidebar>a:hover{background:#f2f2f2;text-decoration:none}
+.wiki-main{min-width:0}
+.hero,.card{background:#fff;border:1px solid var(--line);border-radius:2px;padding:22px 24px;margin-bottom:16px;box-shadow:none}
+.hero-simple{padding:26px 24px;border-top:4px solid var(--accent)}
+.hero-simple h1{margin:0;font-size:34px;letter-spacing:1px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card h2{margin-top:0;border-bottom:2px solid #444;padding-bottom:8px;font-size:18px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #eee}
+.row:last-child{border-bottom:0}
+.row small{color:var(--muted)}
 .article{padding:0}
-.article-head{padding:20px 24px 14px;border-bottom:1px solid #cfd4d7}
-.article h1{font-size:30px;letter-spacing:-1px}
-.actions a{border:1px solid #bbb;background:#fafafa;color:#333;padding:7px 10px;border-radius:2px;text-decoration:none}
-.actions a:hover{background:#f1f1f1}
+.article-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 24px 14px;border-bottom:1px solid var(--line)}
+.article h1{font-size:30px;margin:0}
+.actions{display:flex;gap:8px}
+.actions a{border:1px solid #bbb;background:#fafafa;color:#333;padding:7px 10px;border-radius:2px}
 .wiki-body{padding:22px 24px 30px;font-size:15px;line-height:1.85}
-button,.button{border-radius:2px;background:#444;border:1px solid #555}
-input,textarea{border-radius:2px}
-footer{max-width:1180px;margin:0 auto;text-align:left;padding:20px 18px 35px}
+.flash{padding:11px 13px;border:1px solid #ccc;background:#fff;margin-bottom:14px}
+.flash.success{border-color:#9bd9a7;background:#f2fff5}
+.flash.warning{border-color:#e7b0b0;background:#fff5f5}
+.search-result{display:block;padding:14px 0;border-bottom:1px solid #eee;color:inherit}
+.search-result h3{color:var(--link);margin:0 0 6px}
+.search-result p{margin:0;color:#666}
+.auth{max-width:520px}
+label{display:block;margin:14px 0 6px;font-weight:700}
+input,textarea{width:100%;padding:10px;border:1px solid #bbb;border-radius:2px;font:inherit}
+textarea{min-height:120px}
+.editor{min-height:460px;font-family:Consolas,monospace}
+button,.button{display:inline-block;margin-top:10px;padding:9px 14px;border:1px solid #555;border-radius:2px;background:#444;color:#fff;cursor:pointer;text-decoration:none}
+.discussion,.revision{border-top:1px solid #eee;padding:13px 0}
+.discussion small{margin-left:8px;color:var(--muted)}
+.discussion p{white-space:pre-wrap}
+.admin-row{display:flex;justify-content:space-between;gap:16px;border-top:1px solid #eee;padding:14px 0}
+.hint{color:#666}
+code,pre{background:#f4f4f4;border:1px solid #e2e2e2;border-radius:2px;padding:2px 5px}
+pre{padding:12px;white-space:pre-wrap}
+.wiki-footer{max-width:1180px;margin:10px auto 40px;padding:0 18px;color:#888;font-size:12px}
+@media(max-width:900px){.wiki-shell{grid-template-columns:1fr}.wiki-sidebar{display:none}.wiki-usernav{display:none}.wiki-topbar-inner{flex-wrap:wrap}.wiki-search{order:3;flex-basis:100%;max-width:none}}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.article-head{align-items:flex-start;flex-direction:column}.hero-simple h1,.article h1{font-size:25px}}
