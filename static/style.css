@@ -466,3 +466,15 @@
 
 /* Nongok Middle School-only gallery posting */
 .gallery-login b{color:#58751e}
+
+
+/* Admin activity audit log */
+.admin-audit-list{border-top:1px solid #e1e4e6}
+.admin-audit-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:11px 3px;border-bottom:1px solid #eceeef}
+.admin-audit-row b{display:block;font-size:13px}
+.admin-audit-row span{display:block;margin-top:3px;color:#666;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.admin-audit-row small{flex:0 0 auto;color:#888;font-size:11px;white-space:nowrap}
+@media(max-width:650px){
+  .admin-audit-row{display:block}
+  .admin-audit-row small{display:block;margin-top:6px;white-space:normal}
+}

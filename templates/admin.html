@@ -57,4 +57,22 @@
   {% else %}<p>회원이 없습니다.</p>{% endfor %}
 </section>
 {% endif %}
+
+<section class="card">
+  <h2>관리자 활동 로그</h2>
+  <p class="hint">운영진이 수행한 주요 관리 작업을 최근 순서대로 최대 100개까지 표시합니다. 비밀번호 값 자체는 기록하지 않습니다.</p>
+  <div class="admin-audit-list">
+    {% for log in logs %}
+    <div class="admin-audit-row">
+      <div>
+        <b>{{log.action}}</b>
+        {% if log.detail %}<span>{{log.detail}}</span>{% endif %}
+      </div>
+      <small>{{log.actor_real_name or log.actor_username or '알 수 없음'}} · {{log.created_at}}</small>
+    </div>
+    {% else %}
+    <p class="hint">아직 기록된 관리 작업이 없습니다.</p>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

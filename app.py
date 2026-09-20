@@ -652,6 +652,34 @@ def can_manage_member(actor, target):
         return target.get("role") in {"user", "moderator"}
     return False
 
+
+def log_admin_action(action, target_type="", target_id=None, detail=""):
+    actor = current_user()
+    if not actor or not role_at_least(actor, "moderator"):
+        return
+    execute(
+        """INSERT INTO admin_activity_logs(actor_id, action, target_type, target_id, detail, created_at)
+           VALUES (%s,%s,%s,%s,%s,CURRENT_TIMESTAMP)""",
+        (
+            actor["id"],
+            str(action or "")[:80],
+            str(target_type or "")[:40],
+            str(target_id)[:64] if target_id is not None else None,
+            str(detail or "")[:500],
+        ),
+    )
+
+
+def _admin_activity_logs():
+    return query(
+        """SELECT l.id, l.action, l.target_type, l.target_id, l.detail, l.created_at,
+                  u.username AS actor_username, u.real_name AS actor_real_name
+           FROM admin_activity_logs l
+           LEFT JOIN users u ON u.id=l.actor_id
+           ORDER BY l.created_at DESC, l.id DESC
+           LIMIT 100"""
+    )
+
 def check_csrf():
     token = request.form.get("csrf")
     if not token or token != session.get("csrf"):
@@ -1356,6 +1384,7 @@ def edit_homepage_section(section_key):
             execute("UPDATE homepage_sections SET content=%s, updated_at=CURRENT_TIMESTAMP WHERE section_key=%s", (content, section_key))
         else:
             execute("INSERT INTO homepage_sections(section_key, content, updated_at) VALUES (%s,%s,CURRENT_TIMESTAMP)", (section_key, content))
+        log_admin_action("대문/공지 수정", "homepage_section", section_key, labels[section_key])
         flash(f'{labels[section_key]} 내용을 저장했습니다.', "success")
         return redirect(url_for("index"))
     return render_template("homepage_edit.html", section_key=section_key, section_label=labels[section_key], content=content)
@@ -1996,7 +2025,9 @@ def poll_toggle(poll_id):
     rows = query("SELECT is_open FROM polls WHERE id=%s", (poll_id,))
     if not rows:
         abort(404)
-    execute("UPDATE polls SET is_open=%s WHERE id=%s", (not bool(rows[0]["is_open"]), poll_id))
+    new_state = not bool(rows[0]["is_open"])
+    execute("UPDATE polls SET is_open=%s WHERE id=%s", (new_state, poll_id))
+    log_admin_action("투표 상태 변경", "poll", poll_id, "진행" if new_state else "마감")
     return redirect(url_for("polls"))
 
 @app.route("/notices")
@@ -2209,7 +2240,10 @@ def gallery_delete_post(post_id):
     user = current_user()
     if rows[0]["user_id"] != user["id"] and not role_at_least(user, "moderator"):
         abort(403)
+    moderated = rows[0]["user_id"] != user["id"]
     execute("UPDATE gallery_posts SET deleted=TRUE WHERE id=%s", (post_id,))
+    if moderated:
+        log_admin_action("갤러리 게시물 삭제", "gallery_post", post_id, f"게시물 #{post_id}")
     flash("게시물을 삭제했습니다.", "success")
     return redirect(url_for("gallery"))
 
@@ -2227,7 +2261,10 @@ def gallery_delete_comment(comment_id):
     user = current_user()
     if rows[0]["user_id"] != user["id"] and not role_at_least(user, "moderator"):
         abort(403)
+    moderated = rows[0]["user_id"] != user["id"]
     execute("UPDATE gallery_comments SET deleted=TRUE WHERE id=%s", (comment_id,))
+    if moderated:
+        log_admin_action("갤러리 댓글 삭제", "gallery_comment", comment_id, f"게시물 #{rows[0]['post_id']}의 댓글")
     return redirect(url_for("gallery_post", post_id=rows[0]["post_id"]) + "#comments")
 
 
@@ -2506,6 +2543,7 @@ def admin():
         "admin.html",
         reports=reports,
         users=users,
+        logs=_admin_activity_logs(),
         reset_result=None,
         member_q=member_q,
         role_labels=ROLE_LABELS,
@@ -2529,6 +2567,12 @@ def admin_user_approval(user_id, status):
         abort(403)
 
     execute("UPDATE users SET account_status=%s WHERE id=%s", (status, user_id))
+    log_admin_action(
+        "가입 승인" if status == "approved" else "가입 승인 거절",
+        "user",
+        user_id,
+        f"@{target['username']}",
+    )
     if status == "approved":
         flash(f"@{target['username']} 가입을 승인했습니다.", "success")
     else:
@@ -2554,6 +2598,7 @@ def admin_reset_password(user_id):
         "UPDATE users SET password_hash=%s WHERE id=%s",
         (generate_password_hash(temporary_password), user_id),
     )
+    log_admin_action("비밀번호 초기화", "user", user_id, f"@{target['username']}")
 
     member_q = request.form.get("member_q", "").strip()[:30]
     reports, users = _admin_page_data(member_q)
@@ -2564,6 +2609,7 @@ def admin_reset_password(user_id):
         "admin.html",
         reports=reports,
         users=users,
+        logs=_admin_activity_logs(),
         reset_result={
             "username": target["username"],
             "temporary_password": temporary_password,
@@ -2588,7 +2634,14 @@ def admin_user_role(user_id):
     target = rows[0]
     if target["role"] == "admin":
         abort(403)
+    old_role = target["role"]
     execute("UPDATE users SET role=%s WHERE id=%s", (new_role, user_id))
+    log_admin_action(
+        "회원 권한 변경",
+        "user",
+        user_id,
+        f"@{target['username']}: {ROLE_LABELS.get(old_role, old_role)} → {ROLE_LABELS[new_role]}",
+    )
     flash(f"@{target['username']} 권한을 {ROLE_LABELS[new_role]}(으)로 변경했습니다.", "success")
     member_q = request.form.get("member_q", "").strip()[:30]
     return redirect(url_for("admin", member_q=member_q) if member_q else url_for("admin"))
@@ -2601,18 +2654,26 @@ def report_status(report_id, status):
     if status not in {"open", "resolved", "dismissed"}:
         abort(400)
     execute("UPDATE reports SET status=%s WHERE id=%s", (status, report_id))
+    log_admin_action("신고 처리", "report", report_id, f"상태 → {status}")
     return redirect(url_for("admin"))
 
 @app.route("/admin/protect/<int:page_id>", methods=["POST"])
 @require_teacher
 def protect(page_id):
     check_csrf()
-    rows = query("SELECT title FROM wiki_pages WHERE id=%s AND deleted=FALSE", (page_id,))
+    rows = query("SELECT title, protected FROM wiki_pages WHERE id=%s AND deleted=FALSE", (page_id,))
     if not rows:
         abort(404)
     if rows[0]["title"] == "논곡위키:대문" and current_user()["role"] != "admin":
         abort(403)
-    execute("UPDATE wiki_pages SET protected=NOT protected WHERE id=%s", (page_id,))
+    new_protected = not bool(rows[0]["protected"])
+    execute("UPDATE wiki_pages SET protected=%s WHERE id=%s", (new_protected, page_id))
+    log_admin_action(
+        "문서 보호 변경",
+        "wiki_page",
+        page_id,
+        f"{rows[0]['title']} → {'보호' if new_protected else '보호 해제'}",
+    )
     return redirect(request.referrer or url_for("admin"))
 
 @app.route("/admin/delete/<int:page_id>", methods=["POST"])
@@ -2625,6 +2686,7 @@ def delete_page(page_id):
     if rows[0]["title"] == "논곡위키:대문" and current_user()["role"] != "admin":
         abort(403)
     execute("UPDATE wiki_pages SET deleted=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (page_id,))
+    log_admin_action("문서 삭제", "wiki_page", page_id, rows[0]["title"])
     return redirect(request.referrer or url_for("admin"))
 
 @app.errorhandler(429)
