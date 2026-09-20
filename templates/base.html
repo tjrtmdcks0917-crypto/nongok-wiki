@@ -16,7 +16,7 @@
 <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='nongok-favicon.svg', v='2') }}"></head>
 <body>
 <header class="top"><div class="top-inner">
-<a class="logo nongok-logo-link" href="{{ url_for('index') }}"><img class="nongok-header-logo" src="{{ url_for('static', filename='nongok-logo.svg', v='8') }}" alt="NONGOK"></a>
+<a class="logo nongok-logo-link" href="{{ url_for('index') }}"><img class="nongok-header-logo" src="{{ url_for('static', filename='nongok-logo.svg', v='8') }}" alt="논곡위키"></a>
 <nav class="menus"><a href="{{ url_for('index') }}">☰ 목록</a><a href="{{ url_for('all_pages') }}">▤ 모든 문서</a><a href="{{ url_for('chat') }}">💬 실시간 소통</a><a href="{{ url_for('wiki',title='학교생활') }}">◆ 학교생활</a><a href="{{ url_for('wiki',title='기타 도구') }}">▣ 기타 도구</a></nav>
 <form class="search" action="{{ url_for('search') }}"><input name="q" value="{{ request.args.get('q','') }}" placeholder="검색"><button>⌕</button></form>
 <nav class="users">{% if current_user %}{% if current_user.role=='admin' %}<a href="{{url_for('admin')}}">관리</a>{% endif %}<a href="{{url_for('new_page')}}">＋</a><a href="{{url_for('logout')}}">로그아웃</a>{% else %}<a href="{{url_for('login')}}">로그인</a><a href="{{url_for('register')}}">회원가입</a>{% endif %}</nav>
@@ -30,4 +30,4 @@
 <section class="railbox"><h3>실시간 인기 문서</h3>{% for p in global_popular %}<a href="{{url_for('wiki',title=p.title)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>12시간 {{p.hourly_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
 <section class="railbox"><h3>일별 인기 글</h3>{% for p in global_daily %}<a href="{{url_for('wiki',title=p.title)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>24시간 {{p.daily_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
 </aside></div>
-<footer>최근 문서는 각 기여자가 작성한 내용을 바탕으로 합니다. · NONGOK Wiki</footer></body></html>
+<footer>최근 문서는 각 기여자가 작성한 내용을 바탕으로 합니다. · 논곡위키</footer></body></html>
