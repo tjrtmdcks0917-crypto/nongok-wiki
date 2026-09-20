@@ -4,12 +4,12 @@
 <meta name="description" content="{% block meta_description %}논곡위키는 논곡중학교의 학교생활, 시설, 동아리, 행사 등 다양한 정보를 함께 기록하는 학생 위키입니다.{% endblock %}">
 <meta name="robots" content="{% block robots %}index,follow{% endblock %}">
 <meta name="google-site-verification" content="FzJshG76Im9f3Ko9zBdtmL_tBReHweJGT_ex7_48Fuo" />
-<link rel="canonical" href="{{ request.url }}">
+<link rel="canonical" href="{% block canonical_url %}{{ request.base_url }}{% endblock %}">
 <meta property="og:site_name" content="논곡위키">
 <meta property="og:title" content="{% block og_title %}논곡위키 | NONGOK Wiki{% endblock %}">
 <meta property="og:description" content="{% block og_description %}논곡중학교에 관한 다양한 정보를 함께 기록하는 학생 위키입니다.{% endblock %}">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ request.url }}">
+<meta property="og:url" content="{% block og_url %}{{ request.base_url }}{% endblock %}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260921-accordion') }}">
 <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='nongok-favicon.svg', v='1') }}"></head>
 <body>
@@ -28,4 +28,4 @@
 <section class="railbox"><h3>실시간 인기 문서</h3>{% for p in global_popular %}<a href="{{url_for('wiki',title=p.title)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>12시간 {{p.hourly_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
 <section class="railbox"><h3>일별 인기 글</h3>{% for p in global_daily %}<a href="{{url_for('wiki',title=p.title)}}"><span><b>{{loop.index}}</b> {{p.title}}</span><small>24시간 {{p.daily_views}} · 전체 {{p.views}}</small></a>{% else %}<span>문서 없음</span>{% endfor %}</section>
 </aside></div>
-<footer>최근 문서는 각 기여자가 작성한 내용을 바탕으로 합니다. · NOGOK Wiki</footer></body></html>
+<footer>최근 문서는 각 기여자가 작성한 내용을 바탕으로 합니다. · NONGOK Wiki</footer></body></html>
