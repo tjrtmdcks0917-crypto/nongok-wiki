@@ -488,6 +488,7 @@ def ensure_schoollife_pages():
         ("학교생활", "== 학교생활 ==\n논곡중학교의 학교생활 정보를 정리하는 문서입니다.\n\n=== 급식 ===\n[[급식]]\n\n=== 시간표 ===\n[[시간표]]"),
         ("급식", "논곡중학교 급식 정보를 확인하는 문서입니다."),
         ("시간표", "== 시간표 ==\n논곡중학교 시간표 정보를 정리하는 문서입니다.\n\n학년과 반별 시간표를 확인할 수 있도록 내용을 추가해 주세요."),
+        ("도움말", "논곡위키를 처음 이용하는 사용자를 위한 도움말입니다."),
     ]
     for title, content in pages:
         if not query("SELECT id FROM wiki_pages WHERE title=%s AND deleted=FALSE", (title,)):
