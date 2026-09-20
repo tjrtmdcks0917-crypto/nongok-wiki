@@ -15,6 +15,24 @@
   {% else %}<p>이번 주에 등록된 급식이 없습니다.</p>{% endif %}
 </section>
 {% endif %}
+{% if page.title == '시간표' %}
+<section class="timetable-live">
+  <div class="meal-live-head"><h2>논곡중학교 시간표</h2><span>컴시간알리미 참고 · {{ timetable_week }}</span></div>
+  <form class="timetable-picker" method="get">
+    <label>학년 <select name="grade">{% for g in range(1,4) %}<option value="{{g}}" {% if g==timetable_grade %}selected{% endif %}>{{g}}학년</option>{% endfor %}</select></label>
+    <label>반 <select name="class">{% for c in range(1,11) %}<option value="{{c}}" {% if c==timetable_class %}selected{% endif %}>{{c}}반</option>{% endfor %}</select></label>
+    <button type="submit">시간표 보기</button>
+  </form>
+  {% if timetable_error %}<p class="meal-error">{{timetable_error}}</p>{% elif timetable %}
+  <div class="timetable-grid">{% for day in timetable %}
+    <article class="timetable-day"><h3>{{day.weekday}}요일</h3>
+      {% for subject in day.classes %}<div class="timetable-period"><b>{{loop.index}}교시</b><span>{{subject}}</span></div>{% else %}<p>수업 정보 없음</p>{% endfor %}
+    </article>
+  {% endfor %}</div>
+  {% else %}<p>등록된 시간표가 없습니다.</p>{% endif %}
+  <p class="timetable-note">월~토요일에는 이번 주 시간표를, 일요일에는 다음 주 시간표를 표시합니다. 컴시간알리미의 공개 시간표를 참고합니다.</p>
+</section>
+{% endif %}
 <div class="wiki-body">{{content_html|safe}}</div><div class="meta">조회수 {{page.views}}</div>
 <h2 class="section" id="discussion">토론</h2>{% if current_user %}<form method="post" action="{{url_for('discuss',page_id=page.id)}}"><input type="hidden" name="csrf" value="{{csrf}}"><textarea name="body" maxlength="2000" placeholder="문서에 관한 의견"></textarea><button>토론 작성</button></form>{% else %}<p><a href="{{url_for('login')}}">로그인</a>하면 토론에 참여할 수 있습니다.</p>{% endif %}
 {% for d in discussions %}<div class="discussion"><b>{{d.username or '탈퇴 사용자'}}</b> <small>{{d.created_at}}</small><p>{{d.body}}</p></div>{% endfor %}
