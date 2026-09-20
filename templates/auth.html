@@ -19,7 +19,7 @@
         <input id="is_graduate" type="checkbox" name="is_graduate" value="1" onchange="toggleGraduateFields()">
         논곡중학교 졸업생입니다
       </label>
-      <div class="field-help">졸업생은 졸업 연도와 졸업 당시 학번, 현재 재학 중인 고등학교를 입력해 주세요. 졸업생도 논곡갤러리에 게시물을 작성할 수 있습니다.</div>
+      <div class="field-help">졸업생은 졸업 연도와 현재 재학 중인 고등학교를 입력해 주세요. 졸업생도 논곡갤러리에 게시물을 작성할 수 있습니다.</div>
 
       <div id="graduationYearField" hidden>
         <label for="graduation_year">논곡중학교 졸업 연도</label>
@@ -59,11 +59,10 @@
       if(graduate.checked){
         yearField.hidden=false;
         year.required=true;
-        student.required=true;
-        student.pattern='3[0-9]{4}';
-        studentLabel.textContent='졸업 당시 학번';
-        student.placeholder='예: 30101';
-        studentHelp.textContent='졸업한 해당 연도의 3학년 학번 5자리를 입력해 주세요.';
+        student.required=false;
+        student.disabled=true;
+        student.value='';
+        document.getElementById('studentNoField').hidden=true;
         school.required=true;
         schoolLabel.textContent='현재 재학 중인 고등학교';
         school.placeholder='예: 인천○○고등학교';
@@ -72,6 +71,8 @@
         yearField.hidden=true;
         year.required=false;
         year.value='';
+        student.disabled=false;
+        document.getElementById('studentNoField').hidden=false;
         student.required=true;
         student.pattern='[1-3][0-9]{4}';
         studentLabel.textContent='학번';

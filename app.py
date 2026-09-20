@@ -2854,9 +2854,7 @@ def register():
             return redirect(url_for("register"))
         graduation_year = None
         if is_graduate:
-            if not re.fullmatch(r"3\d{4}", student_no):
-                flash("졸업 당시 3학년 학번을 5자리로 입력해 주세요. 예: 30101", "warning")
-                return redirect(url_for("register"))
+            student_no = None
             try:
                 graduation_year = int(graduation_year_raw)
             except ValueError:
@@ -2884,17 +2882,8 @@ def register():
         if query("SELECT id FROM users WHERE username=%s", (username,)):
             flash("이미 사용 중인 아이디입니다.", "warning")
             return redirect(url_for("register"))
-        legacy_student_no = student_no[0] + "0" + student_no[1:]
-        if is_graduate:
-            if query(
-                """SELECT id FROM users
-                   WHERE is_graduate=TRUE AND graduation_year=%s
-                     AND student_no IN (%s,%s)""",
-                (graduation_year, student_no, legacy_student_no),
-            ):
-                flash("같은 졸업 연도와 학번으로 가입된 계정이 이미 있습니다.", "warning")
-                return redirect(url_for("register"))
-        else:
+        if not is_graduate:
+            legacy_student_no = student_no[0] + "0" + student_no[1:]
             if query(
                 """SELECT id FROM users
                    WHERE is_graduate=FALSE AND student_no IN (%s,%s)""",

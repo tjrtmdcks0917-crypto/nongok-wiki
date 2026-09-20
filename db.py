@@ -292,11 +292,7 @@ def init_db():
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_current_student_no_unique "
                 "ON users(student_no) WHERE student_no IS NOT NULL AND is_graduate=FALSE"
             )
-            conn.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_graduate_identity_unique "
-                "ON users(graduation_year, student_no) "
-                "WHERE is_graduate=TRUE AND graduation_year IS NOT NULL AND student_no IS NOT NULL"
-            )
+            conn.execute("DROP INDEX IF EXISTS idx_users_graduate_identity_unique")
         else:
             conn.executescript(_sqlite_schema())
             columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
@@ -331,11 +327,7 @@ def init_db():
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_current_student_no_unique "
                 "ON users(student_no) WHERE student_no IS NOT NULL AND is_graduate=0"
             )
-            conn.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_graduate_identity_unique "
-                "ON users(graduation_year, student_no) "
-                "WHERE is_graduate=1 AND graduation_year IS NOT NULL AND student_no IS NOT NULL"
-            )
+            conn.execute("DROP INDEX IF EXISTS idx_users_graduate_identity_unique")
 
 def query(sql, params=()):
     if not USE_POSTGRES:
