@@ -3,7 +3,7 @@
 <title>{% block title %}NOGOK Wiki{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
 <body>
 <header class="top"><div class="top-inner">
-<a class="logo" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='nongok-logo.svg') }}" alt="NONGOK"></a>
+<a class="logo logo-wordmark" href="{{ url_for('index') }}" aria-label="NONGOK"><span class="logo-n">N</span><span class="logo-o apple-o">O<i></i></span><span>N</span><span>G</span><span class="logo-o">O</span><span class="logo-k">K<i></i></span></a>
 <nav class="menus"><a href="{{ url_for('index') }}">☰ 목록</a><a href="{{ url_for('wiki',title='학교생활') }}">◆ 학교생활</a><a href="{{ url_for('wiki',title='기타 도구') }}">▣ 기타 도구</a></nav>
 <form class="search" action="{{ url_for('search') }}"><input name="q" value="{{ request.args.get('q','') }}" placeholder="검색"><button>⌕</button></form>
 <nav class="users">{% if current_user %}{% if current_user.role=='admin' %}<a href="{{url_for('admin')}}">관리</a>{% endif %}<a href="{{url_for('new_page')}}">＋</a><a href="{{url_for('logout')}}">로그아웃</a>{% else %}<a href="{{url_for('login')}}">로그인</a><a href="{{url_for('register')}}">회원가입</a>{% endif %}</nav>
