@@ -31,7 +31,7 @@
       <span class="home-doc-control"><span class="arrow">▶</span> [ 펼치기 · 접기 ]</span>
     </button>
     <div class="home-doc-links" id="home-doc-panel-{{loop.index}}" hidden>
-      {% for title in group.items %}
+      {% for title in group['items'] %}
         <a href="{{url_for('wiki',title=title)}}">{{title}}</a>
       {% else %}
         <span>등록된 문서가 없습니다.</span>
