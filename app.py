@@ -27,53 +27,75 @@ MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
 TIMETABLE_CACHE = {}
 
 def get_nongok_timetable(grade, class_num):
-    """Fetch Nongok Middle School timetable using comci's calendar-date API."""
+    """Fetch Nongok Middle School timetable, with /st -> /th fallback."""
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
-    # Mon-Sat: this week. Sunday: next week, same rule as meals.
+    date_index = 2 if today.weekday() == 6 else 1
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     monday = target - timedelta(days=target.weekday())
     friday = monday + timedelta(days=4)
-    key = (grade, class_num, monday.isoformat())
+    label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
+    key = (grade, class_num, date_index)
     now = time.time()
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["days"], cached["error"], cached["week_label"]
-    label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
-    try:
-        from comci import search_schools, get_timetable
-        schools = search_schools("논곡중학교") or []
-        exact = [x for x in schools if x.get("school_name") == "논곡중학교"]
-        school = next((x for x in exact if x.get("region") == "인천"), exact[0] if exact else None)
-        if not school:
-            raise RuntimeError(f"school search failed: {schools!r}")
-        # 'on' lets the library resolve Comcigan's actual week index/calendar data.
-        table = get_timetable(
-            int(school["school_code"]),
-            grade=grade,
-            class_num=class_num,
-            on=target,
-        ) or {}
+
+    def normalize(table):
         weekdays = ["월", "화", "수", "목", "금"]
         days = []
         for d in weekdays:
             classes = []
-            for item in (table.get(d) or []):
+            for item in ((table or {}).get(d) or []):
                 if isinstance(item, dict):
-                    classes.append(item.get("subject") or "")
+                    classes.append(item.get("subject") or item.get("과목") or "")
                 elif item is None:
                     classes.append("")
                 else:
                     classes.append(str(item))
             days.append({"weekday": d, "classes": classes})
+        return days
+
+    try:
+        from comci import search_schools, get_timetable
+        schools = search_schools("논곡중학교") or []
+        exact = [x for x in schools if x.get("school_name") == "논곡중학교"]
+        school = next((x for x in exact if x.get("region") == "인천"), None)
+        if not school:
+            raise RuntimeError(f"인천 논곡중학교 검색 실패: {schools!r}")
+        code = int(school["school_code"])
+
+        errors = []
+        table = None
+        # First use the normal student timetable endpoint.
+        try:
+            table = get_timetable(code, grade=grade, class_num=class_num, date_index=date_index)
+        except Exception as e:
+            errors.append(f"/st: {type(e).__name__}: {e}")
+
+        days = normalize(table)
+        # Some networks/Comcigan states fail only on /st. Retry through /th.
         if not any(day["classes"] for day in days):
-            raise RuntimeError(f"empty timetable: school={school!r}, keys={list(table.keys())!r}")
-        TIMETABLE_CACHE[key] = {"expires": now + 300, "days": days, "error": None, "week_label": label}
-    except Exception:
-        app.logger.exception("Comcigan timetable fetch failed grade=%s class=%s target=%s", grade, class_num, target)
+            try:
+                from comci import th
+                table = th.get_timetable(code, grade=grade, class_num=class_num, date_index=date_index)
+                days = normalize(table)
+            except Exception as e:
+                errors.append(f"/th: {type(e).__name__}: {e}")
+
+        if not any(day["classes"] for day in days):
+            raise RuntimeError("; ".join(errors) or "컴시간에서 빈 시간표를 반환했습니다.")
+
         TIMETABLE_CACHE[key] = {
-            "expires": now + 30, "days": [],
-            "error": "시간표 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            "expires": now + 300, "days": days, "error": None,
+            "week_label": label, "debug": None,
+        }
+    except Exception as e:
+        app.logger.exception("Comcigan timetable fetch failed grade=%s class=%s", grade, class_num)
+        TIMETABLE_CACHE[key] = {
+            "expires": now + 20, "days": [],
+            "error": "시간표 정보를 불러오지 못했습니다.",
             "week_label": label,
+            "debug": f"{type(e).__name__}: {e}"[:700],
         }
     c = TIMETABLE_CACHE[key]
     return c["days"], c["error"], c["week_label"]
@@ -379,6 +401,15 @@ def wiki(title):
                            meals=meals, meal_error=meal_error, timetable=timetable,
                            timetable_error=timetable_error, timetable_week=timetable_week,
                            timetable_grade=timetable_grade, timetable_class=timetable_class)
+
+@app.route("/admin/timetable-debug")
+@require_admin
+def timetable_debug():
+    get_nongok_timetable(1, 1)
+    items = []
+    for key, value in TIMETABLE_CACHE.items():
+        items.append({"key": str(key), "error": value.get("error"), "debug": value.get("debug"), "week": value.get("week_label")})
+    return {"cache": items}
 
 @app.route("/edit/<path:title>", methods=["GET", "POST"])
 @require_login
