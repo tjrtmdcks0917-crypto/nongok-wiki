@@ -739,6 +739,14 @@ def ensure_schoollife_pages():
 
 다른 사람의 얼굴이 나온 사진이나 개인정보는 당사자의 동의 없이 올리지 말아 주세요.
 """),
+        ("학교 시설/논곡관/급식실", """== 논곡관 급식실 ==
+논곡중학교 논곡관의 급식실을 기록하는 문서입니다.
+
+=== 이곳에서의 기억 ===
+점심시간이나 급식과 관련해 이 장소에서 있었던 학교생활의 기억을 자유롭게 적어 주세요.
+
+특정 학생이나 교직원을 놀리거나 개인정보가 드러나는 내용은 작성하지 말아 주세요.
+"""),
     ]
     for title, content in pages:
         if not query("SELECT id FROM wiki_pages WHERE title=%s AND deleted=FALSE", (title,)):
@@ -891,6 +899,7 @@ def index():
                 "area": "논곡관",
                 "rooms": [
                     {"label": "강당", "title": "학교 시설/논곡관/강당"},
+                    {"label": "급식실", "title": "학교 시설/논곡관/급식실"},
                 ],
                 "note": "별동",
             },
