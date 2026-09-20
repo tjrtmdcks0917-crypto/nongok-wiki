@@ -1174,8 +1174,8 @@ def register():
         if not re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", real_name):
             flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
             return redirect(url_for("register"))
-        if not re.fullmatch(r"(10|20|30)(0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
-            flash("학번 형식이 올바르지 않습니다. 예: 100101 = 1학년 1반 1번", "warning")
+        if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
+            flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
             return redirect(url_for("register"))
         if len(school_name) < 2 or len(school_name) > 80:
             flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
@@ -1189,7 +1189,11 @@ def register():
         if query("SELECT id FROM users WHERE username=%s", (username,)):
             flash("이미 사용 중인 아이디입니다.", "warning")
             return redirect(url_for("register"))
-        if query("SELECT id FROM users WHERE student_no=%s", (student_no,)):
+        legacy_student_no = student_no[0] + "0" + student_no[1:]
+        if query(
+            "SELECT id FROM users WHERE student_no IN (%s,%s)",
+            (student_no, legacy_student_no),
+        ):
             flash("이미 가입에 사용된 학번입니다.", "warning")
             return redirect(url_for("register"))
 
@@ -1246,13 +1250,17 @@ def identity_setup():
         if not re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", real_name):
             flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
             return redirect(url_for("identity_setup"))
-        if not re.fullmatch(r"(10|20|30)(0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
-            flash("학번 형식이 올바르지 않습니다. 예: 100101 = 1학년 1반 1번", "warning")
+        if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
+            flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
             return redirect(url_for("identity_setup"))
         if len(school_name) < 2 or len(school_name) > 80:
             flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
             return redirect(url_for("identity_setup"))
-        if query("SELECT id FROM users WHERE student_no=%s AND id<>%s", (student_no, user["id"])):
+        legacy_student_no = student_no[0] + "0" + student_no[1:]
+        if query(
+            "SELECT id FROM users WHERE student_no IN (%s,%s) AND id<>%s",
+            (student_no, legacy_student_no, user["id"]),
+        ):
             flash("이미 다른 계정에 등록된 학번입니다.", "warning")
             return redirect(url_for("identity_setup"))
 
