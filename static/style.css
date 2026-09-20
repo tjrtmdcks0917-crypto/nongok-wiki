@@ -462,3 +462,7 @@
   .admin-approval-actions{display:grid;grid-template-columns:1fr 1fr}
   .admin-approval-actions form,.admin-approval-actions button{width:100%}
 }
+
+
+/* Nongok Middle School-only gallery posting */
+.gallery-login b{color:#58751e}

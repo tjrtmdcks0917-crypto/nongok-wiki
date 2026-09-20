@@ -555,6 +555,7 @@ def inject():
     return {
         "current_user": user,
         "csrf": session.get("csrf"),
+        "can_create_school_posts": bool(user and user.get("school_name") == "논곡중학교"),
         "global_recent": public["global_recent"],
         "global_popular": public["global_popular"],
         "global_daily": public["global_daily"],
@@ -2022,6 +2023,11 @@ def gallery():
 @require_login
 def gallery_new():
     check_csrf()
+    user = current_user()
+    if user.get("school_name") != "논곡중학교":
+        flash("논곡갤러리 게시물 작성은 논곡중학교 재학생만 할 수 있습니다.", "warning")
+        return redirect(url_for("gallery"))
+
     title = request.form.get("title", "").strip()
     body = request.form.get("body", "").strip()
     files = [f for f in request.files.getlist("images") if f and f.filename]
@@ -2051,7 +2057,6 @@ def gallery_new():
             return redirect(url_for("gallery"))
         images.append((mime, clean_data))
 
-    user = current_user()
     execute(
         "INSERT INTO gallery_posts(user_id, title, body, deleted, created_at) VALUES (%s,%s,%s,FALSE,CURRENT_TIMESTAMP)",
         (user["id"], title, body),
@@ -2278,8 +2283,8 @@ def register():
         if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
             flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
             return redirect(url_for("register"))
-        if school_name != "논곡중학교":
-            flash("논곡중학교 재학생만 가입 신청할 수 있습니다.", "warning")
+        if len(school_name) < 2 or len(school_name) > 80:
+            flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
             return redirect(url_for("register"))
         if not re.fullmatch(r"[A-Za-z0-9가-힣_]{2,24}", username):
             flash("아이디는 2~24자의 한글/영문/숫자/밑줄만 사용할 수 있습니다.", "warning")
