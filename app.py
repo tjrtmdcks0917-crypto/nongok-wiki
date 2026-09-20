@@ -216,6 +216,17 @@ def render_wiki(text):
             out.append(line)
     return "<br>\n".join(out)
 
+def ensure_schoollife_pages():
+    """Ensure core School Life documents exist without overwriting user edits."""
+    pages = [
+        ("학교생활", "== 학교생활 ==\n논곡중학교의 학교생활 정보를 정리하는 문서입니다.\n\n=== 급식 ===\n[[급식]]\n\n=== 시간표 ===\n[[시간표]]"),
+        ("급식", "논곡중학교 급식 정보를 확인하는 문서입니다."),
+        ("시간표", "== 시간표 ==\n논곡중학교 시간표 정보를 정리하는 문서입니다.\n\n학년과 반별 시간표를 확인할 수 있도록 내용을 추가해 주세요."),
+    ]
+    for title, content in pages:
+        if not query("SELECT id FROM wiki_pages WHERE title=%s AND deleted=FALSE", (title,)):
+            execute("INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)", (title, content))
+
 def seed():
     existing = query("SELECT COUNT(*) AS c FROM wiki_pages")[0]["c"]
     if existing:
@@ -232,6 +243,7 @@ def seed():
             "INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,NULL,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)",
             (title, content),
         )
+    ensure_schoollife_pages()
 
 @app.route("/robots.txt")
 def robots_txt():
