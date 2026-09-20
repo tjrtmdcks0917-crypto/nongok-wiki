@@ -15,7 +15,7 @@
     </div>
   </div>
 
-  <div class="gallery-author"><b>{{post.display_name}}</b><span>{{post.created_text}}</span></div>
+  <div class="gallery-author"><a href="{{url_for('user_profile',username=post.username)}}"><b>{{post.display_name}}</b></a><span>@{{post.username}}</span><span>{{post.created_text}}</span></div>
   <div class="gallery-post-body">{{post.body|e|replace('\n','<br>'|safe)}}</div>
 
   {% if images %}
@@ -43,7 +43,7 @@
     <div class="gallery-comment-list">
     {% for comment in comments %}
       <article class="gallery-comment">
-        <div><b>{{comment.display_name}}</b><small>{{comment.created_text}}</small>
+        <div><a href="{{url_for('user_profile',username=comment.username)}}"><b>{{comment.display_name}}</b></a><small>@{{comment.username}}</small><small>{{comment.created_text}}</small>
         {% if current_user and (current_user.id == comment.user_id or current_user.role == 'admin') %}
           <form method="post" action="{{url_for('gallery_delete_comment',comment_id=comment.id)}}" class="inline-form" onsubmit="return confirm('이 댓글을 삭제할까요?');">
             <input type="hidden" name="csrf" value="{{csrf}}"><button type="submit">삭제</button>
