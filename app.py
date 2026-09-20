@@ -353,6 +353,13 @@ with app.app_context():
     from db import ensure_admin
     ensure_admin()
     seed()
+    # Keep the default school-facilities page structured with numbered sections.
+    facility = query("SELECT id, content FROM wiki_pages WHERE title=%s AND deleted=FALSE", ("학교 시설",))
+    if facility and facility[0]["content"].strip() == "학교 본관은 앞뒤를 기준으로 '전관'과 '후관'으로 나뉩니다.":
+        execute(
+            "UPDATE wiki_pages SET content=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+            ("== 학교 시설 ==\n\n학교 본관은 앞뒤를 기준으로 '전관'과 '후관'으로 나뉩니다.\n\n=== 전관 ===\n교장실\n교무실\n1~3학년 교실\nwee클래스\n보건실\n\n=== 후관 ===\n과학실\n기술실\n음악실\n정보실\n학생자치실", facility[0]["id"]),
+        )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
