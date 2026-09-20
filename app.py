@@ -164,12 +164,13 @@ def _fetch_comcigan_current_protocol(grade, class_num, target_date):
         changed_day = changed_class[day_index] if day_index < len(changed_class) else []
         base_day = base_class[day_index] if day_index < len(base_class) else []
 
-        changed_has_data = (
-            isinstance(changed_day, list)
-            and len(changed_day) > 1
-            and any(_comcigan_number(v)[0] != 0 for v in changed_day[1:])
-        )
-        day_data = changed_day if changed_has_data else base_day
+        # If Comcigan provides a changed-day row, use it exactly as-is.
+        # An all-zero row is meaningful: it represents a holiday/no-class day.
+        # Fall back to the base timetable only when the changed-day row itself is absent.
+        if isinstance(changed_day, list) and len(changed_day) > 1:
+            day_data = changed_day
+        else:
+            day_data = base_day
 
         lessons = []
         for period in range(1, 9):
@@ -219,7 +220,7 @@ def get_nongok_timetable(grade, class_num):
     friday = monday + timedelta(days=4)
     week_label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
 
-    key = ("comcigan-current-v7", grade, class_num, monday.isoformat())
+    key = ("comcigan-current-v8", grade, class_num, monday.isoformat())
     now = time.time()
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
@@ -605,7 +606,7 @@ def timetable_debug():
     week = 1 if today.weekday() == 6 else 0
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     monday = target - timedelta(days=target.weekday())
-    cache_item = TIMETABLE_CACHE.get(("comcigan-current-v7", grade, class_num, monday.isoformat()), {})
+    cache_item = TIMETABLE_CACHE.get(("comcigan-current-v8", grade, class_num, monday.isoformat()), {})
 
     return {
         "grade": grade,
