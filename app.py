@@ -63,10 +63,13 @@ def get_nongok_meals():
         with urlopen(req, timeout=8) as response:
             data = json.loads(response.read().decode("utf-8"))
         rows = []
+        # NEIS may return either {"mealServiceDietInfo":[...]} or an error/result object.
         for block in data.get("mealServiceDietInfo", []):
             if isinstance(block, dict) and "row" in block:
                 rows = block["row"]
                 break
+        if not rows:
+            app.logger.warning("NEIS returned no meal rows: %s", data)
         meals = []
         weekdays = ["월", "화", "수", "목", "금", "토", "일"]
         for row in rows:
@@ -296,7 +299,7 @@ def wiki(title):
         (page["id"],),
     )
     meals, meal_error = ([], None)
-    if page["title"] == "급식":
+    if page["title"] in ("급식", "학교생활"):
         meals, meal_error = get_nongok_meals()
     return render_template("wiki.html", page=page, content_html=render_wiki(page["content"]), discussions=discussions,
                            meals=meals, meal_error=meal_error)
