@@ -738,8 +738,8 @@ def create_notification(user_id, notification_type, title, body="", target_url="
     )
 
 
-def notify_all_approved(notification_type, title, body="", target_url="", exclude_user_id=None):
-    rows = query("SELECT id FROM users WHERE account_status='approved'")
+def notify_all_users(notification_type, title, body="", target_url="", exclude_user_id=None):
+    rows = query("SELECT id FROM users")
     for row in rows:
         if exclude_user_id and row["id"] == exclude_user_id:
             continue
@@ -1502,7 +1502,7 @@ def edit_homepage_section(section_key):
             execute("INSERT INTO homepage_sections(section_key, content, updated_at) VALUES (%s,%s,CURRENT_TIMESTAMP)", (section_key, content))
         log_admin_action("대문/공지 수정", "homepage_section", section_key, labels[section_key])
         if section_key == "news" and content and content != previous_content:
-            notify_all_approved(
+            notify_all_users(
                 "notice",
                 "새 공지사항이 등록되었습니다.",
                 content[:180],
@@ -2800,10 +2800,10 @@ def register():
 
         execute(
             """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,account_status,created_at)
-               VALUES (%s,%s,%s,%s,%s,'user','pending',CURRENT_TIMESTAMP)""",
+               VALUES (%s,%s,%s,%s,%s,'user','approved',CURRENT_TIMESTAMP)""",
             (username, generate_password_hash(password), real_name, student_no, school_name),
         )
-        flash("가입 신청이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.", "success")
+        flash("회원가입이 완료되었습니다. 바로 로그인하실 수 있습니다.", "success")
         return redirect(url_for("login"))
     return render_template("auth.html", mode="register")
 
@@ -2817,24 +2817,16 @@ def login():
         rows = query("SELECT * FROM users WHERE username=%s", (username,))
         if rows and check_password_hash(rows[0]["password_hash"], password):
             account = rows[0]
-            status = account.get("account_status", "approved")
-            if account["role"] != "admin" and status != "approved":
-                if status == "pending":
-                    flash("가입 승인 대기 중입니다. 관리자가 승인한 뒤 로그인할 수 있습니다.", "warning")
-                else:
-                    flash("가입 승인이 거절되었거나 비활성화된 계정입니다. 관리자에게 문의해 주세요.", "warning")
-            else:
-                session["user_id"] = account["id"]
-                flash("로그인되었습니다.", "success")
-                if account["role"] != "admin" and (
-                    not account.get("real_name")
-                    or not account.get("student_no")
-                    or not account.get("school_name")
-                ):
-                    return redirect(url_for("identity_setup"))
-                return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
-        else:
-            flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
+            session["user_id"] = account["id"]
+            flash("로그인되었습니다.", "success")
+            if account["role"] != "admin" and (
+                not account.get("real_name")
+                or not account.get("student_no")
+                or not account.get("school_name")
+            ):
+                return redirect(url_for("identity_setup"))
+            return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
+        flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
     return render_template(
         "auth.html",
         mode="login",
@@ -2925,16 +2917,14 @@ def _admin_page_data(member_q=""):
             """SELECT id, username, real_name, student_no, school_name, role, account_status, created_at
                FROM users
                WHERE COALESCE(real_name, '') ILIKE %s
-               ORDER BY CASE account_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END,
-                        real_name ASC, created_at DESC
+               ORDER BY real_name ASC, created_at DESC
                LIMIT 100""",
             (f"%{member_q}%",),
         )
     else:
         users = query(
             "SELECT id, username, real_name, student_no, school_name, role, account_status, created_at "
-            "FROM users ORDER BY CASE account_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, "
-            "created_at DESC LIMIT 100"
+            "FROM users ORDER BY created_at DESC LIMIT 100"
         )
     return reports, users
 
@@ -2962,36 +2952,6 @@ def admin():
         can_change_roles=actor["role"] == "admin",
         can_review_official=can_review_official,
     )
-
-
-@app.route("/admin/user/<int:user_id>/approval/<status>", methods=["POST"])
-@require_teacher
-def admin_user_approval(user_id, status):
-    check_csrf()
-    if status not in {"approved", "rejected"}:
-        abort(400)
-
-    rows = query("SELECT id, username, role FROM users WHERE id=%s", (user_id,))
-    if not rows:
-        abort(404)
-    target = rows[0]
-    if not can_manage_member(current_user(), target):
-        abort(403)
-
-    execute("UPDATE users SET account_status=%s WHERE id=%s", (status, user_id))
-    log_admin_action(
-        "가입 승인" if status == "approved" else "가입 승인 거절",
-        "user",
-        user_id,
-        f"@{target['username']}",
-    )
-    if status == "approved":
-        flash(f"@{target['username']} 가입을 승인했습니다.", "success")
-    else:
-        flash(f"@{target['username']} 가입 승인을 거절했습니다.", "success")
-
-    member_q = request.form.get("member_q", "").strip()[:30]
-    return redirect(url_for("admin", member_q=member_q) if member_q else url_for("admin"))
 
 
 @app.route("/admin/user/<int:user_id>/reset-password", methods=["POST"])

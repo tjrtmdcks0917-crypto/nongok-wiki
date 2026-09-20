@@ -4,7 +4,7 @@
 <section class="card">
   <h1>운영 관리</h1>
   <p>현재 권한: <b>{{role_labels.get(current_user.role,current_user.role)}}</b></p>
-  <p class="hint">최고관리자: 전체 관리 · 교사: 가입/공지/문서 관리 · 학생관리자: 신고/갤러리 관리</p>
+  <p class="hint">최고관리자: 전체 관리 · 교사: 공지/문서/회원 관리 · 학생관리자: 신고/갤러리 관리</p>
 
   {% if can_manage_members %}<p><a href="{{url_for('edit_homepage_section',section_key='news')}}">📢 공지사항 작성/편집</a></p>{% endif %}
 
@@ -34,14 +34,12 @@
   {% endif %}
 
   {% for u in users %}
-  <div class="admin-member{% if u.account_status=='pending' %} is-pending{% elif u.account_status=='rejected' %} is-rejected{% endif %}">
-    <div class="admin-member-head"><div><b>{{u.real_name or '이름 미등록'}}</b> <span class="member-id">@{{u.username}}</span></div><span class="approval-status status-{{u.account_status}}">{{role_labels.get(u.role,u.role)}} · {% if u.account_status=='pending' %}승인 대기{% elif u.account_status=='approved' %}승인됨{% else %}승인 거절{% endif %}</span></div>
+  <div class="admin-member">
+    <div class="admin-member-head"><div><b>{{u.real_name or '이름 미등록'}}</b> <span class="member-id">@{{u.username}}</span></div><span class="approval-status">{{role_labels.get(u.role,u.role)}}</span></div>
     <div class="member-details"><span>학번: {{u.student_no or '미등록'}}</span><span>학교: {{u.school_name or '미등록'}}</span><span>가입일: {{u.created_at}}</span></div>
 
     {% if u.can_manage %}
     <div class="admin-approval-actions">
-      {% if u.account_status!='approved' %}<form method="post" action="{{url_for('admin_user_approval',user_id=u.id,status='approved')}}"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="member_q" value="{{member_q or ''}}"><button class="approve-account">가입 승인</button></form>{% endif %}
-      {% if u.account_status!='rejected' %}<form method="post" action="{{url_for('admin_user_approval',user_id=u.id,status='rejected')}}"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="member_q" value="{{member_q or ''}}"><button class="reject-account">승인 거절</button></form>{% endif %}
       <form class="admin-password-reset" method="post" action="{{url_for('admin_reset_password',user_id=u.id)}}"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="member_q" value="{{member_q or ''}}"><button type="submit">비밀번호 초기화</button></form>
     </div>
     {% endif %}
