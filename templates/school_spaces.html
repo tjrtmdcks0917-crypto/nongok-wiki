@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}학급·학년 공간 - 논곡위키{% endblock %}
+{% block meta_description %}논곡중학교 학년·학급 전용 소통 공간입니다.{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<article class="document school-space-page">
+  <div class="doc-title">
+    <h1>
+      {% if scope_type == 'grade' %}{{grade}}학년 공간
+      {% elif scope_type == 'class' %}{{grade}}학년 {{class_no}}반 공간
+      {% else %}학급·학년 공간{% endif %}
+    </h1>
+    <div class="doc-tools">
+      {% if scope_type %}<a href="{{url_for('school_spaces')}}">공간 선택</a>{% endif %}
+      <a href="{{url_for('index')}}">홈</a>
+    </div>
+  </div>
+
+  {% if not scope_type %}
+    <div class="school-space-intro">
+      <b>논곡중학교 전용 공간</b>
+      <p>학년 공간은 같은 학년끼리, 학급 공간은 같은 반끼리만 볼 수 있습니다. 교사와 최고관리자는 모든 공간에 접근할 수 있습니다.</p>
+    </div>
+
+    {% if all_access %}
+      {% for g in range(1,4) %}
+      <section class="school-space-grade-group">
+        <h2>{{g}}학년</h2>
+        <div class="school-space-grid">
+          <a class="school-space-link grade" href="{{url_for('school_space_grade',grade=g)}}"><b>{{g}}학년 전체</b><span>학년 게시판</span></a>
+          {% for c in range(1,5) %}
+          <a class="school-space-link" href="{{url_for('school_space_class',grade=g,class_no=c)}}"><b>{{g}}학년 {{c}}반</b><span>학급 게시판</span></a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+    {% elif identity %}
+      <div class="school-space-grid own">
+        <a class="school-space-link grade" href="{{url_for('school_space_grade',grade=identity.grade)}}"><b>{{identity.grade}}학년 공간</b><span>같은 학년끼리</span></a>
+        <a class="school-space-link" href="{{url_for('school_space_class',grade=identity.grade,class_no=identity.class_no)}}"><b>{{identity.grade}}학년 {{identity.class_no}}반</b><span>우리 반 전용</span></a>
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="school-space-scope-nav">
+      <a href="{{url_for('school_space_grade',grade=grade)}}" class="{% if scope_type=='grade' %}active{% endif %}">{{grade}}학년 전체</a>
+      {% if all_access %}
+        {% for c in range(1,5) %}
+        <a href="{{url_for('school_space_class',grade=grade,class_no=c)}}" class="{% if scope_type=='class' and class_no==c %}active{% endif %}">{{c}}반</a>
+        {% endfor %}
+      {% elif identity %}
+        <a href="{{url_for('school_space_class',grade=identity.grade,class_no=identity.class_no)}}" class="{% if scope_type=='class' %}active{% endif %}">{{identity.class_no}}반</a>
+      {% endif %}
+    </div>
+
+    {% if can_post %}
+    <details class="school-space-compose">
+      <summary>＋ 새 글 작성</summary>
+      <form method="post" action="{{url_for('school_space_post')}}">
+        <input type="hidden" name="csrf" value="{{csrf}}">
+        <input type="hidden" name="scope_type" value="{{scope_type}}">
+        <input type="hidden" name="grade" value="{{grade}}">
+        {% if class_no %}<input type="hidden" name="class_no" value="{{class_no}}">{% endif %}
+        <label>제목<input name="title" maxlength="100" required placeholder="제목"></label>
+        <label>내용<textarea name="body" maxlength="4000" required placeholder="학년·학급과 관련된 내용을 작성해 주세요."></textarea></label>
+        {% if can_manage_space_posts %}
+        <label class="school-space-pin-check"><input type="checkbox" name="is_pinned" value="1"> 공지로 고정</label>
+        {% endif %}
+        <button type="submit">게시하기</button>
+      </form>
+    </details>
+    {% endif %}
+
+    <section class="school-space-posts">
+      {% for post in posts %}
+      <article class="school-space-post{% if post.is_pinned %} pinned{% endif %}">
+        <div class="school-space-post-head">
+          <div>
+            {% if post.is_pinned %}<span class="school-space-pin">공지</span>{% endif %}
+            <h2>{{post.title}}</h2>
+            <small>{{post.display_name}} · {{post.created_text}}</small>
+          </div>
+          <div class="school-space-post-actions">
+            {% if can_manage_space_posts %}
+            <form method="post" action="{{url_for('school_space_pin',post_id=post.id)}}">
+              <input type="hidden" name="csrf" value="{{csrf}}">
+              <button type="submit">{{'고정 해제' if post.is_pinned else '공지 고정'}}</button>
+            </form>
+            {% endif %}
+            {% if current_user.id == post.user_id or can_manage_space_posts %}
+            <form method="post" action="{{url_for('school_space_delete',post_id=post.id)}}" onsubmit="return confirm('이 게시물을 삭제할까요?');">
+              <input type="hidden" name="csrf" value="{{csrf}}">
+              <button class="school-space-delete" type="submit">삭제</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        <div class="school-space-post-body">{{post.body|e|replace('\n','<br>'|safe)}}</div>
+      </article>
+      {% else %}
+      <div class="school-space-empty">아직 게시물이 없습니다.</div>
+      {% endfor %}
+    </section>
+  {% endif %}
+</article>
+{% endblock %}

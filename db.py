@@ -148,6 +148,18 @@ CREATE TABLE IF NOT EXISTS follows (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (follower_id, following_id)
 );
+CREATE TABLE IF NOT EXISTS school_space_posts (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    scope_type VARCHAR(8) NOT NULL,
+    grade INTEGER NOT NULL,
+    class_no INTEGER,
+    user_id INTEGER NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    body TEXT NOT NULL,
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS admin_activity_logs (
     id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     actor_id INTEGER,
@@ -184,6 +196,7 @@ BACKUP_TABLE_COLUMNS = {
     "gallery_comments": ["id", "post_id", "user_id", "body", "deleted", "created_at"],
     "gallery_reads": ["user_id", "last_seen_post_id", "updated_at"],
     "follows": ["follower_id", "following_id", "created_at"],
+    "school_space_posts": ["id", "scope_type", "grade", "class_no", "user_id", "title", "body", "is_pinned", "deleted", "created_at"],
     "admin_activity_logs": ["id", "actor_id", "action", "target_type", "target_id", "detail", "created_at"],
     "site_visits": ["id", "visit_date", "visitor_key", "first_seen_at"],
 }

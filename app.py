@@ -561,6 +561,7 @@ def inject():
         "can_manage_documents": role_at_least(user, "teacher"),
         "can_edit_notice": role_at_least(user, "teacher"),
         "can_moderate_gallery": role_at_least(user, "moderator"),
+        "can_use_school_spaces": bool(role_at_least(user, "teacher") or _student_school_space_identity(user)),
         "global_recent": public["global_recent"],
         "global_popular": public["global_popular"],
         "global_daily": public["global_daily"],
@@ -614,6 +615,36 @@ def role_at_least(user, minimum_role):
     if not user:
         return False
     return ROLE_LEVELS.get(user.get("role", "user"), 0) >= ROLE_LEVELS.get(minimum_role, 99)
+
+
+def _student_school_space_identity(user):
+    if not user or user.get("school_name") != "논곡중학교":
+        return None
+    student_no = re.sub(r"\D", "", str(user.get("student_no") or ""))
+    if re.fullmatch(r"[1-3]\d{4}", student_no):
+        grade = int(student_no[0])
+        class_no = int(student_no[1:3])
+    elif re.fullmatch(r"[1-3]0\d{4}", student_no):
+        grade = int(student_no[0])
+        class_no = int(student_no[2:4])
+    else:
+        return None
+    if grade not in {1, 2, 3} or class_no not in {1, 2, 3, 4}:
+        return None
+    return {"grade": grade, "class_no": class_no}
+
+
+def _can_access_school_space(user, grade, class_no=None):
+    if grade not in {1, 2, 3}:
+        return False
+    if class_no is not None and class_no not in {1, 2, 3, 4}:
+        return False
+    if role_at_least(user, "teacher"):
+        return True
+    identity = _student_school_space_identity(user)
+    if not identity or identity["grade"] != grade:
+        return False
+    return class_no is None or identity["class_no"] == class_no
 
 
 def require_staff(fn):
@@ -727,8 +758,16 @@ def _decode_backup_payload(payload):
     if payload.get("format") != "nongok-wiki-backup" or payload.get("version") != 1:
         raise ValueError("지원하지 않는 논곡위키 백업 파일입니다.")
     tables = payload.get("tables")
-    if not isinstance(tables, dict) or set(tables) != set(BACKUP_TABLE_COLUMNS):
+    if not isinstance(tables, dict):
         raise ValueError("백업 데이터 구성이 현재 논곡위키와 다릅니다.")
+    expected_tables = set(BACKUP_TABLE_COLUMNS)
+    legacy_optional = {"school_space_posts"}
+    supplied_tables = set(tables)
+    if not (expected_tables - legacy_optional).issubset(supplied_tables) or not supplied_tables.issubset(expected_tables):
+        raise ValueError("백업 데이터 구성이 현재 논곡위키와 다릅니다.")
+    tables = dict(tables)
+    for optional_table in legacy_optional:
+        tables.setdefault(optional_table, [])
 
     decoded = {}
     for table, rows in tables.items():
@@ -1806,6 +1845,194 @@ def _gallery_time_text(value):
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(ZoneInfo("Asia/Seoul")).strftime("%Y.%m.%d %H:%M")
+
+
+def _school_space_redirect(scope_type, grade, class_no=None):
+    if scope_type == "class":
+        return url_for("school_space_class", grade=grade, class_no=class_no)
+    return url_for("school_space_grade", grade=grade)
+
+
+def _render_school_space(scope_type=None, grade=None, class_no=None):
+    user = current_user()
+    identity = _student_school_space_identity(user)
+    all_access = role_at_least(user, "teacher")
+
+    if scope_type is None:
+        if not all_access and not identity:
+            abort(403)
+        return render_template(
+            "school_spaces.html",
+            scope_type=None,
+            grade=None,
+            class_no=None,
+            posts=[],
+            identity=identity,
+            all_access=all_access,
+            can_post=False,
+            can_manage_space_posts=all_access,
+        )
+
+    if not _can_access_school_space(user, grade, class_no):
+        abort(403)
+
+    if scope_type == "grade":
+        posts = query(
+            """SELECT p.*, u.username,
+                      COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name
+               FROM school_space_posts p
+               JOIN users u ON u.id=p.user_id
+               WHERE p.deleted=FALSE AND p.scope_type='grade' AND p.grade=%s AND p.class_no IS NULL
+               ORDER BY p.is_pinned DESC, p.created_at DESC, p.id DESC
+               LIMIT 100""",
+            (grade,),
+        )
+    else:
+        posts = query(
+            """SELECT p.*, u.username,
+                      COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name
+               FROM school_space_posts p
+               JOIN users u ON u.id=p.user_id
+               WHERE p.deleted=FALSE AND p.scope_type='class' AND p.grade=%s AND p.class_no=%s
+               ORDER BY p.is_pinned DESC, p.created_at DESC, p.id DESC
+               LIMIT 100""",
+            (grade, class_no),
+        )
+
+    for post in posts:
+        post["created_text"] = _gallery_time_text(post.get("created_at"))
+
+    return render_template(
+        "school_spaces.html",
+        scope_type=scope_type,
+        grade=grade,
+        class_no=class_no,
+        posts=posts,
+        identity=identity,
+        all_access=all_access,
+        can_post=True,
+        can_manage_space_posts=all_access,
+    )
+
+
+@app.route("/spaces")
+@require_login
+def school_spaces():
+    return _render_school_space()
+
+
+@app.route("/spaces/<int:grade>")
+@require_login
+def school_space_grade(grade):
+    return _render_school_space("grade", grade, None)
+
+
+@app.route("/spaces/<int:grade>/<int:class_no>")
+@require_login
+def school_space_class(grade, class_no):
+    return _render_school_space("class", grade, class_no)
+
+
+@app.route("/spaces/post", methods=["POST"])
+@require_login
+def school_space_post():
+    check_csrf()
+    user = current_user()
+    scope_type = request.form.get("scope_type", "").strip()
+    try:
+        grade = int(request.form.get("grade", "0"))
+        class_no_raw = request.form.get("class_no", "").strip()
+        class_no = int(class_no_raw) if class_no_raw else None
+    except ValueError:
+        abort(400)
+
+    if scope_type not in {"grade", "class"}:
+        abort(400)
+    if scope_type == "grade":
+        class_no = None
+    elif class_no is None:
+        abort(400)
+
+    if not _can_access_school_space(user, grade, class_no):
+        abort(403)
+
+    title = request.form.get("title", "").strip()
+    body = request.form.get("body", "").strip()
+    if not title or len(title) > 100:
+        flash("제목은 1~100자로 입력해 주세요.", "warning")
+        return redirect(_school_space_redirect(scope_type, grade, class_no))
+    if not body or len(body) > 4000:
+        flash("내용은 1~4000자로 입력해 주세요.", "warning")
+        return redirect(_school_space_redirect(scope_type, grade, class_no))
+
+    is_pinned = bool(
+        role_at_least(user, "teacher")
+        and request.form.get("is_pinned") == "1"
+    )
+    execute(
+        """INSERT INTO school_space_posts
+           (scope_type, grade, class_no, user_id, title, body, is_pinned, deleted, created_at)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,FALSE,CURRENT_TIMESTAMP)""",
+        (scope_type, grade, class_no, user["id"], title, body, is_pinned),
+    )
+    if is_pinned:
+        log_admin_action(
+            "학급·학년 공지 작성",
+            "school_space",
+            f"{scope_type}:{grade}:{class_no or 0}",
+            title,
+        )
+    flash("게시물을 등록했습니다.", "success")
+    return redirect(_school_space_redirect(scope_type, grade, class_no))
+
+
+@app.route("/spaces/post/<int:post_id>/pin", methods=["POST"])
+@require_teacher
+def school_space_pin(post_id):
+    check_csrf()
+    rows = query(
+        """SELECT id, scope_type, grade, class_no, title, is_pinned
+           FROM school_space_posts WHERE id=%s AND deleted=FALSE""",
+        (post_id,),
+    )
+    if not rows:
+        abort(404)
+    post = rows[0]
+    new_state = not bool(post["is_pinned"])
+    execute("UPDATE school_space_posts SET is_pinned=%s WHERE id=%s", (new_state, post_id))
+    log_admin_action(
+        "학급·학년 공지 고정 변경",
+        "school_space_post",
+        post_id,
+        f"{post['title']} → {'고정' if new_state else '고정 해제'}",
+    )
+    return redirect(_school_space_redirect(post["scope_type"], post["grade"], post["class_no"]))
+
+
+@app.route("/spaces/post/<int:post_id>/delete", methods=["POST"])
+@require_login
+def school_space_delete(post_id):
+    check_csrf()
+    rows = query(
+        """SELECT id, scope_type, grade, class_no, user_id, title
+           FROM school_space_posts WHERE id=%s AND deleted=FALSE""",
+        (post_id,),
+    )
+    if not rows:
+        abort(404)
+    post = rows[0]
+    user = current_user()
+    if post["user_id"] != user["id"] and not role_at_least(user, "teacher"):
+        abort(403)
+    if not _can_access_school_space(user, post["grade"], post["class_no"] if post["scope_type"] == "class" else None):
+        abort(403)
+
+    moderated = post["user_id"] != user["id"]
+    execute("UPDATE school_space_posts SET deleted=TRUE WHERE id=%s", (post_id,))
+    if moderated:
+        log_admin_action("학급·학년 게시물 삭제", "school_space_post", post_id, post["title"])
+    flash("게시물을 삭제했습니다.", "success")
+    return redirect(_school_space_redirect(post["scope_type"], post["grade"], post["class_no"]))
 
 
 @app.route("/members")
