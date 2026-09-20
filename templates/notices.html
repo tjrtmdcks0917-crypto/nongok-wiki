@@ -4,7 +4,7 @@
 {% block content %}
 <article class="document notice-page">
   <div class="doc-title">
-    <h1>공지사항{% if notice_is_new %}<span class="notice-new-label">NEW</span>{% endif %}</h1>
+    <h1>공지사항{% if notice_is_active %}<span class="notice-new-label">NEW</span>{% endif %}</h1>
     <div class="doc-tools">
       <a href="{{url_for('index')}}">대문</a>
       {% if current_user and current_user.role == 'admin' %}
@@ -13,15 +13,19 @@
     </div>
   </div>
 
-  <div class="notice-card{% if notice_is_new %} fresh{% endif %}">
-    <div class="notice-meta">
-      관리자 공지
-      {% if notice_updated_at %} · {{notice_updated_at}}{% endif %}
-      {% if notice_is_new %} · 등록 후 48시간 이내{% endif %}
-    </div>
+  {% if notice_is_active %}
+  <div class="notice-card fresh">
+    <div class="notice-meta">관리자 공지 · 등록 후 48시간 동안 공개</div>
     <div class="notice-body">{{notice_content|e|replace('\n','<br>'|safe)}}</div>
   </div>
-
-  <p class="notice-help">새 공지는 등록 후 48시간 동안 대문과 상단 메뉴에서 더 크게 강조됩니다.</p>
+  {% elif notice_admin_view and notice_content %}
+  <div class="notice-card expired">
+    <div class="notice-meta">관리자에게만 보이는 만료된 공지</div>
+    <div class="notice-body">{{notice_content|e|replace('\n','<br>'|safe)}}</div>
+  </div>
+  <p class="notice-help">이 공지는 48시간이 지나 일반 사용자에게는 더 이상 표시되지 않습니다. 새 내용을 저장하면 다시 48시간 동안 공개됩니다.</p>
+  {% else %}
+  <div class="notice-card empty"><div class="notice-body">현재 공개 중인 공지사항이 없습니다.</div></div>
+  {% endif %}
 </article>
 {% endblock %}
