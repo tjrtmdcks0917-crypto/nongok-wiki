@@ -9,10 +9,12 @@ from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
 from urllib.request import urlopen, Request
 from functools import wraps
+from io import BytesIO
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from markupsafe import escape
 from werkzeug.security import check_password_hash, generate_password_hash
+from PIL import Image, ImageOps
 
 from db import init_db, query, execute
 
@@ -699,17 +701,40 @@ def all_pages():
     )
     return render_template("all_pages.html", pages=pages, page=page, total_pages=total_pages, total=total)
 
-def _gallery_image_mime(data):
-    """Accept only common raster image formats; SVG is intentionally excluded."""
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if data.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if data.startswith((b"GIF87a", b"GIF89a")):
-        return "image/gif"
-    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "image/webp"
-    return None
+def _sanitize_gallery_image(data):
+    """Validate and re-encode uploads so embedded EXIF/GPS metadata is removed."""
+    try:
+        Image.MAX_IMAGE_PIXELS = 25_000_000
+        with Image.open(BytesIO(data)) as image:
+            image.load()
+            image = ImageOps.exif_transpose(image)
+            if image.width < 1 or image.height < 1 or image.width * image.height > 25_000_000:
+                return None, None
+
+            source_format = (image.format or "").upper()
+            output = BytesIO()
+
+            if source_format in {"JPEG", "JPG"}:
+                if image.mode != "RGB":
+                    image = image.convert("RGB")
+                image.save(output, format="JPEG", quality=88, optimize=True)
+                return "image/jpeg", output.getvalue()
+
+            if source_format == "WEBP":
+                if image.mode not in {"RGB", "RGBA"}:
+                    image = image.convert("RGBA")
+                image.save(output, format="WEBP", quality=88, method=4)
+                return "image/webp", output.getvalue()
+
+            # PNG and GIF are normalized to PNG. This also strips metadata.
+            if source_format in {"PNG", "GIF"}:
+                if image.mode not in {"RGB", "RGBA"}:
+                    image = image.convert("RGBA")
+                image.save(output, format="PNG", optimize=True)
+                return "image/png", output.getvalue()
+    except Exception:
+        return None, None
+    return None, None
 
 
 def _gallery_time_text(value):
@@ -879,11 +904,14 @@ def gallery_new():
         if len(data) > 3 * 1024 * 1024:
             flash("사진 한 장의 최대 크기는 3MB입니다.", "warning")
             return redirect(url_for("gallery"))
-        mime = _gallery_image_mime(data)
-        if not mime:
-            flash("사진은 JPG, PNG, GIF, WebP 형식만 올릴 수 있습니다.", "warning")
+        mime, clean_data = _sanitize_gallery_image(data)
+        if not mime or clean_data is None:
+            flash("사진은 정상적인 JPG, PNG, GIF, WebP 파일만 올릴 수 있습니다.", "warning")
             return redirect(url_for("gallery"))
-        images.append((mime, data))
+        if len(clean_data) > 3 * 1024 * 1024:
+            flash("사진을 안전하게 처리한 뒤에도 3MB를 넘습니다. 더 작은 사진을 올려 주세요.", "warning")
+            return redirect(url_for("gallery"))
+        images.append((mime, clean_data))
 
     user = current_user()
     execute(
