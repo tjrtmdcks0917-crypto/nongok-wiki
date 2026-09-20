@@ -160,6 +160,18 @@ CREATE TABLE IF NOT EXISTS school_space_posts (
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    user_id INTEGER NOT NULL,
+    notification_type VARCHAR(32) NOT NULL,
+    title VARCHAR(160) NOT NULL,
+    body VARCHAR(300),
+    target_url VARCHAR(300),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read
+    ON notifications(user_id, is_read, id);
 CREATE TABLE IF NOT EXISTS admin_activity_logs (
     id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     actor_id INTEGER,
@@ -197,6 +209,7 @@ BACKUP_TABLE_COLUMNS = {
     "gallery_reads": ["user_id", "last_seen_post_id", "updated_at"],
     "follows": ["follower_id", "following_id", "created_at"],
     "school_space_posts": ["id", "scope_type", "grade", "class_no", "user_id", "title", "body", "is_pinned", "deleted", "created_at"],
+    "notifications": ["id", "user_id", "notification_type", "title", "body", "target_url", "is_read", "created_at"],
     "admin_activity_logs": ["id", "actor_id", "action", "target_type", "target_id", "detail", "created_at"],
     "site_visits": ["id", "visit_date", "visitor_key", "first_seen_at"],
 }
@@ -215,54 +228,6 @@ def backup_rows():
             cur = conn.execute(f"SELECT {column_sql} FROM {table}")
             data[table] = [dict(row) for row in cur.fetchall()]
     return data
-
-
-def restore_backup_rows(tables):
-    """Replace all application data from a validated backup in one transaction."""
-    if set(tables) != set(BACKUP_TABLE_COLUMNS):
-        raise ValueError("백업 테이블 구성이 현재 논곡위키와 다릅니다.")
-
-    for table, columns in BACKUP_TABLE_COLUMNS.items():
-        rows = tables.get(table)
-        if not isinstance(rows, list):
-            raise ValueError(f"{table} 데이터 형식이 올바르지 않습니다.")
-        expected = set(columns)
-        for row in rows:
-            if not isinstance(row, dict) or set(row) != expected:
-                raise ValueError(f"{table} 백업 열 구성이 올바르지 않습니다.")
-
-    placeholder = "%s" if USE_POSTGRES else "?"
-    with connection() as conn:
-        # No FK constraints are declared today, but reverse order keeps this safe
-        # if relationships are tightened later.
-        for table in reversed(list(BACKUP_TABLE_COLUMNS)):
-            conn.execute(f"DELETE FROM {table}")
-
-        for table, columns in BACKUP_TABLE_COLUMNS.items():
-            rows = tables[table]
-            if not rows:
-                continue
-            column_sql = ", ".join(columns)
-            values_sql = ", ".join([placeholder] * len(columns))
-            if USE_POSTGRES and table in BACKUP_IDENTITY_TABLES:
-                insert_sql = (
-                    f"INSERT INTO {table} ({column_sql}) "
-                    f"OVERRIDING SYSTEM VALUE VALUES ({values_sql})"
-                )
-            else:
-                insert_sql = f"INSERT INTO {table} ({column_sql}) VALUES ({values_sql})"
-            for row in rows:
-                conn.execute(insert_sql, tuple(row[column] for column in columns))
-
-        if USE_POSTGRES:
-            for table in BACKUP_IDENTITY_TABLES:
-                conn.execute(
-                    f"""SELECT setval(
-                        pg_get_serial_sequence('{table}', 'id'),
-                        COALESCE(MAX(id), 1),
-                        MAX(id) IS NOT NULL
-                    ) FROM {table}"""
-                )
 
 
 def _sqlite_schema():

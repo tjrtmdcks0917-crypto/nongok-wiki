@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}알림 - 논곡위키{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="notifications-head">
+    <div>
+      <h1>🔔 알림</h1>
+      <p class="hint">문서 수정, 갤러리 댓글, 공지사항, 공식 문서 검토 결과를 확인할 수 있습니다.</p>
+    </div>
+    {% if notifications %}
+    <form method="post" action="{{url_for('notifications_read_all')}}">
+      <input type="hidden" name="csrf" value="{{csrf}}">
+      <button type="submit">모두 읽음</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="notification-list">
+    {% for item in notifications %}
+    <div class="notification-item{% if not item.is_read %} unread{% endif %}">
+      <form class="notification-open-form" method="post" action="{{url_for('notification_open',notification_id=item.id)}}">
+        <input type="hidden" name="csrf" value="{{csrf}}">
+        <button class="notification-open-button" type="submit">
+          <span class="notification-title-row">
+            <b>{{item.title}}</b>
+            {% if not item.is_read %}<i class="notification-new-dot" aria-label="새 알림"></i>{% endif %}
+          </span>
+          {% if item.body %}<span class="notification-body">{{item.body}}</span>{% endif %}
+          <small class="notification-time">{{item.created_text}}</small>
+        </button>
+      </form>
+    </div>
+    {% else %}
+    <div class="notification-empty">아직 알림이 없습니다.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

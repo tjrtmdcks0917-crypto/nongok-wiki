@@ -17,11 +17,11 @@ from markupsafe import escape
 from werkzeug.security import check_password_hash, generate_password_hash
 from PIL import Image, ImageOps
 
-from db import init_db, query, execute, backup_rows, restore_backup_rows, BACKUP_TABLE_COLUMNS
+from db import init_db, query, execute, backup_rows, BACKUP_TABLE_COLUMNS
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-secret-key")
-app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 14 * 1024 * 1024
 
 RATE = {}
 RATE_WINDOW = 60
@@ -553,6 +553,13 @@ def inject():
     else:
         gallery_unread = 0
 
+    notification_unread = 0
+    if user:
+        notification_unread = int(query(
+            "SELECT COUNT(*) AS c FROM notifications WHERE user_id=%s AND is_read=FALSE",
+            (user["id"],),
+        )[0]["c"] or 0)
+
     return {
         "current_user": user,
         "csrf": session.get("csrf"),
@@ -567,6 +574,7 @@ def inject():
         "global_daily": public["global_daily"],
         "global_gallery_popular": public["global_gallery_popular"],
         "gallery_unread": gallery_unread,
+        "notification_unread": notification_unread,
         "site_notice": public["site_notice"],
         "site_notice_html": public["site_notice_html"],
         "site_notice_active": public["site_notice_active"],
@@ -713,6 +721,37 @@ def _admin_activity_logs():
     )
 
 
+def create_notification(user_id, notification_type, title, body="", target_url=""):
+    if not user_id:
+        return
+    execute(
+        """INSERT INTO notifications
+           (user_id, notification_type, title, body, target_url, is_read, created_at)
+           VALUES (%s,%s,%s,%s,%s,FALSE,CURRENT_TIMESTAMP)""",
+        (
+            user_id,
+            str(notification_type or "general")[:32],
+            str(title or "알림")[:160],
+            str(body or "")[:300],
+            str(target_url or "")[:300],
+        ),
+    )
+
+
+def notify_all_approved(notification_type, title, body="", target_url="", exclude_user_id=None):
+    rows = query("SELECT id FROM users WHERE account_status='approved'")
+    for row in rows:
+        if exclude_user_id and row["id"] == exclude_user_id:
+            continue
+        create_notification(
+            row["id"],
+            notification_type,
+            title,
+            body,
+            target_url,
+        )
+
+
 def _backup_json_value(value):
     if isinstance(value, memoryview):
         value = value.tobytes()
@@ -723,16 +762,6 @@ def _backup_json_value(value):
         }
     if isinstance(value, datetime):
         return {"__nongok_type__": "datetime", "value": value.isoformat()}
-    return value
-
-
-def _restore_json_value(value):
-    if isinstance(value, dict) and set(value) == {"__nongok_type__", "value"}:
-        if value["__nongok_type__"] == "bytes":
-            return base64.b64decode(value["value"], validate=True)
-        if value["__nongok_type__"] == "datetime":
-            return value["value"]
-        raise ValueError("지원하지 않는 백업 값 형식입니다.")
     return value
 
 
@@ -750,37 +779,6 @@ def _build_backup_payload():
         "created_at": datetime.now(timezone.utc).isoformat(),
         "tables": tables,
     }
-
-
-def _decode_backup_payload(payload):
-    if not isinstance(payload, dict):
-        raise ValueError("백업 파일 형식이 올바르지 않습니다.")
-    if payload.get("format") != "nongok-wiki-backup" or payload.get("version") != 1:
-        raise ValueError("지원하지 않는 논곡위키 백업 파일입니다.")
-    tables = payload.get("tables")
-    if not isinstance(tables, dict):
-        raise ValueError("백업 데이터 구성이 현재 논곡위키와 다릅니다.")
-    expected_tables = set(BACKUP_TABLE_COLUMNS)
-    legacy_optional = {"school_space_posts"}
-    supplied_tables = set(tables)
-    if not (expected_tables - legacy_optional).issubset(supplied_tables) or not supplied_tables.issubset(expected_tables):
-        raise ValueError("백업 데이터 구성이 현재 논곡위키와 다릅니다.")
-    tables = dict(tables)
-    for optional_table in legacy_optional:
-        tables.setdefault(optional_table, [])
-
-    decoded = {}
-    for table, rows in tables.items():
-        if not isinstance(rows, list):
-            raise ValueError(f"{table} 데이터가 올바르지 않습니다.")
-        decoded[table] = []
-        for row in rows:
-            if not isinstance(row, dict):
-                raise ValueError(f"{table} 행 데이터가 올바르지 않습니다.")
-            decoded[table].append({
-                key: _restore_json_value(value) for key, value in row.items()
-            })
-    return decoded
 
 
 def _pending_document_edits():
@@ -1495,6 +1493,7 @@ def edit_homepage_section(section_key):
     content = rows[0]["content"] if rows else ""
     if request.method == "POST":
         check_csrf()
+        previous_content = content
         content = request.form.get("content", "").strip()
         existing = query("SELECT section_key FROM homepage_sections WHERE section_key=%s", (section_key,))
         if existing:
@@ -1502,6 +1501,14 @@ def edit_homepage_section(section_key):
         else:
             execute("INSERT INTO homepage_sections(section_key, content, updated_at) VALUES (%s,%s,CURRENT_TIMESTAMP)", (section_key, content))
         log_admin_action("대문/공지 수정", "homepage_section", section_key, labels[section_key])
+        if section_key == "news" and content and content != previous_content:
+            notify_all_approved(
+                "notice",
+                "새 공지사항이 등록되었습니다.",
+                content[:180],
+                url_for("notices"),
+                exclude_user_id=current_user()["id"],
+            )
         flash(f'{labels[section_key]} 내용을 저장했습니다.', "success")
         return redirect(url_for("index"))
     return render_template("homepage_edit.html", section_key=section_key, section_label=labels[section_key], content=content)
@@ -1756,6 +1763,14 @@ def edit(title):
         if page:
             execute("INSERT INTO revisions(page_id, title, content, author_id, created_at) VALUES (%s,%s,%s,%s,CURRENT_TIMESTAMP)", (page["id"], page["title"], page["content"], user["id"]))
             execute("UPDATE wiki_pages SET title=%s, content=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (new_title, content, page["id"]))
+            if page.get("author_id") and page["author_id"] != user["id"]:
+                create_notification(
+                    page["author_id"],
+                    "wiki_edit",
+                    f"내 문서가 수정되었습니다: {new_title}",
+                    f"@{user['username']}님이 문서를 수정했습니다.",
+                    url_for("wiki", title=new_title),
+                )
         else:
             execute("INSERT INTO wiki_pages(title, content, author_id, created_at, updated_at, protected, deleted) VALUES (%s,%s,%s,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,FALSE,FALSE)", (new_title, content, user["id"]))
         flash("문서를 저장했습니다.", "success")
@@ -1845,6 +1860,55 @@ def _gallery_time_text(value):
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(ZoneInfo("Asia/Seoul")).strftime("%Y.%m.%d %H:%M")
+
+
+@app.route("/notifications")
+@require_login
+def notifications():
+    user = current_user()
+    items = query(
+        """SELECT id, notification_type, title, body, target_url, is_read, created_at
+           FROM notifications
+           WHERE user_id=%s
+           ORDER BY created_at DESC, id DESC
+           LIMIT 100""",
+        (user["id"],),
+    )
+    for item in items:
+        item["created_text"] = _gallery_time_text(item.get("created_at"))
+    return render_template("notifications.html", notifications=items)
+
+
+@app.route("/notifications/<int:notification_id>/open", methods=["POST"])
+@require_login
+def notification_open(notification_id):
+    check_csrf()
+    user = current_user()
+    rows = query(
+        "SELECT target_url FROM notifications WHERE id=%s AND user_id=%s",
+        (notification_id, user["id"]),
+    )
+    if not rows:
+        abort(404)
+    execute(
+        "UPDATE notifications SET is_read=TRUE WHERE id=%s AND user_id=%s",
+        (notification_id, user["id"]),
+    )
+    target = str(rows[0].get("target_url") or "")
+    if not target.startswith("/") or target.startswith("//"):
+        target = url_for("notifications")
+    return redirect(target)
+
+
+@app.route("/notifications/read-all", methods=["POST"])
+@require_login
+def notifications_read_all():
+    check_csrf()
+    execute(
+        "UPDATE notifications SET is_read=TRUE WHERE user_id=%s AND is_read=FALSE",
+        (current_user()["id"],),
+    )
+    return redirect(url_for("notifications"))
 
 
 def _school_space_redirect(scope_type, grade, class_no=None):
@@ -2548,16 +2612,30 @@ def gallery_image(image_id):
 @require_login
 def gallery_comment(post_id):
     check_csrf()
-    if not query("SELECT id FROM gallery_posts WHERE id=%s AND deleted=FALSE", (post_id,)):
+    post_rows = query(
+        "SELECT id, user_id, title FROM gallery_posts WHERE id=%s AND deleted=FALSE",
+        (post_id,),
+    )
+    if not post_rows:
         abort(404)
+    post = post_rows[0]
     body = request.form.get("body", "").strip()
     if not body or len(body) > 1000:
         flash("댓글은 1~1000자로 입력해 주세요.", "warning")
         return redirect(url_for("gallery_post", post_id=post_id))
+    commenter = current_user()
     execute(
         "INSERT INTO gallery_comments(post_id, user_id, body, deleted, created_at) VALUES (%s,%s,%s,FALSE,CURRENT_TIMESTAMP)",
-        (post_id, current_user()["id"], body),
+        (post_id, commenter["id"], body),
     )
+    if post["user_id"] != commenter["id"]:
+        create_notification(
+            post["user_id"],
+            "gallery_comment",
+            f"내 갤러리 글에 댓글이 달렸습니다: {post['title']}",
+            f"@{commenter['username']} · {body[:180]}",
+            url_for("gallery_post", post_id=post_id) + "#comments",
+        )
     return redirect(url_for("gallery_post", post_id=post_id) + "#comments")
 
 
@@ -2992,7 +3070,7 @@ def admin_document_review(review_id, status):
 
     rows = query(
         """SELECT p.id, p.page_id, p.proposed_content, p.submitter_id, p.status,
-                  w.title, w.content, w.protected
+                  w.title, w.content, w.protected, w.author_id
            FROM pending_document_edits p
            JOIN wiki_pages w ON w.id=p.page_id
            WHERE p.id=%s AND w.deleted=FALSE""",
@@ -3029,6 +3107,25 @@ def admin_document_review(review_id, status):
         review_id,
         review["title"],
     )
+    create_notification(
+        review["submitter_id"],
+        "document_review",
+        f"공식 문서 수정안이 {'승인되었습니다' if status == 'approved' else '거절되었습니다'}: {review['title']}",
+        "승인된 내용은 문서에 반영되었습니다." if status == "approved" else "공개 문서는 기존 내용으로 유지됩니다.",
+        url_for("wiki", title=review["title"]),
+    )
+    if (
+        status == "approved"
+        and review.get("author_id")
+        and review["author_id"] not in {review["submitter_id"], reviewer["id"]}
+    ):
+        create_notification(
+            review["author_id"],
+            "wiki_edit",
+            f"내 문서가 수정되었습니다: {review['title']}",
+            "공식 문서 수정안이 승인되어 반영되었습니다.",
+            url_for("wiki", title=review["title"]),
+        )
     flash(
         f"{review['title']} 수정안을 {'승인하여 반영했습니다.' if status == 'approved' else '거절했습니다.'}",
         "success",
@@ -3062,86 +3159,6 @@ def admin_backup_download():
     response.headers["Cache-Control"] = "no-store, max-age=0"
     response.headers["Pragma"] = "no-cache"
     return response
-
-
-@app.route("/admin/backup/restore", methods=["POST"])
-@require_admin
-def admin_backup_restore():
-    check_csrf()
-    if request.form.get("confirm_restore", "").strip() != "복구":
-        flash("전체 복구를 실행하려면 확인란에 ‘복구’를 입력해 주세요.", "warning")
-        return redirect(url_for("admin"))
-
-    uploaded = request.files.get("backup_file")
-    if not uploaded or not uploaded.filename:
-        flash("복구할 백업 파일을 선택해 주세요.", "warning")
-        return redirect(url_for("admin"))
-
-    data = uploaded.read(64 * 1024 * 1024 + 1)
-    if len(data) > 64 * 1024 * 1024:
-        flash("백업 파일은 64MB 이하만 복구할 수 있습니다.", "warning")
-        return redirect(url_for("admin"))
-
-    try:
-        if data.startswith(b"\x1f\x8b"):
-            data = gzip.decompress(data)
-        if len(data) > 256 * 1024 * 1024:
-            raise ValueError("압축을 푼 백업 데이터가 너무 큽니다.")
-        payload = json.loads(data.decode("utf-8"))
-        tables = _decode_backup_payload(payload)
-    except (ValueError, UnicodeDecodeError, json.JSONDecodeError, OSError, base64.binascii.Error):
-        flash("정상적인 논곡위키 백업 파일이 아닙니다.", "warning")
-        return redirect(url_for("admin"))
-
-    actor = current_user()
-    actor_username = actor["username"]
-    restored_admin = next(
-        (
-            row for row in tables["users"]
-            if row.get("username") == actor_username and row.get("role") == "admin"
-        ),
-        None,
-    )
-    if not restored_admin:
-        flash("현재 최고관리자 계정이 들어 있지 않은 백업은 복구할 수 없습니다.", "warning")
-        return redirect(url_for("admin"))
-
-    try:
-        restore_backup_rows(tables)
-    except Exception:
-        app.logger.exception("Nongok Wiki backup restore failed")
-        flash("백업 복구 중 오류가 발생했습니다. 기존 데이터는 변경되지 않았습니다.", "warning")
-        return redirect(url_for("admin"))
-
-    restored_rows = query(
-        "SELECT id, username, real_name, student_no, school_name, profile_name, profile_bio, "
-        "profile_status, profile_color, profile_emoji, role, account_status "
-        "FROM users WHERE username=%s AND role='admin'",
-        (actor_username,),
-    )
-    if not restored_rows:
-        session.clear()
-        return redirect(url_for("login"))
-
-    restored_actor = restored_rows[0]
-    session["user_id"] = restored_actor["id"]
-    g.current_user_value = restored_actor
-
-    PUBLIC_CONTEXT_CACHE["data"] = None
-    PUBLIC_CONTEXT_CACHE["expires"] = 0
-    PERSON_NAMES_CACHE["names"] = None
-    PERSON_NAMES_CACHE["expires"] = 0
-    REPEATED_TERMS_CACHE["terms"] = None
-    REPEATED_TERMS_CACHE["expires"] = 0
-
-    log_admin_action(
-        "전체 백업 복구",
-        "backup",
-        None,
-        f"{sum(len(rows) for rows in tables.values())}개 데이터 행 복구",
-    )
-    flash("백업 복구가 완료되었습니다.", "success")
-    return redirect(url_for("admin"))
 
 
 @app.route("/admin/report/<int:report_id>/<status>", methods=["POST"])

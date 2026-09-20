@@ -506,22 +506,12 @@
 }
 
 
-/* Full backup and restore */
+/* Download-only full backup */
 .backup-warning{margin:12px 0 16px;padding:12px 14px;border:1px solid #d9c57b;border-left:4px solid #b88d11;background:#fff9df;color:#66530f;line-height:1.55;font-size:12px}
-.backup-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.backup-actions>div{border:1px solid #dfe2e5;border-radius:8px;padding:15px;background:#fafafa}
-.backup-actions h3{margin:0 0 6px;font-size:17px}
-.backup-actions p{margin:0 0 12px;color:#666;font-size:12px;line-height:1.5}
+.backup-download{border:1px solid #dfe2e5;border-radius:8px;padding:15px;background:#fafafa}
+.backup-download p{margin:0 0 12px;color:#666;font-size:12px;line-height:1.5}
 .backup-download-button{display:inline-block;padding:9px 12px;border:1px solid #78993b;border-radius:6px;background:var(--green);color:#fff;font-weight:700}
 .backup-download-button:hover{text-decoration:none;background:#78993b}
-.backup-restore form{margin:0}
-.backup-restore input[type=file]{display:block;width:100%;margin:0 0 10px;padding:8px;border:1px solid #d1d5d8;background:#fff}
-.backup-restore label{display:block;font-size:12px;font-weight:700}
-.backup-restore label input{display:block;margin-top:5px;background:#fff}
-.backup-restore-button{margin:10px 0 0;border-color:#b66767;background:#fff;color:#943d3d;font-weight:700}
-@media(max-width:650px){
-  .backup-actions{grid-template-columns:1fr}
-}
 
 
 /* Grade and class private spaces */
@@ -560,4 +550,29 @@
 @media(max-width:550px){
   .school-space-grid,.school-space-grid.own{grid-template-columns:1fr 1fr}
   .school-space-post-head{display:block}.school-space-post-actions{margin-top:9px}
+}
+
+
+/* In-site notifications */
+.notification-nav{position:relative}
+.notification-count{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:3px;padding:0 5px;border-radius:999px;background:#d94040;color:#fff;font-size:10px;font-weight:800;vertical-align:1px}
+.notification-nav.has-new{font-weight:700}
+.notification-mobile-new{font-weight:800}
+.notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.notifications-head form{margin:0}.notifications-head button{margin:0}
+.notification-list{border-top:1px solid #e1e4e6}
+.notification-item{border-bottom:1px solid #e6e8ea;background:#fff}
+.notification-item.unread{background:#f8fbf2;border-left:4px solid var(--green)}
+.notification-open-form{margin:0}
+.notification-open-button{display:block;width:100%;margin:0;padding:13px 12px;border:0;background:transparent;text-align:left;color:var(--text);cursor:pointer}
+.notification-open-button:hover{background:#fafafa}
+.notification-item.unread .notification-open-button:hover{background:#f4f8ec}
+.notification-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.notification-title-row b{font-size:14px}
+.notification-new-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#d94040}
+.notification-body{display:block;margin-top:5px;color:#666;font-size:12px;line-height:1.55}
+.notification-time{display:block;margin-top:6px;color:#999;font-size:11px}
+.notification-empty{padding:38px 15px;text-align:center;color:#777;border:1px dashed #cbd0d4}
+@media(max-width:550px){
+  .notifications-head{align-items:flex-start}
 }
