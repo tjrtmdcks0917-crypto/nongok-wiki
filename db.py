@@ -120,6 +120,11 @@ CREATE TABLE IF NOT EXISTS gallery_comments (
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS gallery_reads (
+    user_id INTEGER PRIMARY KEY,
+    last_seen_post_id INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 def _sqlite_schema():
