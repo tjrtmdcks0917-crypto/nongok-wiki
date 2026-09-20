@@ -27,21 +27,42 @@ MEAL_CACHE = {"expires": 0, "meals": [], "error": None}
 TIMETABLE_CACHE = {}
 
 def get_comcigan_class_timetable(grade, class_num, target):
-    """Best-effort Comcigan data for exact subject names and masked teacher names."""
+    """Best-effort Comcigan timetable with exact subject names."""
     try:
-        from comci import get_timetable
+        from comci import search_schools, get_timetable, th
 
-        raw_code = os.environ.get("COMCI_SCHOOL_CODE", "21009")
-        digits = "".join(ch for ch in str(raw_code) if ch.isdigit())
+        schools = search_schools("논곡중학교") or []
+        exact = [x for x in schools if x.get("school_name") == "논곡중학교"]
+        school = next((x for x in exact if x.get("region") == "인천"), exact[0] if exact else None)
+        if not school:
+            raise RuntimeError("컴시간에서 논곡중학교를 찾지 못했습니다.")
+
+        raw_code = str(school.get("school_code", ""))
+        digits = "".join(ch for ch in raw_code if ch.isdigit())
         if not digits:
-            raise RuntimeError("컴시간 학교 코드가 올바르지 않습니다.")
+            raise RuntimeError(f"컴시간 학교 코드가 올바르지 않습니다: {raw_code!r}")
+        school_code = int(digits)
 
-        return get_timetable(
-            int(digits),
-            grade=grade,
-            class_num=class_num,
-            on=target,
-        ) or {}
+        date_index = 2 if target.weekday() == 6 else 1
+        attempts = []
+        for name, loader in (
+            ("student", get_timetable),
+            ("teacher", th.get_timetable),
+        ):
+            try:
+                table = loader(
+                    school_code,
+                    grade=grade,
+                    class_num=class_num,
+                    date_index=date_index,
+                ) or {}
+                if isinstance(table, dict) and any(table.get(day) for day in ("월", "화", "수", "목", "금")):
+                    return table
+                attempts.append(f"{name}: empty")
+            except Exception as inner:
+                attempts.append(f"{name}: {type(inner).__name__}: {inner}")
+
+        raise RuntimeError("; ".join(attempts) or "컴시간 시간표가 비어 있습니다.")
     except Exception as e:
         app.logger.warning(
             "Comcigan enrichment failed grade=%s class=%s: %s",
