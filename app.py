@@ -91,19 +91,57 @@ def _masked_teacher_name(value):
 
 
 def _fetch_comcigan_current_protocol(grade, class_num, target_date):
-    """Direct Comcigan request matching the currently working student-site protocol."""
+    """Direct Comcigan request matching the current student-site protocol."""
     base = "http://comci.net:4082"
     endpoint = "36179"
-    school_code = "21009"
 
-    # The current student-site flow performs this request before loading timetable data.
-    _read_url(f"{base}/{endpoint}?17384l{school_code}", timeout=5)
+    # Resolve the Comcigan school code every time from the actual school search.
+    # Do not trust a hard-coded number: these codes are Comcigan-internal.
+    try:
+        encoded_name = "".join(f"%{b:02X}" for b in "논곡중학교".encode("euc-kr"))
+        search_raw = _read_url(
+            f"{base}/{endpoint}?17384l{encoded_name}",
+            timeout=5,
+        )
+        search_data = _comcigan_json(search_raw)
+    except Exception as e:
+        raise RuntimeError(f"학교검색 단계 실패: {type(e).__name__}: {e}") from e
+
+    matches = []
+    for row in search_data.get("학교검색", []):
+        if not isinstance(row, list) or len(row) < 4:
+            continue
+        if str(row[2]).strip() != "논곡중학교":
+            continue
+        region = str(row[1]).strip()
+        if region not in ("인천", "인천광역시"):
+            continue
+        matches.append(row)
+
+    if not matches:
+        raise RuntimeError("학교검색 단계 실패: 인천 논곡중학교 결과 없음")
+
+    raw_school_code = str(matches[0][3]).strip()
+    school_digits = "".join(ch for ch in raw_school_code if ch.isdigit())
+    if not school_digits:
+        raise RuntimeError(f"학교코드 단계 실패: {raw_school_code!r}")
+    school_code = school_digits
+
+    # The current student-site flow performs a code check before timetable fetch.
+    try:
+        _read_url(f"{base}/{endpoint}?17384l{school_code}", timeout=5)
+    except Exception as e:
+        raise RuntimeError(f"학교확인 단계 실패: {type(e).__name__}: {e}") from e
 
     now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
     timestamp = f"{target_date.strftime('%Y-%m-%d')} {now_kst.strftime('%H:%M:%S')}"
     payload = f"73629_{school_code}_{timestamp}_1"
     encoded = base64.b64encode(payload.encode("ascii")).decode("ascii")
-    raw = _comcigan_json(_read_url(f"{base}/{endpoint}?{encoded}", timeout=5))
+
+    try:
+        raw = _comcigan_json(_read_url(f"{base}/{endpoint}?{encoded}", timeout=5))
+    except Exception as e:
+        raise RuntimeError(f"시간표조회 단계 실패: {type(e).__name__}: {e}") from e
 
     changed_all = raw.get("자료147")
     base_all = raw.get("자료481")
@@ -181,7 +219,7 @@ def get_nongok_timetable(grade, class_num):
     friday = monday + timedelta(days=4)
     week_label = f"{monday.strftime('%m/%d')} ~ {friday.strftime('%m/%d')}"
 
-    key = ("comcigan-current-v6", grade, class_num, monday.isoformat())
+    key = ("comcigan-current-v7", grade, class_num, monday.isoformat())
     now = time.time()
     cached = TIMETABLE_CACHE.get(key)
     if cached and cached["expires"] > now:
@@ -567,7 +605,7 @@ def timetable_debug():
     week = 1 if today.weekday() == 6 else 0
     target = today + timedelta(days=1) if today.weekday() == 6 else today
     monday = target - timedelta(days=target.weekday())
-    cache_item = TIMETABLE_CACHE.get(("comcigan-current-v6", grade, class_num, week, monday.isoformat()), {})
+    cache_item = TIMETABLE_CACHE.get(("comcigan-current-v7", grade, class_num, monday.isoformat()), {})
 
     return {
         "grade": grade,
