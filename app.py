@@ -524,7 +524,12 @@ def sitemap_xml():
     from urllib.parse import quote
     for page in pages:
         loc = "https://nongok-wiki.onrender.com/wiki/" + quote(page["title"], safe="")
-        urls.append(f"<url><loc>{loc}</loc></url>")
+        updated = page.get("updated_at")
+        if hasattr(updated, "date"):
+            lastmod = updated.date().isoformat()
+            urls.append(f"<url><loc>{loc}</loc><lastmod>{lastmod}</lastmod></url>")
+        else:
+            urls.append(f"<url><loc>{loc}</loc></url>")
     xml = '<?xml version="1.0" encoding="UTF-8"?>' + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(urls) + "</urlset>"
     return app.response_class(xml, mimetype="application/xml")
 
