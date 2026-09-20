@@ -25,7 +25,7 @@
   </form>
   {% if timetable_error %}<p class="meal-error">{{timetable_error}}</p>{% elif timetable %}
   <div class="timetable-grid">{% for day in timetable %}
-    <article class="timetable-day"><h3>{{day.weekday}}요일</h3>
+    <article class="timetable-day"><h3>{{ day.date.strftime('%m/%d') }} ({{day.weekday}})</h3>
       {% for subject in day.classes %}<div class="timetable-period"><b>{{loop.index}}교시</b><span>{{subject}}</span></div>{% else %}<p>수업 정보 없음</p>{% endfor %}
     </article>
   {% endfor %}</div>
