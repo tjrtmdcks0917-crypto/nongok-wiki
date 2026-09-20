@@ -7,7 +7,7 @@
   <div class="doc-title">
     <h1>{{post.title}}</h1>
     <div class="doc-tools"><a href="{{url_for('gallery')}}">목록</a>
-      {% if current_user and (current_user.id == post.user_id or current_user.role == 'admin') %}
+      {% if current_user and (current_user.id == post.user_id or can_moderate_gallery) %}
       <form method="post" action="{{url_for('gallery_delete_post',post_id=post.id)}}" class="inline-form" onsubmit="return confirm('이 게시물을 삭제할까요?');">
         <input type="hidden" name="csrf" value="{{csrf}}"><button type="submit" class="gallery-delete">삭제</button>
       </form>
@@ -44,7 +44,7 @@
     {% for comment in comments %}
       <article class="gallery-comment">
         <div><a href="{{url_for('user_profile',username=comment.username)}}"><b>{{comment.display_name}}</b></a><small>@{{comment.username}}</small><small>{{comment.created_text}}</small>
-        {% if current_user and (current_user.id == comment.user_id or current_user.role == 'admin') %}
+        {% if current_user and (current_user.id == comment.user_id or can_moderate_gallery) %}
           <form method="post" action="{{url_for('gallery_delete_comment',comment_id=comment.id)}}" class="inline-form" onsubmit="return confirm('이 댓글을 삭제할까요?');">
             <input type="hidden" name="csrf" value="{{csrf}}"><button type="submit">삭제</button>
           </form>

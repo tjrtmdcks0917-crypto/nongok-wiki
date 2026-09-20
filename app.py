@@ -556,6 +556,10 @@ def inject():
         "current_user": user,
         "csrf": session.get("csrf"),
         "can_create_school_posts": bool(user and user.get("school_name") == "논곡중학교"),
+        "can_open_admin": role_at_least(user, "moderator"),
+        "can_manage_documents": role_at_least(user, "teacher"),
+        "can_edit_notice": role_at_least(user, "teacher"),
+        "can_moderate_gallery": role_at_least(user, "moderator"),
         "global_recent": public["global_recent"],
         "global_popular": public["global_popular"],
         "global_daily": public["global_daily"],
@@ -596,6 +600,39 @@ def require_login(fn):
         return fn(*args, **kwargs)
     return wrapper
 
+ROLE_LEVELS = {"user": 0, "moderator": 1, "teacher": 2, "admin": 3}
+ROLE_LABELS = {
+    "user": "일반학생",
+    "moderator": "학생관리자",
+    "teacher": "교사",
+    "admin": "최고관리자",
+}
+
+
+def role_at_least(user, minimum_role):
+    if not user:
+        return False
+    return ROLE_LEVELS.get(user.get("role", "user"), 0) >= ROLE_LEVELS.get(minimum_role, 99)
+
+
+def require_staff(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not role_at_least(current_user(), "moderator"):
+            abort(403)
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def require_teacher(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not role_at_least(current_user(), "teacher"):
+            abort(403)
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 def require_admin(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -604,6 +641,16 @@ def require_admin(fn):
             abort(403)
         return fn(*args, **kwargs)
     return wrapper
+
+
+def can_manage_member(actor, target):
+    if not actor or not target:
+        return False
+    if actor.get("role") == "admin":
+        return target.get("role") != "admin"
+    if actor.get("role") == "teacher":
+        return target.get("role") in {"user", "moderator"}
+    return False
 
 def check_csrf():
     token = request.form.get("csrf")
@@ -1292,11 +1339,13 @@ def index():
     )
 
 @app.route("/admin/homepage/<section_key>", methods=["GET", "POST"])
-@require_admin
+@require_teacher
 def edit_homepage_section(section_key):
     labels = {"notice": "유의사항", "news": "공지사항", "feedback": "피드백", "supporters": "후원자"}
     if section_key not in labels:
         abort(404)
+    if current_user()["role"] != "admin" and section_key != "news":
+        abort(403)
     rows = query("SELECT content FROM homepage_sections WHERE section_key=%s", (section_key,))
     content = rows[0]["content"] if rows else ""
     if request.method == "POST":
@@ -1535,7 +1584,7 @@ def edit(title):
             abort(403)
         if page and page["title"] == "논곡위키:대문" and user["role"] != "admin":
             abort(403)
-        if page and page["protected"] and user["role"] != "admin":
+        if page and page["protected"] and not role_at_least(user, "teacher"):
             abort(403)
         if page:
             execute("INSERT INTO revisions(page_id, title, content, author_id, created_at) VALUES (%s,%s,%s,%s,CURRENT_TIMESTAMP)", (page["id"], page["title"], page["content"], user["id"]))
@@ -1965,7 +2014,7 @@ def notices():
         and datetime.now(timezone.utc) - updated_dt <= timedelta(hours=48)
     )
     user = current_user()
-    admin_view = bool(user and user["role"] == "admin")
+    admin_view = role_at_least(user, "teacher")
     content = raw_content if (is_active or admin_view) else ""
     return render_template(
         "notices.html",
@@ -2158,7 +2207,7 @@ def gallery_delete_post(post_id):
     if not rows:
         abort(404)
     user = current_user()
-    if rows[0]["user_id"] != user["id"] and user["role"] != "admin":
+    if rows[0]["user_id"] != user["id"] and not role_at_least(user, "moderator"):
         abort(403)
     execute("UPDATE gallery_posts SET deleted=TRUE WHERE id=%s", (post_id,))
     flash("게시물을 삭제했습니다.", "success")
@@ -2176,7 +2225,7 @@ def gallery_delete_comment(comment_id):
     if not rows:
         abort(404)
     user = current_user()
-    if rows[0]["user_id"] != user["id"] and user["role"] != "admin":
+    if rows[0]["user_id"] != user["id"] and not role_at_least(user, "moderator"):
         abort(403)
     execute("UPDATE gallery_comments SET deleted=TRUE WHERE id=%s", (comment_id,))
     return redirect(url_for("gallery_post", post_id=rows[0]["post_id"]) + "#comments")
@@ -2445,21 +2494,28 @@ def _admin_page_data(member_q=""):
 
 
 @app.route("/admin")
-@require_admin
+@require_staff
 def admin():
-    member_q = request.args.get("member_q", "").strip()[:30]
-    reports, users = _admin_page_data(member_q)
+    actor = current_user()
+    can_manage_members = role_at_least(actor, "teacher")
+    member_q = request.args.get("member_q", "").strip()[:30] if can_manage_members else ""
+    reports, users = _admin_page_data(member_q) if can_manage_members else (_admin_page_data("")[0], [])
+    for member in users:
+        member["can_manage"] = can_manage_member(actor, member)
     return render_template(
         "admin.html",
         reports=reports,
         users=users,
         reset_result=None,
         member_q=member_q,
+        role_labels=ROLE_LABELS,
+        can_manage_members=can_manage_members,
+        can_change_roles=actor["role"] == "admin",
     )
 
 
 @app.route("/admin/user/<int:user_id>/approval/<status>", methods=["POST"])
-@require_admin
+@require_teacher
 def admin_user_approval(user_id, status):
     check_csrf()
     if status not in {"approved", "rejected"}:
@@ -2469,9 +2525,8 @@ def admin_user_approval(user_id, status):
     if not rows:
         abort(404)
     target = rows[0]
-    if target["role"] == "admin":
-        flash("관리자 계정의 승인 상태는 변경할 수 없습니다.", "warning")
-        return redirect(url_for("admin"))
+    if not can_manage_member(current_user(), target):
+        abort(403)
 
     execute("UPDATE users SET account_status=%s WHERE id=%s", (status, user_id))
     if status == "approved":
@@ -2484,16 +2539,15 @@ def admin_user_approval(user_id, status):
 
 
 @app.route("/admin/user/<int:user_id>/reset-password", methods=["POST"])
-@require_admin
+@require_teacher
 def admin_reset_password(user_id):
     check_csrf()
     rows = query("SELECT id, username, role FROM users WHERE id=%s", (user_id,))
     if not rows:
         abort(404)
     target = rows[0]
-    if target["role"] == "admin":
-        flash("관리자 계정의 비밀번호는 회원 관리 화면에서 초기화할 수 없습니다.", "warning")
-        return redirect(url_for("admin"))
+    if not can_manage_member(current_user(), target):
+        abort(403)
 
     temporary_password = "pw12345"
     execute(
@@ -2503,6 +2557,9 @@ def admin_reset_password(user_id):
 
     member_q = request.form.get("member_q", "").strip()[:30]
     reports, users = _admin_page_data(member_q)
+    actor = current_user()
+    for member in users:
+        member["can_manage"] = can_manage_member(actor, member)
     return render_template(
         "admin.html",
         reports=reports,
@@ -2512,11 +2569,33 @@ def admin_reset_password(user_id):
             "temporary_password": temporary_password,
         },
         member_q=member_q,
+        role_labels=ROLE_LABELS,
+        can_manage_members=True,
+        can_change_roles=actor["role"] == "admin",
     )
 
 
-@app.route("/admin/report/<int:report_id>/<status>", methods=["POST"])
+@app.route("/admin/user/<int:user_id>/role", methods=["POST"])
 @require_admin
+def admin_user_role(user_id):
+    check_csrf()
+    new_role = request.form.get("role", "").strip()
+    if new_role not in {"user", "moderator", "teacher"}:
+        abort(400)
+    rows = query("SELECT id, username, role FROM users WHERE id=%s", (user_id,))
+    if not rows:
+        abort(404)
+    target = rows[0]
+    if target["role"] == "admin":
+        abort(403)
+    execute("UPDATE users SET role=%s WHERE id=%s", (new_role, user_id))
+    flash(f"@{target['username']} 권한을 {ROLE_LABELS[new_role]}(으)로 변경했습니다.", "success")
+    member_q = request.form.get("member_q", "").strip()[:30]
+    return redirect(url_for("admin", member_q=member_q) if member_q else url_for("admin"))
+
+
+@app.route("/admin/report/<int:report_id>/<status>", methods=["POST"])
+@require_staff
 def report_status(report_id, status):
     check_csrf()
     if status not in {"open", "resolved", "dismissed"}:
@@ -2525,16 +2604,26 @@ def report_status(report_id, status):
     return redirect(url_for("admin"))
 
 @app.route("/admin/protect/<int:page_id>", methods=["POST"])
-@require_admin
+@require_teacher
 def protect(page_id):
     check_csrf()
+    rows = query("SELECT title FROM wiki_pages WHERE id=%s AND deleted=FALSE", (page_id,))
+    if not rows:
+        abort(404)
+    if rows[0]["title"] == "논곡위키:대문" and current_user()["role"] != "admin":
+        abort(403)
     execute("UPDATE wiki_pages SET protected=NOT protected WHERE id=%s", (page_id,))
     return redirect(request.referrer or url_for("admin"))
 
 @app.route("/admin/delete/<int:page_id>", methods=["POST"])
-@require_admin
+@require_teacher
 def delete_page(page_id):
     check_csrf()
+    rows = query("SELECT title FROM wiki_pages WHERE id=%s AND deleted=FALSE", (page_id,))
+    if not rows:
+        abort(404)
+    if rows[0]["title"] == "논곡위키:대문" and current_user()["role"] != "admin":
+        abort(403)
     execute("UPDATE wiki_pages SET deleted=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (page_id,))
     return redirect(request.referrer or url_for("admin"))
 

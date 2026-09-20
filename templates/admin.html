@@ -1,104 +1,60 @@
 {% extends "base.html" %}
-{% block title %}관리자 - 논곡위키{% endblock %}
+{% block title %}운영 관리 - 논곡위키{% endblock %}
 {% block content %}
 <section class="card">
-  <h1>관리자</h1>
-  <p>문서 보호, 삭제, 신고 처리와 회원 비밀번호 재설정을 할 수 있습니다.</p>
+  <h1>운영 관리</h1>
+  <p>현재 권한: <b>{{role_labels.get(current_user.role,current_user.role)}}</b></p>
+  <p class="hint">최고관리자: 전체 관리 · 교사: 가입/공지/문서 관리 · 학생관리자: 신고/갤러리 관리</p>
+
+  {% if can_manage_members %}<p><a href="{{url_for('edit_homepage_section',section_key='news')}}">📢 공지사항 작성/편집</a></p>{% endif %}
 
   <h2>신고</h2>
   {% for r in reports %}
   <div class="admin-row">
+    <div><b>{{r.title or '삭제된 문서'}}</b><br>{{r.reason}}<br><small>{{r.username}} · {{r.created_at}} · {{r.status}}</small></div>
     <div>
-      <b>{{ r.title or '삭제된 문서' }}</b><br>
-      {{ r.reason }}<br>
-      <small>{{ r.username }} · {{ r.created_at }} · {{ r.status }}</small>
-    </div>
-    <div>
-      <form method="post" action="{{ url_for('report_status', report_id=r.id, status='resolved') }}">
-        <input type="hidden" name="csrf" value="{{ csrf }}"><button>해결</button>
-      </form>
-      <form method="post" action="{{ url_for('report_status', report_id=r.id, status='dismissed') }}">
-        <input type="hidden" name="csrf" value="{{ csrf }}"><button>기각</button>
-      </form>
+      <form method="post" action="{{url_for('report_status',report_id=r.id,status='resolved')}}"><input type="hidden" name="csrf" value="{{csrf}}"><button>해결</button></form>
+      <form method="post" action="{{url_for('report_status',report_id=r.id,status='dismissed')}}"><input type="hidden" name="csrf" value="{{csrf}}"><button>기각</button></form>
     </div>
   </div>
-  {% else %}
-  <p>신고가 없습니다.</p>
-  {% endfor %}
+  {% else %}<p>신고가 없습니다.</p>{% endfor %}
 </section>
 
+{% if can_manage_members %}
 <section class="card">
-  <h2>회원 정보</h2>
-
-  <form class="admin-member-search" method="get" action="{{ url_for('admin') }}">
-    <input type="search" name="member_q" maxlength="30" value="{{ member_q or '' }}" placeholder="유저 본명 검색 (예: 석승찬)" aria-label="유저 본명 검색">
+  <h2>회원 관리</h2>
+  <form class="admin-member-search" method="get" action="{{url_for('admin')}}">
+    <input type="search" name="member_q" maxlength="30" value="{{member_q or ''}}" placeholder="유저 본명 검색">
     <button type="submit">검색</button>
-    {% if member_q %}<a href="{{ url_for('admin') }}">초기화</a>{% endif %}
+    {% if member_q %}<a href="{{url_for('admin')}}">초기화</a>{% endif %}
   </form>
-  {% if member_q %}
-  <p class="admin-member-search-result"><b>‘{{member_q}}’</b> 검색 결과 {{users|length}}명</p>
-  {% endif %}
-
-  <p class="hint">
-    새로 가입한 회원은 <b>승인 대기</b> 상태로 표시됩니다. 관리자가 가입을 승인해야 로그인할 수 있습니다.<br>
-    기존 비밀번호는 관리자도 볼 수 없으며, 비밀번호 초기화 시 <b>pw12345</b>로 변경됩니다.
-  </p>
 
   {% if reset_result %}
-  <div class="admin-reset-result">
-    <div>
-      <b>@{{reset_result.username}} 임시 비밀번호</b>
-      <code id="generated-temp-password">{{reset_result.temporary_password}}</code>
-      <small>초기 비밀번호는 pw12345야. 로그인한 뒤 프로필에서 새 비밀번호로 바꾸게 해줘.</small>
-    </div>
-    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('generated-temp-password').textContent);this.textContent='복사됨'">복사</button>
-  </div>
+  <div class="admin-reset-result"><div><b>@{{reset_result.username}} 임시 비밀번호</b><code id="generated-temp-password">{{reset_result.temporary_password}}</code><small>로그인 후 새 비밀번호로 변경하도록 안내해 주세요.</small></div><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('generated-temp-password').textContent);this.textContent='복사됨'">복사</button></div>
   {% endif %}
 
   {% for u in users %}
-  <div class="admin-member{% if u.account_status == 'pending' %} is-pending{% elif u.account_status == 'rejected' %} is-rejected{% endif %}">
-    <div class="admin-member-head">
-      <div><b>{{ u.real_name or "이름 미등록" }}</b> <span class="member-id">@{{ u.username }}</span></div>
-      <span class="approval-status status-{{u.account_status}}">
-        {% if u.account_status == 'pending' %}승인 대기{% elif u.account_status == 'approved' %}승인됨{% else %}승인 거절{% endif %}
-      </span>
-    </div>
-    <div class="member-details">
-      <span>아이디: {{ u.username }}</span>
-      <span>학번: {{ u.student_no or "미등록" }}</span>
-      <span>학교: {{ u.school_name or "미등록" }}</span>
-      <span>권한: {{ u.role }}</span>
-      <span>가입일: {{ u.created_at }}</span>
-      <span>현재 비밀번호: 확인 불가</span>
-    </div>
+  <div class="admin-member{% if u.account_status=='pending' %} is-pending{% elif u.account_status=='rejected' %} is-rejected{% endif %}">
+    <div class="admin-member-head"><div><b>{{u.real_name or '이름 미등록'}}</b> <span class="member-id">@{{u.username}}</span></div><span class="approval-status status-{{u.account_status}}">{{role_labels.get(u.role,u.role)}} · {% if u.account_status=='pending' %}승인 대기{% elif u.account_status=='approved' %}승인됨{% else %}승인 거절{% endif %}</span></div>
+    <div class="member-details"><span>학번: {{u.student_no or '미등록'}}</span><span>학교: {{u.school_name or '미등록'}}</span><span>가입일: {{u.created_at}}</span></div>
 
-    {% if u.role != 'admin' %}
+    {% if u.can_manage %}
     <div class="admin-approval-actions">
-      {% if u.account_status != 'approved' %}
-      <form method="post" action="{{url_for('admin_user_approval',user_id=u.id,status='approved')}}">
-        <input type="hidden" name="csrf" value="{{csrf}}">
-        <input type="hidden" name="member_q" value="{{member_q or ''}}">
-        <button class="approve-account" type="submit">가입 승인</button>
-      </form>
-      {% endif %}
-      {% if u.account_status != 'rejected' %}
-      <form method="post" action="{{url_for('admin_user_approval',user_id=u.id,status='rejected')}}" onsubmit="return confirm('@{{u.username}} 가입 승인을 거절할까요?');">
-        <input type="hidden" name="csrf" value="{{csrf}}">
-        <input type="hidden" name="member_q" value="{{member_q or ''}}">
-        <button class="reject-account" type="submit">승인 거절</button>
-      </form>
-      {% endif %}
+      {% if u.account_status!='approved' %}<form method="post" action="{{url_for('admin_user_approval',user_id=u.id,status='approved')}}"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="member_q" value="{{member_q or ''}}"><button class="approve-account">가입 승인</button></form>{% endif %}
+      {% if u.account_status!='rejected' %}<form method="post" action="{{url_for('admin_user_approval',user_id=u.id,status='rejected')}}"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="member_q" value="{{member_q or ''}}"><button class="reject-account">승인 거절</button></form>{% endif %}
+      <form class="admin-password-reset" method="post" action="{{url_for('admin_reset_password',user_id=u.id)}}"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="member_q" value="{{member_q or ''}}"><button type="submit">비밀번호 초기화</button></form>
     </div>
+    {% endif %}
 
-    <form class="admin-password-reset" method="post" action="{{ url_for('admin_reset_password', user_id=u.id) }}">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <input type="hidden" name="member_q" value="{{ member_q or '' }}">
-      <button type="submit" onclick="return confirm('@{{u.username}} 계정의 비밀번호를 초기화할까요? 기존 비밀번호로는 더 이상 로그인할 수 없습니다.');">비밀번호 초기화</button>
+    {% if can_change_roles and u.role!='admin' %}
+    <form method="post" action="{{url_for('admin_user_role',user_id=u.id)}}" style="display:flex;gap:7px;align-items:center;margin-top:10px">
+      <input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="member_q" value="{{member_q or ''}}">
+      <select name="role"><option value="user" {% if u.role=='user' %}selected{% endif %}>일반학생</option><option value="moderator" {% if u.role=='moderator' %}selected{% endif %}>학생관리자</option><option value="teacher" {% if u.role=='teacher' %}selected{% endif %}>교사</option></select>
+      <button type="submit">권한 변경</button>
     </form>
     {% endif %}
   </div>
-  {% else %}
-  <p>{% if member_q %}검색한 본명의 회원이 없습니다.{% else %}회원이 없습니다.{% endif %}</p>
-  {% endfor %}
+  {% else %}<p>회원이 없습니다.</p>{% endfor %}
 </section>
+{% endif %}
 {% endblock %}
