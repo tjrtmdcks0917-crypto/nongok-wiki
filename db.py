@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
     profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43',
     profile_emoji VARCHAR(8),
     role VARCHAR(16) NOT NULL DEFAULT 'user',
+    account_status VARCHAR(16) NOT NULL DEFAULT 'approved',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS wiki_pages (
@@ -196,6 +197,7 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_status VARCHAR(80)")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43'")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_emoji VARCHAR(8)")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status VARCHAR(16) NOT NULL DEFAULT 'approved'")
             conn.execute("ALTER TABLE gallery_posts ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_no_unique "
@@ -220,6 +222,8 @@ def init_db():
                 conn.execute("ALTER TABLE users ADD COLUMN profile_color VARCHAR(7) NOT NULL DEFAULT '#87aa43'")
             if "profile_emoji" not in columns:
                 conn.execute("ALTER TABLE users ADD COLUMN profile_emoji VARCHAR(8)")
+            if "account_status" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN account_status VARCHAR(16) NOT NULL DEFAULT 'approved'")
             gallery_columns = {row[1] for row in conn.execute("PRAGMA table_info(gallery_posts)").fetchall()}
             if "views" not in gallery_columns:
                 conn.execute("ALTER TABLE gallery_posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0")
@@ -252,8 +256,13 @@ def ensure_admin():
     password = os.environ.get("ADMIN_PASSWORD", "")
     if not password:
         return
-    rows = query("SELECT id FROM users WHERE username=%s", (username,))
+    rows = query("SELECT id, account_status FROM users WHERE username=%s", (username,))
     if rows:
+        if rows[0].get("account_status") != "approved":
+            execute("UPDATE users SET account_status='approved' WHERE id=%s", (rows[0]["id"],))
         return
     from werkzeug.security import generate_password_hash
-    execute("INSERT INTO users(username,password_hash,role,created_at) VALUES (%s,%s,'admin',CURRENT_TIMESTAMP)", (username, generate_password_hash(password)))
+    execute(
+        "INSERT INTO users(username,password_hash,role,account_status,created_at) VALUES (%s,%s,'admin','approved',CURRENT_TIMESTAMP)",
+        (username, generate_password_hash(password)),
+    )

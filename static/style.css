@@ -441,3 +441,24 @@
 .term-mention{color:#5367c7;text-decoration:none;border-bottom:1px dashed #8994c9}
 .term-mention:hover{background:#f2f4ff;text-decoration:none;border-bottom-style:solid}
 .term-index-intro{margin:14px 0 24px;padding:14px 16px;border:1px solid #d7dce8;border-left:4px solid #7180ca;background:#fafbff;line-height:1.65}
+
+
+/* School account approval */
+.auth-approval-note{margin:10px 0 2px;padding:10px 12px;border:1px solid #d8c77f;border-radius:7px;background:#fff9df;color:#6d5912;font-size:12px;line-height:1.5}
+.admin-member.is-pending{border-left:4px solid #d8aa22;padding-left:11px;background:#fffdf5}
+.admin-member.is-rejected{opacity:.78;background:#fafafa}
+.admin-member-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+.approval-status{display:inline-block;flex:0 0 auto;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800}
+.approval-status.status-approved{background:#eaf3df;color:#52761d}
+.approval-status.status-pending{background:#fff0b6;color:#896300}
+.approval-status.status-rejected{background:#f3e3e3;color:#963d3d}
+.admin-approval-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.admin-approval-actions form{margin:0}
+.admin-approval-actions button{height:36px;margin:0;padding:0 12px;border-radius:6px;font-weight:700}
+.admin-approval-actions .approve-account{background:var(--green);border-color:#78993b;color:#fff}
+.admin-approval-actions .reject-account{background:#fff;border-color:#c99d9d;color:#973c3c}
+@media(max-width:600px){
+  .admin-member-head{align-items:flex-start;flex-direction:column}
+  .admin-approval-actions{display:grid;grid-template-columns:1fr 1fr}
+  .admin-approval-actions form,.admin-approval-actions button{width:100%}
+}

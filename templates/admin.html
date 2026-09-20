@@ -40,8 +40,8 @@
   {% endif %}
 
   <p class="hint">
-    기존 비밀번호는 관리자도 볼 수 없습니다. 비밀번호를 잊은 회원은
-    <b>비밀번호 초기화</b> 버튼을 누르면 비밀번호가 <b>pw12345</b>로 초기화됩니다.
+    새로 가입한 회원은 <b>승인 대기</b> 상태로 표시됩니다. 관리자가 가입을 승인해야 로그인할 수 있습니다.<br>
+    기존 비밀번호는 관리자도 볼 수 없으며, 비밀번호 초기화 시 <b>pw12345</b>로 변경됩니다.
   </p>
 
   {% if reset_result %}
@@ -56,8 +56,13 @@
   {% endif %}
 
   {% for u in users %}
-  <div class="admin-member">
-    <div><b>{{ u.real_name or "이름 미등록" }}</b> <span class="member-id">@{{ u.username }}</span></div>
+  <div class="admin-member{% if u.account_status == 'pending' %} is-pending{% elif u.account_status == 'rejected' %} is-rejected{% endif %}">
+    <div class="admin-member-head">
+      <div><b>{{ u.real_name or "이름 미등록" }}</b> <span class="member-id">@{{ u.username }}</span></div>
+      <span class="approval-status status-{{u.account_status}}">
+        {% if u.account_status == 'pending' %}승인 대기{% elif u.account_status == 'approved' %}승인됨{% else %}승인 거절{% endif %}
+      </span>
+    </div>
     <div class="member-details">
       <span>아이디: {{ u.username }}</span>
       <span>학번: {{ u.student_no or "미등록" }}</span>
@@ -68,6 +73,23 @@
     </div>
 
     {% if u.role != 'admin' %}
+    <div class="admin-approval-actions">
+      {% if u.account_status != 'approved' %}
+      <form method="post" action="{{url_for('admin_user_approval',user_id=u.id,status='approved')}}">
+        <input type="hidden" name="csrf" value="{{csrf}}">
+        <input type="hidden" name="member_q" value="{{member_q or ''}}">
+        <button class="approve-account" type="submit">가입 승인</button>
+      </form>
+      {% endif %}
+      {% if u.account_status != 'rejected' %}
+      <form method="post" action="{{url_for('admin_user_approval',user_id=u.id,status='rejected')}}" onsubmit="return confirm('@{{u.username}} 가입 승인을 거절할까요?');">
+        <input type="hidden" name="csrf" value="{{csrf}}">
+        <input type="hidden" name="member_q" value="{{member_q or ''}}">
+        <button class="reject-account" type="submit">승인 거절</button>
+      </form>
+      {% endif %}
+    </div>
+
     <form class="admin-password-reset" method="post" action="{{ url_for('admin_reset_password', user_id=u.id) }}">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="hidden" name="member_q" value="{{ member_q or '' }}">

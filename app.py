@@ -580,7 +580,7 @@ def current_user():
         return None
     rows = query(
         "SELECT id, username, real_name, student_no, school_name, profile_name, profile_bio, "
-        "profile_status, profile_color, profile_emoji, role FROM users WHERE id = %s",
+        "profile_status, profile_color, profile_emoji, role, account_status FROM users WHERE id = %s",
         (uid,),
     )
     g.current_user_value = rows[0] if rows else None
@@ -2278,8 +2278,8 @@ def register():
         if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
             flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
             return redirect(url_for("register"))
-        if len(school_name) < 2 or len(school_name) > 80:
-            flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
+        if school_name != "논곡중학교":
+            flash("논곡중학교 재학생만 가입 신청할 수 있습니다.", "warning")
             return redirect(url_for("register"))
         if not re.fullmatch(r"[A-Za-z0-9가-힣_]{2,24}", username):
             flash("아이디는 2~24자의 한글/영문/숫자/밑줄만 사용할 수 있습니다.", "warning")
@@ -2299,11 +2299,11 @@ def register():
             return redirect(url_for("register"))
 
         execute(
-            """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,created_at)
-               VALUES (%s,%s,%s,%s,%s,'user',CURRENT_TIMESTAMP)""",
+            """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,account_status,created_at)
+               VALUES (%s,%s,%s,%s,%s,'user','pending',CURRENT_TIMESTAMP)""",
             (username, generate_password_hash(password), real_name, student_no, school_name),
         )
-        flash("회원가입이 완료되었습니다. 로그인해 주세요.", "success")
+        flash("가입 신청이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.", "success")
         return redirect(url_for("login"))
     return render_template("auth.html", mode="register")
 
@@ -2316,16 +2316,25 @@ def login():
 
         rows = query("SELECT * FROM users WHERE username=%s", (username,))
         if rows and check_password_hash(rows[0]["password_hash"], password):
-            session["user_id"] = rows[0]["id"]
-            flash("로그인되었습니다.", "success")
-            if rows[0]["role"] != "admin" and (
-                not rows[0].get("real_name")
-                or not rows[0].get("student_no")
-                or not rows[0].get("school_name")
-            ):
-                return redirect(url_for("identity_setup"))
-            return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
-        flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
+            account = rows[0]
+            status = account.get("account_status", "approved")
+            if account["role"] != "admin" and status != "approved":
+                if status == "pending":
+                    flash("가입 승인 대기 중입니다. 관리자가 승인한 뒤 로그인할 수 있습니다.", "warning")
+                else:
+                    flash("가입 승인이 거절되었거나 비활성화된 계정입니다. 관리자에게 문의해 주세요.", "warning")
+            else:
+                session["user_id"] = account["id"]
+                flash("로그인되었습니다.", "success")
+                if account["role"] != "admin" and (
+                    not account.get("real_name")
+                    or not account.get("student_no")
+                    or not account.get("school_name")
+                ):
+                    return redirect(url_for("identity_setup"))
+                return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
+        else:
+            flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
     return render_template(
         "auth.html",
         mode="login",
@@ -2413,17 +2422,19 @@ def _admin_page_data(member_q=""):
     )
     if member_q:
         users = query(
-            """SELECT id, username, real_name, student_no, school_name, role, created_at
+            """SELECT id, username, real_name, student_no, school_name, role, account_status, created_at
                FROM users
                WHERE COALESCE(real_name, '') ILIKE %s
-               ORDER BY real_name ASC, created_at DESC
+               ORDER BY CASE account_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END,
+                        real_name ASC, created_at DESC
                LIMIT 100""",
             (f"%{member_q}%",),
         )
     else:
         users = query(
-            "SELECT id, username, real_name, student_no, school_name, role, created_at "
-            "FROM users ORDER BY created_at DESC LIMIT 100"
+            "SELECT id, username, real_name, student_no, school_name, role, account_status, created_at "
+            "FROM users ORDER BY CASE account_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, "
+            "created_at DESC LIMIT 100"
         )
     return reports, users
 
@@ -2440,6 +2451,31 @@ def admin():
         reset_result=None,
         member_q=member_q,
     )
+
+
+@app.route("/admin/user/<int:user_id>/approval/<status>", methods=["POST"])
+@require_admin
+def admin_user_approval(user_id, status):
+    check_csrf()
+    if status not in {"approved", "rejected"}:
+        abort(400)
+
+    rows = query("SELECT id, username, role FROM users WHERE id=%s", (user_id,))
+    if not rows:
+        abort(404)
+    target = rows[0]
+    if target["role"] == "admin":
+        flash("관리자 계정의 승인 상태는 변경할 수 없습니다.", "warning")
+        return redirect(url_for("admin"))
+
+    execute("UPDATE users SET account_status=%s WHERE id=%s", (status, user_id))
+    if status == "approved":
+        flash(f"@{target['username']} 가입을 승인했습니다.", "success")
+    else:
+        flash(f"@{target['username']} 가입 승인을 거절했습니다.", "success")
+
+    member_q = request.form.get("member_q", "").strip()[:30]
+    return redirect(url_for("admin", member_q=member_q) if member_q else url_for("admin"))
 
 
 @app.route("/admin/user/<int:user_id>/reset-password", methods=["POST"])
