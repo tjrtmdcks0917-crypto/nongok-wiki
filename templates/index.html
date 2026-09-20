@@ -57,39 +57,36 @@
 
   {% for group in document_groups %}
   <div class="home-doc-group">
-    <button class="home-doc-toggle" type="button" aria-expanded="{{ 'true' if group.label == '학교 시설 목록' else 'false' }}" aria-controls="home-doc-panel-{{loop.index}}" onclick="toggleHomeDocs(this)">
+    <button class="home-doc-toggle" type="button" aria-expanded="false" aria-controls="home-doc-panel-{{loop.index}}" onclick="toggleHomeDocs(this)">
       <strong>{{group.label}}</strong>
-      <span class="home-doc-control"><span class="arrow">{{ '▼' if group.label == '학교 시설 목록' else '▶' }}</span> [ 펼치기 · 접기 ]</span>
+      <span class="home-doc-control"><span class="arrow">▶</span> [ 펼치기 · 접기 ]</span>
     </button>
-    <div class="home-doc-links{% if group.label == '학교 시설 목록' %} facility-directory{% endif %}" id="home-doc-panel-{{loop.index}}" {% if group.label != '학교 시설 목록' %}hidden{% endif %}>
+    <div class="home-doc-links{% if group.label == '학교 시설 목록' %} facility-directory{% endif %}" id="home-doc-panel-{{loop.index}}" hidden>
       {% if group.label == '학교 시설 목록' %}
-        <a class="facility-overview-link" href="{{url_for('wiki',title='학교 시설')}}">학교 시설 전체 안내</a>
-        <div class="facility-subgroups">
-          {% for facility in facility_groups %}
-          <div class="facility-subgroup">
-            <button class="facility-subtoggle" type="button"
-                    aria-expanded="{{ 'true' if loop.first else 'false' }}"
-                    aria-controls="facility-panel-{{loop.index}}"
-                    onclick="toggleFacilityDocs(this)">
-              <span class="arrow">{{ '▼' if loop.first else '▶' }}</span>
-              {{facility.label}}
-              <span>[펼치기 · 접기]</span>
-            </button>
-            <div class="facility-sublinks" id="facility-panel-{{loop.index}}" {% if not loop.first %}hidden{% endif %}>
-              <table class="facility-table">
-                <tbody>
-                  {% for row in facility['rows'] %}
-                  <tr>
-                    <th>{{row[0]}}</th>
-                    <td>{{row[1]}}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-              <a class="facility-detail-link" href="{{url_for('wiki',title=facility.title)}}">이 시설 문서 자세히 보기 →</a>
-            </div>
+        <div class="facility-oneview">
+          <div class="facility-oneview-head">
+            <a href="{{url_for('wiki',title='학교 시설')}}">학교 시설 전체 안내</a>
+            <span>한 번 펼치면 전관·후관·기타 시설을 모두 볼 수 있습니다.</span>
           </div>
-          {% endfor %}
+          <table class="facility-overview-table">
+            <thead>
+              <tr><th>관·구역</th><th>층</th><th>시설</th></tr>
+            </thead>
+            <tbody>
+            {% for section in facility_layout %}
+              <tr>
+                <th class="facility-area">{{section.area}}</th>
+                <td class="facility-floor">{{section.floor}}</td>
+                <td class="facility-rooms">
+                  {% for room in section['rooms'] %}
+                    <span>{{room}}</span>
+                  {% endfor %}
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          <p class="facility-layout-note">※ 확인되지 않은 층별 위치는 임의로 넣지 않았습니다. 정확한 층 배치를 확인하면 각 층별 행으로 나누어 추가할 수 있습니다.</p>
         </div>
       {% else %}
         {% for title in group['items'] %}
@@ -129,14 +126,6 @@
 function toggleHomeDocs(button){
   const panelId = button.getAttribute('aria-controls');
   const panel = document.getElementById(panelId);
-  const expanded = button.getAttribute('aria-expanded') === 'true';
-  button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-  panel.hidden = expanded;
-  const arrow = button.querySelector('.arrow');
-  if (arrow) arrow.textContent = expanded ? '▶' : '▼';
-}
-function toggleFacilityDocs(button){
-  const panel = document.getElementById(button.getAttribute('aria-controls'));
   const expanded = button.getAttribute('aria-expanded') === 'true';
   button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
   panel.hidden = expanded;
