@@ -185,3 +185,22 @@
  .gallery-card p{min-height:0}.gallery-images{grid-template-columns:1fr}.gallery-comment-form{grid-template-columns:1fr}.gallery-comment-form button{width:100%}
  .gallery-author{flex-wrap:wrap}
 }
+
+/* Editing guidelines */
+.guideline-intro{display:flex;align-items:center;gap:18px;border:1px solid #9daa7e;background:#f8fbf2;padding:22px 24px;margin:18px 0}
+.guideline-badge{width:54px;height:54px;flex:0 0 54px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-size:30px;font-weight:900}
+.guideline-intro h2{font-size:24px;margin:0 0 7px}.guideline-intro p{margin:0;line-height:1.65;color:#555}
+.guideline-summary{display:flex;align-items:center;flex-wrap:wrap;gap:7px;border:1px solid #d5d9dc;background:#fafbfc;padding:12px 14px;margin-bottom:14px}
+.guideline-summary b{margin-right:5px}.guideline-summary span{border:1px solid #cfd4d8;background:#fff;border-radius:16px;padding:4px 9px;font-size:12px}
+.guideline-toc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid #d6d9dc;margin:12px 0 26px}
+.guideline-toc a{padding:9px 12px;border-bottom:1px solid #eee;color:var(--text)}.guideline-toc a:nth-child(odd){border-right:1px solid #eee}.guideline-toc a:hover{background:#f7f9f5;text-decoration:none}
+.guideline-section{scroll-margin-top:82px;border-top:1px solid #bbb;padding:23px 2px 5px}.guideline-section h2{display:flex;align-items:center;gap:9px;font-size:22px;margin:0 0 12px}
+.guideline-section h2>span{display:inline-grid;place-items:center;width:29px;height:29px;border-radius:50%;background:#edf3df;color:#58751e;font-size:14px}
+.guideline-section p,.guideline-section li{line-height:1.75}.guideline-section ul{padding-left:23px;margin:8px 0 13px}.guideline-section li{margin:6px 0}
+.guideline-important{border-left:4px solid #d1b352;padding-left:13px;background:linear-gradient(90deg,#fffbea 0,#fff 190px)}
+.guideline-footer{margin-top:24px;border:1px solid #cfd6c4;background:#f8faf4;padding:14px 16px;line-height:1.7}
+@media(max-width:650px){
+ .guideline-intro{padding:16px;gap:12px}.guideline-badge{width:44px;height:44px;flex-basis:44px;font-size:24px}.guideline-intro h2{font-size:19px}
+ .guideline-toc{grid-template-columns:1fr}.guideline-toc a:nth-child(odd){border-right:0}.guideline-section h2{font-size:19px}.guideline-section h2>span{width:25px;height:25px;font-size:12px}
+ .guideline-important{padding-left:10px}
+}
