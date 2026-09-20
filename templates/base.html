@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}NOGOK Wiki{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<title>{% block title %}논곡위키 | 논곡중학교 학생 위키{% endblock %}</title>
+<meta name="description" content="논곡위키는 논곡중학교의 학교생활, 시설, 동아리, 행사 등 다양한 정보를 함께 기록하는 학생 위키입니다.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="{{ request.url }}">
+<meta property="og:site_name" content="논곡위키">
+<meta property="og:title" content="{% block og_title %}논곡위키 | NONGOK Wiki{% endblock %}">
+<meta property="og:description" content="논곡중학교에 관한 다양한 정보를 함께 기록하는 학생 위키입니다.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ request.url }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='nongok-favicon.svg', v='1') }}"></head>
 <body>
 <header class="top"><div class="top-inner">
