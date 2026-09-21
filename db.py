@@ -190,6 +190,18 @@ CREATE TABLE IF NOT EXISTS site_visits (
     first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (visit_date, visitor_key)
 );
+CREATE INDEX IF NOT EXISTS idx_wiki_pages_deleted_updated
+    ON wiki_pages(deleted, updated_at);
+CREATE INDEX IF NOT EXISTS idx_page_views_page_time
+    ON page_views(page_id, viewed_at);
+CREATE INDEX IF NOT EXISTS idx_gallery_posts_deleted_id
+    ON gallery_posts(deleted, id);
+CREATE INDEX IF NOT EXISTS idx_gallery_images_post_id
+    ON gallery_images(post_id, id);
+CREATE INDEX IF NOT EXISTS idx_gallery_comments_post_deleted
+    ON gallery_comments(post_id, deleted, id);
+CREATE INDEX IF NOT EXISTS idx_site_visits_date_seen
+    ON site_visits(visit_date, first_seen_at);
 """
 
 BACKUP_TABLE_COLUMNS = {

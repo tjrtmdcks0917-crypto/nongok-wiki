@@ -31,7 +31,7 @@
 }
 </script>
 <article class="document">
-<div class="doc-title"><h1>논곡위키</h1><div class="doc-tools"><span>☆</span>{% if current_user and current_user.role=='admin' %}<span>각 항목의 편집 버튼을 눌러 수정해 주세요</span>{% endif %}<a href="{{url_for('wiki',title='논곡위키:대문')}}">문서</a><a href="{{url_for('wiki',title='도움말')}}">도움말</a></div></div>
+<div class="doc-title"><h1>논곡위키</h1><div class="doc-tools"><span>☆</span>{% if current_user and can_edit_homepage %}<span>각 항목의 편집 버튼을 눌러 수정해 주세요</span>{% endif %}<a href="{{url_for('wiki',title='논곡위키:대문')}}">문서</a><a href="{{url_for('wiki',title='도움말')}}">도움말</a></div></div>
 <div class="official">이 문서는 <b>논곡위키의 공식 대문</b>입니다.<br>대문 내용은 관리자만 수정할 수 있습니다.</div>
 <section class="main-banner"><img class="nongok-main-logo" src="{{ url_for('static', filename='nongok-logo.svg', v='8') }}" alt="논곡위키"><h2>논곡위키</h2><p>논곡중학교 학생 위키에 오신 것을 환영합니다.</p><hr><p>논곡위키는 논곡중학교에 관한 공개 정보를 함께 기록하는 학생 위키입니다.</p><p>편하게 문서를 작성해 주세요. 필요한 경우 <a href="{{url_for('wiki',title='편집지침')}}">편집 안내</a>와 <a href="{{url_for('wiki',title='도움말')}}">도움말</a>을 참고하실 수 있습니다.</p></section>
 <table class="home-directory-head">
@@ -191,15 +191,15 @@ function toggleHomeDocs(button){
 }
 </script>
 <div class="toc"><b>목차</b><a href="#notice">1. 유의사항</a><a href="#news">2. 공지사항</a><a href="#feedback">3. 피드백</a><a href="#supporters">4. 후원자</a></div>
-<h2 class="section" id="notice">1. 유의사항 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='notice')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.notice|safe }}</div>
-<h2 class="section" id="news">2. 공지사항 {% if site_notice_active %}<span class="notice-new-chip">NEW</span>{% endif %} {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='news')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2>
+<h2 class="section" id="notice">1. 유의사항 {% if current_user and can_edit_homepage %}<a href="{{url_for('edit_homepage_section',section_key='notice')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.notice|safe }}</div>
+<h2 class="section" id="news">2. 공지사항 {% if site_notice_active %}<span class="notice-new-chip">NEW</span>{% endif %} {% if current_user and can_edit_homepage %}<a href="{{url_for('edit_homepage_section',section_key='news')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2>
 {% if site_notice_active %}
 <div class="homepage-admin-notice fresh">{{ site_notice_html|safe }}</div>
-{% elif current_user and current_user.role=='admin' %}
+{% elif current_user and can_edit_homepage %}
 <div class="homepage-admin-notice expired">현재 공개 중인 공지가 없습니다. 새 공지를 저장하면 48시간 동안 표시됩니다.</div>
 {% endif %}
-<h2 class="section" id="feedback">3. 피드백 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='feedback')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.feedback|safe }}</div>
-<h2 class="section" id="supporters">4. 후원자 {% if current_user and current_user.role=='admin' %}<a href="{{url_for('edit_homepage_section',section_key='supporters')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.supporters|safe }}</div>
+<h2 class="section" id="feedback">3. 피드백 {% if current_user and can_edit_homepage %}<a href="{{url_for('edit_homepage_section',section_key='feedback')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.feedback|safe }}</div>
+<h2 class="section" id="supporters">4. 후원자 {% if current_user and can_edit_homepage %}<a href="{{url_for('edit_homepage_section',section_key='supporters')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.supporters|safe }}</div>
 
 <section class="home-operators">
   <table>

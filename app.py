@@ -35,9 +35,9 @@ TIMETABLE_CACHE = {}
 PUBLIC_CONTEXT_CACHE = {"expires": 0.0, "data": None}
 PERSON_NAMES_CACHE = {"expires": 0.0, "names": None}
 REPEATED_TERMS_CACHE = {"expires": 0.0, "terms": None}
-PUBLIC_CONTEXT_TTL = 12
-PERSON_NAMES_TTL = 30
-REPEATED_TERMS_TTL = 45
+PUBLIC_CONTEXT_TTL = 60
+PERSON_NAMES_TTL = 120
+REPEATED_TERMS_TTL = 180
 
 def _masked_teacher_name(value):
     name = str(value or "").strip()
@@ -583,7 +583,8 @@ def inject():
         "can_create_school_posts": bool(user),
         "can_open_admin": role_at_least(user, "moderator"),
         "can_manage_documents": role_at_least(user, "teacher"),
-        "can_edit_notice": role_at_least(user, "teacher"),
+        "can_edit_homepage": role_at_least(user, "moderator"),
+        "can_edit_notice": role_at_least(user, "moderator"),
         "can_moderate_gallery": role_at_least(user, "moderator"),
         "can_use_school_spaces": bool(role_at_least(user, "teacher") or _student_school_space_identity(user)),
         "global_recent": public["global_recent"],
@@ -1609,13 +1610,11 @@ def index():
     )
 
 @app.route("/admin/homepage/<section_key>", methods=["GET", "POST"])
-@require_teacher
+@require_staff
 def edit_homepage_section(section_key):
     labels = {"notice": "유의사항", "news": "공지사항", "feedback": "피드백", "supporters": "후원자"}
     if section_key not in labels:
         abort(404)
-    if current_user()["role"] != "admin" and section_key != "news":
-        abort(403)
     rows = query("SELECT content FROM homepage_sections WHERE section_key=%s", (section_key,))
     content = rows[0]["content"] if rows else ""
     if request.method == "POST":
@@ -2592,7 +2591,7 @@ def notices():
         and datetime.now(timezone.utc) - updated_dt <= timedelta(hours=48)
     )
     user = current_user()
-    admin_view = role_at_least(user, "teacher")
+    admin_view = role_at_least(user, "moderator")
     content = raw_content if (is_active or admin_view) else ""
     return render_template(
         "notices.html",
@@ -2612,32 +2611,30 @@ def gallery():
     latest_id = int(latest_row["max_id"] or 0)
     user = current_user()
     if user:
-        read_rows = query(
-            "SELECT user_id FROM gallery_reads WHERE user_id=%s",
-            (user["id"],),
+        execute(
+            """INSERT INTO gallery_reads(user_id,last_seen_post_id,updated_at)
+               VALUES (%s,%s,CURRENT_TIMESTAMP)
+               ON CONFLICT(user_id) DO UPDATE
+               SET last_seen_post_id=excluded.last_seen_post_id,
+                   updated_at=CURRENT_TIMESTAMP""",
+            (user["id"], latest_id),
         )
-        if read_rows:
-            execute(
-                "UPDATE gallery_reads SET last_seen_post_id=%s, updated_at=CURRENT_TIMESTAMP WHERE user_id=%s",
-                (latest_id, user["id"]),
-            )
-        else:
-            execute(
-                "INSERT INTO gallery_reads(user_id,last_seen_post_id,updated_at) VALUES (%s,%s,CURRENT_TIMESTAMP)",
-                (user["id"], latest_id),
-            )
     else:
         session["gallery_seen_post_id"] = latest_id
 
     posts = query(
         """SELECT p.id, p.title, p.body, p.created_at, p.views, u.username,
                   COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name,
-                  (SELECT COUNT(*) FROM gallery_images gi WHERE gi.post_id=p.id) AS image_count,
-                  (SELECT COUNT(*) FROM gallery_comments gc WHERE gc.post_id=p.id AND gc.deleted=FALSE) AS comment_count,
-                  (SELECT MIN(gi.id) FROM gallery_images gi WHERE gi.post_id=p.id) AS cover_image_id
+                  COUNT(DISTINCT gi.id) AS image_count,
+                  COUNT(DISTINCT CASE WHEN gc.deleted=FALSE THEN gc.id END) AS comment_count,
+                  MIN(gi.id) AS cover_image_id
            FROM gallery_posts p
            JOIN users u ON u.id=p.user_id
+           LEFT JOIN gallery_images gi ON gi.post_id=p.id
+           LEFT JOIN gallery_comments gc ON gc.post_id=p.id
            WHERE p.deleted=FALSE
+           GROUP BY p.id, p.title, p.body, p.created_at, p.views,
+                    u.username, u.real_name
            ORDER BY p.created_at DESC, p.id DESC
            LIMIT 50"""
     )

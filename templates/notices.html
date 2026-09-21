@@ -7,7 +7,7 @@
     <h1>공지사항{% if notice_is_active %}<span class="notice-new-label">NEW</span>{% endif %}</h1>
     <div class="doc-tools">
       <a href="{{url_for('index')}}">대문</a>
-      {% if current_user and current_user.role == 'admin' %}
+      {% if current_user and can_edit_notice %}
       <a href="{{url_for('edit_homepage_section',section_key='news')}}">공지 편집</a>
       {% endif %}
     </div>

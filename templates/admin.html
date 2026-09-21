@@ -4,9 +4,9 @@
 <section class="card">
   <h1>운영 관리</h1>
   <p>현재 권한: <b>{{role_labels.get(current_user.role,current_user.role)}}</b></p>
-  <p class="hint">최고관리자: 전체 관리 · 교사: 공지/문서/회원 관리 · 학생관리자: 신고/갤러리 관리</p>
+  <p class="hint">최고관리자: 전체 관리 · 교사: 문서/회원 관리 · 학생관리자: 대문/공지/신고/갤러리 관리</p>
 
-  {% if can_manage_members %}<p><a href="{{url_for('edit_homepage_section',section_key='news')}}">📢 공지사항 작성/편집</a></p>{% endif %}
+  <p><a href="{{url_for('edit_homepage_section',section_key='news')}}">📢 공지사항 작성/편집</a> · <a href="{{url_for('index')}}">🏠 대문 설정</a></p>
 
   <h2>신고</h2>
   {% for r in reports %}

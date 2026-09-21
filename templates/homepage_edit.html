@@ -3,7 +3,7 @@
 {% block content %}
 <article class="document">
   <div class="doc-title"><h1>대문 · {{ section_label }} 편집</h1></div>
-  <div class="official">이 항목은 관리자만 수정할 수 있습니다. 저장하면 대문에 바로 반영됩니다.{% if section_key == 'news' %}<br><b>공지사항은 저장한 시점부터 48시간 동안 대문과 상단 메뉴에서 NEW로 강조됩니다.</b>{% endif %}</div>
+  <div class="official">이 항목은 학생관리자 이상 운영진이 수정할 수 있습니다. 저장하면 대문에 바로 반영됩니다.{% if section_key == 'news' %}<br><b>공지사항은 저장한 시점부터 48시간 동안 대문과 상단 메뉴에서 NEW로 강조됩니다.</b>{% endif %}</div>
   <form method="post" class="edit-form">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label for="content"><b>{{ section_label }} 내용</b></label>
