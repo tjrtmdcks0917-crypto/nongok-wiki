@@ -28,7 +28,7 @@
       <div id="studentNoField" {% if identity_user.is_graduate %}hidden{% endif %}>
         <label for="student_no">학번</label>
         <input id="student_no" name="student_no" maxlength="5" minlength="5" inputmode="numeric" pattern="[1-3][0-9]{4}" autocomplete="off" placeholder="예: 10101" value="{{identity_user.student_no or ''}}" {% if not identity_user.is_graduate %}required{% endif %}>
-        <div class="field-help">형식: 1~3(학년) + 01~05(반) + 01~29(번호). 학번은 관리자만 확인합니다.</div>
+        <div class="field-help">형식: 1~3(학년) + 01~05(반) + 01~29(번호). 예: 10401 = 1학년 4반 1번, 10501 = 1학년 5반 1번. 학번은 관리자만 확인합니다.</div>
       </div>
 
       <label id="schoolNameLabel" for="school_name">{% if identity_user.is_graduate %}현재 재학 중인 고등학교{% else %}현재 재학 중인 학교{% endif %}</label>

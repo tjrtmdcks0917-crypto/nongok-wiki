@@ -28,7 +28,7 @@
         <h2>{{g}}학년</h2>
         <div class="school-space-grid">
           <a class="school-space-link grade" href="{{url_for('school_space_grade',grade=g)}}"><b>{{g}}학년 전체</b><span>학년 게시판</span></a>
-          {% for c in range(1,5) %}
+          {% for c in range(1,6) %}
           <a class="school-space-link" href="{{url_for('school_space_class',grade=g,class_no=c)}}"><b>{{g}}학년 {{c}}반</b><span>학급 게시판</span></a>
           {% endfor %}
         </div>
@@ -44,7 +44,7 @@
     <div class="school-space-scope-nav">
       <a href="{{url_for('school_space_grade',grade=grade)}}" class="{% if scope_type=='grade' %}active{% endif %}">{{grade}}학년 전체</a>
       {% if all_access %}
-        {% for c in range(1,5) %}
+        {% for c in range(1,6) %}
         <a href="{{url_for('school_space_class',grade=grade,class_no=c)}}" class="{% if scope_type=='class' and class_no==c %}active{% endif %}">{{c}}반</a>
         {% endfor %}
       {% elif identity %}

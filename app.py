@@ -673,7 +673,7 @@ def _student_school_space_identity(user):
         class_no = int(student_no[2:4])
     else:
         return None
-    if grade not in {1, 2, 3} or class_no not in {1, 2, 3, 4}:
+    if grade not in {1, 2, 3} or class_no not in {1, 2, 3, 4, 5}:
         return None
     return {"grade": grade, "class_no": class_no}
 
@@ -681,7 +681,7 @@ def _student_school_space_identity(user):
 def _can_access_school_space(user, grade, class_no=None):
     if grade not in {1, 2, 3}:
         return False
-    if class_no is not None and class_no not in {1, 2, 3, 4}:
+    if class_no is not None and class_no not in {1, 2, 3, 4, 5}:
         return False
     if role_at_least(user, "teacher"):
         return True
