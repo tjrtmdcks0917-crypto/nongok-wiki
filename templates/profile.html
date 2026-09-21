@@ -32,6 +32,20 @@
   </section>
 
   <section class="profile-feed">
+    <h2>작성한 위키 문서</h2>
+    <div class="profile-post-grid">
+    {% for page in wiki_pages %}
+      <a href="{{url_for('wiki',title=page.title)}}">
+        <b>{{page.title}}</b>
+        <small>조회 {{page.views}}</small>
+      </a>
+    {% else %}
+      <p class="social-empty">아직 작성한 위키 문서가 없습니다.</p>
+    {% endfor %}
+    </div>
+  </section>
+
+  <section class="profile-feed">
     <h2>논곡갤러리 게시물</h2>
     <div class="profile-post-grid">
     {% for post in gallery_posts %}

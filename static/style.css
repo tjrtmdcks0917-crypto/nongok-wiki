@@ -626,3 +626,11 @@
 @media(max-width:700px){
   .gallery-comment.is-reply{margin-left:18px;padding-left:10px}
 }
+
+
+/* Clickable gallery authors */
+.gallery-card-link{display:block;color:var(--text)}
+.gallery-card-link:hover{text-decoration:none}
+.gallery-card-author{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 13px 13px;font-size:12px}
+.gallery-card-author a{font-weight:700}
+.gallery-card-author span{color:#888;white-space:nowrap}

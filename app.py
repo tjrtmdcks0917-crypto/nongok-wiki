@@ -1866,6 +1866,31 @@ def person_mentions(name):
         row["is_home"] = False
         pages.append(row)
 
+    matching_users = query(
+        """SELECT id FROM users
+           WHERE real_name=%s AND account_status<>'withdrawn'
+           ORDER BY id ASC""",
+        (name,),
+    )
+    existing_titles = {page["title"] for page in pages}
+    for matched_user in matching_users:
+        authored_rows = query(
+            """SELECT title, updated_at, views
+               FROM wiki_pages
+               WHERE deleted=FALSE AND author_id=%s
+               ORDER BY updated_at DESC, title ASC
+               LIMIT 100""",
+            (matched_user["id"],),
+        )
+        for authored in authored_rows:
+            if authored["title"] in existing_titles:
+                continue
+            authored["snippet"] = "이 이름의 회원이 작성한 위키 문서입니다."
+            authored["url"] = url_for("wiki", title=authored["title"])
+            authored["is_home"] = False
+            pages.append(authored)
+            existing_titles.add(authored["title"])
+
     homepage_rows = query("SELECT content FROM homepage_sections ORDER BY section_key")
     homepage_text = " ".join(str(row.get("content") or "") for row in homepage_rows)
     if name in HOME_OPERATOR_NAMES:
@@ -1905,7 +1930,7 @@ def wiki(title):
     execute("UPDATE wiki_pages SET views=views+1 WHERE id=%s", (page["id"],))
     execute("INSERT INTO page_views(page_id, viewed_at) VALUES (%s, CURRENT_TIMESTAMP)", (page["id"],))
     discussions = query(
-        """SELECT d.*, u.username FROM discussions d
+        """SELECT d.*, u.username, u.real_name FROM discussions d
            LEFT JOIN users u ON u.id=d.user_id
            WHERE d.page_id=%s ORDER BY d.created_at DESC LIMIT 50""",
         (page["id"],),
@@ -2394,7 +2419,15 @@ def user_profile(username):
     gallery_posts = query(
         """SELECT id, title, created_at FROM gallery_posts
            WHERE user_id=%s AND deleted=FALSE
-           ORDER BY created_at DESC, id DESC LIMIT 6""",
+           ORDER BY created_at DESC, id DESC LIMIT 30""",
+        (profile["id"],),
+    )
+    wiki_pages = query(
+        """SELECT title, updated_at, views
+           FROM wiki_pages
+           WHERE author_id=%s AND deleted=FALSE
+           ORDER BY updated_at DESC, title ASC
+           LIMIT 100""",
         (profile["id"],),
     )
     for post in gallery_posts:
@@ -2406,6 +2439,7 @@ def user_profile(username):
         following_count=following_count,
         is_following=is_following,
         gallery_posts=gallery_posts,
+        wiki_pages=wiki_pages,
     )
 
 
@@ -3038,7 +3072,10 @@ def gallery_delete_comment(comment_id):
     if rows[0]["user_id"] != user["id"] and not role_at_least(user, "moderator"):
         abort(403)
     moderated = rows[0]["user_id"] != user["id"]
-    execute("UPDATE gallery_comments SET deleted=TRUE WHERE id=%s", (comment_id,))
+    execute(
+        "UPDATE gallery_comments SET deleted=TRUE WHERE id=%s OR parent_id=%s",
+        (comment_id, comment_id),
+    )
     if moderated:
         log_admin_action("갤러리 댓글 삭제", "gallery_comment", comment_id, f"게시물 #{rows[0]['post_id']}의 댓글")
     return redirect(url_for("gallery_post", post_id=rows[0]["post_id"]) + "#comments")

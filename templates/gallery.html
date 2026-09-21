@@ -35,19 +35,24 @@
 
   <section class="gallery-grid">
   {% for post in posts %}
-    <a class="gallery-card" href="{{url_for('gallery_post',post_id=post.id)}}">
-      {% if post.cover_image_id %}
-      <div class="gallery-thumb"><img src="{{url_for('gallery_image',image_id=post.cover_image_id)}}" alt="" loading="lazy"></div>
-      {% else %}
-      <div class="gallery-thumb gallery-no-image"><span>논곡갤러리</span></div>
-      {% endif %}
-      <div class="gallery-card-body">
-        <h2>{{post.title}}</h2>
-        <p>{{post.body|truncate(90, True, '…')}}</p>
-        <div class="gallery-card-meta"><b>{{post.display_name}}</b><span>{{post.created_text}}</span></div>
-        <div class="gallery-card-stats">조회 {{post.views}} · 사진 {{post.image_count}} · 댓글 {{post.comment_count}}</div>
+    <article class="gallery-card">
+      <a class="gallery-card-link" href="{{url_for('gallery_post',post_id=post.id)}}">
+        {% if post.cover_image_id %}
+        <div class="gallery-thumb"><img src="{{url_for('gallery_image',image_id=post.cover_image_id)}}" alt="" loading="lazy"></div>
+        {% else %}
+        <div class="gallery-thumb gallery-no-image"><span>논곡갤러리</span></div>
+        {% endif %}
+        <div class="gallery-card-body">
+          <h2>{{post.title}}</h2>
+          <p>{{post.body|truncate(90, True, '…')}}</p>
+          <div class="gallery-card-stats">조회 {{post.views}} · 사진 {{post.image_count}} · 댓글 {{post.comment_count}}</div>
+        </div>
+      </a>
+      <div class="gallery-card-author">
+        <a href="{{url_for('person_mentions',name=post.display_name)}}"><b>{{post.display_name}}</b></a>
+        <span>{{post.created_text}}</span>
       </div>
-    </a>
+    </article>
   {% else %}
     <div class="gallery-empty">아직 게시물이 없습니다. 첫 게시물을 올려 보세요.</div>
   {% endfor %}
