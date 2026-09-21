@@ -4,6 +4,14 @@ from contextlib import contextmanager
 
 _PG_CONN = None
 
+SCHEMA_VERSION = "2026-09-22-fast-start-v1"
+META_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS app_meta (
+    meta_key VARCHAR(80) PRIMARY KEY,
+    meta_value VARCHAR(200) NOT NULL
+)
+"""
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_POSTGRES = bool(DATABASE_URL)
 
@@ -252,6 +260,44 @@ def _sqlite_schema():
 def get_db_type():
     return "postgres" if USE_POSTGRES else "sqlite"
 
+
+def _meta_get(conn, key):
+    sql = (
+        "SELECT meta_value FROM app_meta WHERE meta_key=%s"
+        if USE_POSTGRES
+        else "SELECT meta_value FROM app_meta WHERE meta_key=?"
+    )
+    row = conn.execute(sql, (key,)).fetchone()
+    return row["meta_value"] if row else None
+
+
+def _meta_set(conn, key, value):
+    if USE_POSTGRES:
+        conn.execute(
+            """INSERT INTO app_meta(meta_key,meta_value) VALUES (%s,%s)
+               ON CONFLICT(meta_key) DO UPDATE SET meta_value=excluded.meta_value""",
+            (key, value),
+        )
+    else:
+        conn.execute(
+            """INSERT INTO app_meta(meta_key,meta_value) VALUES (?,?)
+               ON CONFLICT(meta_key) DO UPDATE SET meta_value=excluded.meta_value""",
+            (key, value),
+        )
+
+
+def get_app_meta(key):
+    with connection() as conn:
+        conn.execute(META_TABLE_SQL)
+        return _meta_get(conn, key)
+
+
+def set_app_meta(key, value):
+    with connection() as conn:
+        conn.execute(META_TABLE_SQL)
+        _meta_set(conn, key, value)
+
+
 @contextmanager
 def connection():
     global _PG_CONN
@@ -284,6 +330,10 @@ def connection():
 
 def init_db():
     with connection() as conn:
+        conn.execute(META_TABLE_SQL)
+        if _meta_get(conn, "schema_version") == SCHEMA_VERSION:
+            return False
+
         if USE_POSTGRES:
             for statement in SCHEMA.split(";"):
                 if statement.strip():
@@ -358,6 +408,9 @@ def init_db():
                 "ON users(student_no) WHERE student_no IS NOT NULL AND is_graduate=0"
             )
             conn.execute("DROP INDEX IF EXISTS idx_users_graduate_identity_unique")
+
+        _meta_set(conn, "schema_version", SCHEMA_VERSION)
+        return True
 
 def query(sql, params=()):
     if not USE_POSTGRES:
