@@ -5,7 +5,7 @@
   <div class="auth-card">
     <div class="auth-head">
       <h1>{{ '로그인' if mode == 'login' else '회원가입' }}</h1>
-      <p>{{ '아이디와 비밀번호를 입력해 주세요.' if mode == 'login' else '재학생 또는 졸업생 정보를 등록하고 계정을 만듭니다.' }}</p>
+      <p>{{ '아이디와 비밀번호를 입력해 주세요.' if mode == 'login' else '재학생·졸업생·선생님 정보를 등록하고 계정을 만듭니다.' }}</p>
     </div>
     <form method="post" class="auth-form">
       <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -28,8 +28,8 @@
 
       <div id="studentNoField">
         <label id="studentNoLabel" for="student_no">학번</label>
-        <input id="student_no" name="student_no" maxlength="5" minlength="5" inputmode="numeric" pattern="[1-3][0-9]{4}" autocomplete="off" placeholder="예: 10101" required>
-        <div id="studentNoHelp" class="field-help">형식: 1~3(학년) + 01~04(반) + 01~29(번호). 예: 10101 = 1학년 1반 1번. 학번은 관리자만 확인합니다.</div>
+        <input id="student_no" name="student_no" maxlength="6" minlength="5" inputmode="numeric" pattern="([1-3][0-9]{4}|000000)" autocomplete="off" placeholder="학생: 10101 / 선생님: 000000" required>
+        <div id="studentNoHelp" class="field-help">학생은 5자리 학번을 입력해 주세요. 선생님은 <b>000000</b>을 입력하면 교사 계정으로 가입됩니다.</div>
       </div>
 
       <label id="schoolNameLabel" for="school_name">현재 재학 중인 학교</label>
@@ -74,10 +74,10 @@
         student.disabled=false;
         document.getElementById('studentNoField').hidden=false;
         student.required=true;
-        student.pattern='[1-3][0-9]{4}';
-        studentLabel.textContent='학번';
-        student.placeholder='예: 10101';
-        studentHelp.textContent='형식: 1~3(학년) + 01~04(반) + 01~29(번호). 예: 10101 = 1학년 1반 1번. 학번은 관리자만 확인합니다.';
+        student.pattern='([1-3][0-9]{4}|000000)';
+        studentLabel.textContent='학번 / 교직원 코드';
+        student.placeholder='학생: 10101 / 선생님: 000000';
+        studentHelp.innerHTML='학생은 5자리 학번을 입력해 주세요. 선생님은 <b>000000</b>을 입력하면 교사 계정으로 가입됩니다.';
         school.required=true;
         schoolLabel.textContent='현재 재학 중인 학교';
         school.placeholder='예: 논곡중학교';

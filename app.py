@@ -626,6 +626,8 @@ def _needs_identity_setup(user):
         return False
     if not str(user.get("real_name") or "").strip():
         return True
+    if user.get("role") == "teacher":
+        return not str(user.get("school_name") or "").strip()
     if user.get("is_graduate"):
         return not user.get("graduation_year") or not str(user.get("school_name") or "").strip()
     return (
@@ -2924,7 +2926,11 @@ def register():
             flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
             return redirect(url_for("register"))
         graduation_year = None
-        if is_graduate:
+        is_teacher_signup = (not is_graduate and student_no == "000000")
+        if is_teacher_signup:
+            student_no = None
+            school_name = "논곡중학교"
+        elif is_graduate:
             student_no = None
             try:
                 graduation_year = int(graduation_year_raw)
@@ -2937,7 +2943,7 @@ def register():
             if len(school_name) < 2 or len(school_name) > 80:
                 flash("현재 재학 중인 고등학교 이름을 정확히 입력해 주세요.", "warning")
                 return redirect(url_for("register"))
-        else:
+        elif not is_teacher_signup:
             if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
                 flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
                 return redirect(url_for("register"))
@@ -2953,7 +2959,7 @@ def register():
         if query("SELECT id FROM users WHERE username=%s", (username,)):
             flash("이미 사용 중인 아이디입니다.", "warning")
             return redirect(url_for("register"))
-        if not is_graduate:
+        if not is_graduate and not is_teacher_signup:
             legacy_student_no = student_no[0] + "0" + student_no[1:]
             if query(
                 """SELECT id FROM users
@@ -2963,7 +2969,7 @@ def register():
                 flash("이미 가입에 사용된 학번입니다.", "warning")
                 return redirect(url_for("register"))
 
-        account_role = "graduate" if is_graduate else "user"
+        account_role = "teacher" if is_teacher_signup else ("graduate" if is_graduate else "user")
         execute(
             """INSERT INTO users(username,password_hash,real_name,student_no,school_name,role,account_status,is_graduate,graduation_year,created_at)
                VALUES (%s,%s,%s,%s,%s,%s,'approved',%s,%s,CURRENT_TIMESTAMP)""",
