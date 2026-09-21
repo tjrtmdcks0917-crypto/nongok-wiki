@@ -34,7 +34,7 @@
 
       <label id="schoolNameLabel" for="school_name">현재 재학 중인 학교</label>
       <input id="school_name" name="school_name" maxlength="80" autocomplete="organization" placeholder="예: 논곡중학교" required>
-      <div id="schoolHelp" class="field-help">다른 학교 학생도 가입할 수 있습니다. 논곡갤러리 게시물 작성은 논곡중학교 재학생 또는 졸업생 계정만 가능합니다.</div>
+      <div id="schoolHelp" class="field-help">다른 학교 학생도 가입할 수 있습니다. 로그인한 회원은 논곡갤러리에 게시물을 작성할 수 있습니다.</div>
       {% endif %}
       <label for="username">아이디</label>
       <input id="username" name="username" maxlength="24" minlength="2" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="2~24자" value="{{ entered_username or '' }}" required>
@@ -81,7 +81,7 @@
         school.required=true;
         schoolLabel.textContent='현재 재학 중인 학교';
         school.placeholder='예: 논곡중학교';
-        schoolHelp.textContent='다른 학교 학생도 가입할 수 있습니다. 논곡갤러리 게시물 작성은 논곡중학교 재학생 또는 졸업생 계정만 가능합니다.';
+        schoolHelp.textContent='다른 학교 학생도 가입할 수 있습니다. 로그인한 회원은 논곡갤러리에 게시물을 작성할 수 있습니다.';
       }
     }
     </script>

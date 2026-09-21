@@ -1,25 +1,75 @@
 {% extends "base.html" %}
-{% block title %}학생 정보 등록 - NONGOK Wiki{% endblock %}
+{% block title %}회원 정보 등록 - 논곡위키{% endblock %}
 {% block robots %}noindex,nofollow{% endblock %}
 {% block content %}
 <section class="auth-page">
   <div class="auth-card">
     <div class="auth-head">
-      <h1>학생 정보 등록</h1>
-      <p>기존 계정도 책임 있는 이용을 위해 이름, 학번, 현재 재학 중인 학교를 한 번 등록해 주세요.</p>
+      <h1>회원 정보 등록</h1>
+      <p>계정에 미등록된 필수 정보가 있습니다. 아래 정보를 확인하고 저장해 주세요.</p>
     </div>
     <form method="post" class="auth-form">
       <input type="hidden" name="csrf" value="{{csrf}}">
+      {% if next_url %}<input type="hidden" name="next" value="{{next_url}}">{% endif %}
+
       <label for="real_name">이름</label>
-      <input id="real_name" name="real_name" maxlength="30" autocomplete="name" placeholder="실명" required autofocus>
-      <label for="student_no">학번</label>
-      <input id="student_no" name="student_no" maxlength="5" minlength="5" inputmode="numeric" pattern="[1-3][0-9]{4}" placeholder="예: 10101" required>
-      <div class="field-help">1~3 = 학년, 01~04 = 반, 01~29 = 번호입니다. 예: 10101 = 1학년 1반 1번. 학번은 관리자만 확인하며 공개 게시물에는 표시하지 않습니다.</div>
-      <label for="school_name">현재 재학 중인 학교</label>
-      <input id="school_name" name="school_name" maxlength="80" autocomplete="organization" placeholder="예: 논곡중학교" required>
-      <div class="field-help">학교 정보는 관리자 확인용이며 공개 게시물에는 표시하지 않습니다.</div>
-      <button class="auth-submit" type="submit">정보 등록하기</button>
+      <input id="real_name" name="real_name" maxlength="30" autocomplete="name" placeholder="실명" value="{{identity_user.real_name or ''}}" required autofocus>
+
+      <label class="graduate-check">
+        <input id="is_graduate" type="checkbox" name="is_graduate" value="1" onchange="toggleIdentityGraduate()" {% if identity_user.is_graduate %}checked{% endif %}>
+        논곡중학교 졸업생입니다
+      </label>
+
+      <div id="graduationYearField" {% if not identity_user.is_graduate %}hidden{% endif %}>
+        <label for="graduation_year">논곡중학교 졸업 연도</label>
+        <input id="graduation_year" name="graduation_year" type="number" min="1950" max="2099" inputmode="numeric" placeholder="예: 2026" value="{{identity_user.graduation_year or ''}}" {% if identity_user.is_graduate %}required{% endif %}>
+      </div>
+
+      <div id="studentNoField" {% if identity_user.is_graduate %}hidden{% endif %}>
+        <label for="student_no">학번</label>
+        <input id="student_no" name="student_no" maxlength="5" minlength="5" inputmode="numeric" pattern="[1-3][0-9]{4}" autocomplete="off" placeholder="예: 10101" value="{{identity_user.student_no or ''}}" {% if not identity_user.is_graduate %}required{% endif %}>
+        <div class="field-help">형식: 1~3(학년) + 01~04(반) + 01~29(번호). 학번은 관리자만 확인합니다.</div>
+      </div>
+
+      <label id="schoolNameLabel" for="school_name">{% if identity_user.is_graduate %}현재 재학 중인 고등학교{% else %}현재 재학 중인 학교{% endif %}</label>
+      <input id="school_name" name="school_name" maxlength="80" autocomplete="organization" value="{{identity_user.school_name or ''}}" placeholder="{% if identity_user.is_graduate %}예: 인천○○고등학교{% else %}예: 논곡중학교{% endif %}" required>
+      <div id="schoolHelp" class="field-help">{% if identity_user.is_graduate %}현재 재학 중인 고등학교 이름을 입력해 주세요.{% else %}학교 정보는 관리자 확인용이며 공개 게시물에는 표시하지 않습니다.{% endif %}</div>
+
+      <button class="auth-submit" type="submit">정보 저장하기</button>
     </form>
   </div>
 </section>
+
+<script>
+function toggleIdentityGraduate(){
+  const graduate=document.getElementById('is_graduate');
+  const yearField=document.getElementById('graduationYearField');
+  const year=document.getElementById('graduation_year');
+  const studentField=document.getElementById('studentNoField');
+  const student=document.getElementById('student_no');
+  const school=document.getElementById('school_name');
+  const schoolLabel=document.getElementById('schoolNameLabel');
+  const schoolHelp=document.getElementById('schoolHelp');
+  if(graduate.checked){
+    yearField.hidden=false;
+    year.required=true;
+    studentField.hidden=true;
+    student.required=false;
+    student.disabled=true;
+    schoolLabel.textContent='현재 재학 중인 고등학교';
+    school.placeholder='예: 인천○○고등학교';
+    schoolHelp.textContent='현재 재학 중인 고등학교 이름을 입력해 주세요.';
+  }else{
+    yearField.hidden=true;
+    year.required=false;
+    studentField.hidden=false;
+    student.disabled=false;
+    student.required=true;
+    schoolLabel.textContent='현재 재학 중인 학교';
+    school.placeholder='예: 논곡중학교';
+    schoolHelp.textContent='학교 정보는 관리자 확인용이며 공개 게시물에는 표시하지 않습니다.';
+  }
+}
+toggleIdentityGraduate();
+</script>
 {% endblock %}

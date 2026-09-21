@@ -378,6 +378,23 @@ def before():
     if "csrf" not in session:
         session["csrf"] = secrets.token_urlsafe(24)
 
+    identity_exempt = {
+        "static", "gallery_image", "identity_setup", "logout",
+        "account_withdraw", "robots_txt", "sitemap_xml", "rss_xml",
+    }
+    if session.get("user_id") and request.endpoint not in identity_exempt:
+        user = current_user()
+        if not user:
+            session.clear()
+            return redirect(url_for("login"))
+        if user.get("account_status") == "withdrawn":
+            session.clear()
+            flash("탈퇴 처리된 계정입니다.", "warning")
+            return redirect(url_for("login"))
+        if _needs_identity_setup(user):
+            next_url = request.full_path.rstrip("?") if request.method == "GET" else url_for("index")
+            return redirect(url_for("identity_setup", next=next_url))
+
     # Count one browser once per Korea-calendar day. A session marker avoids
     # doing an INSERT ... ON CONFLICT round-trip on every page refresh.
     if (
@@ -601,6 +618,20 @@ def current_user():
     )
     g.current_user_value = rows[0] if rows else None
     return g.current_user_value
+
+
+def _needs_identity_setup(user):
+    if not user or user.get("role") == "admin":
+        return False
+    if not str(user.get("real_name") or "").strip():
+        return True
+    if user.get("is_graduate"):
+        return not user.get("graduation_year") or not str(user.get("school_name") or "").strip()
+    return (
+        not str(user.get("student_no") or "").strip()
+        or not str(user.get("school_name") or "").strip()
+    )
+
 
 def require_login(fn):
     @wraps(fn)
@@ -2966,13 +2997,10 @@ def login():
             account = rows[0]
             session["user_id"] = account["id"]
             flash("로그인되었습니다.", "success")
-            if account["role"] != "admin" and not account.get("is_graduate") and (
-                not account.get("real_name")
-                or not account.get("student_no")
-                or not account.get("school_name")
-            ):
-                return redirect(url_for("identity_setup"))
-            return redirect(request.form.get("next") or request.args.get("next") or url_for("index"))
+            next_url = request.form.get("next") or request.args.get("next") or ""
+            if _needs_identity_setup(account):
+                return redirect(url_for("identity_setup", next=next_url) if next_url else url_for("identity_setup"))
+            return redirect(next_url or url_for("index"))
         flash("아이디 또는 비밀번호가 맞지 않습니다.", "warning")
     return render_template(
         "auth.html",
@@ -2985,42 +3013,88 @@ def login():
 @require_login
 def identity_setup():
     user = current_user()
-    if user["role"] == "admin" or user.get("is_graduate"):
+    if user["role"] == "admin":
         return redirect(url_for("index"))
-    if user.get("real_name") and user.get("student_no") and user.get("school_name"):
+
+    next_url = request.form.get("next") or request.args.get("next") or ""
+
+    def identity_back():
+        return redirect(url_for("identity_setup", next=next_url) if next_url else url_for("identity_setup"))
+
+    if request.method == "GET" and not _needs_identity_setup(user):
+        if next_url.startswith("/") and not next_url.startswith("//"):
+            return redirect(next_url)
         return redirect(url_for("index"))
 
     if request.method == "POST":
         check_csrf()
         real_name = request.form.get("real_name", "").strip()
+        is_graduate = request.form.get("is_graduate") == "1"
         student_no = request.form.get("student_no", "").strip()
         school_name = request.form.get("school_name", "").strip()
+        graduation_year_raw = request.form.get("graduation_year", "").strip()
 
         if not re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", real_name):
             flash("이름은 2~30자의 한글/영문 이름으로 입력해 주세요.", "warning")
-            return redirect(url_for("identity_setup"))
-        if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
-            flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
-            return redirect(url_for("identity_setup"))
-        if len(school_name) < 2 or len(school_name) > 80:
-            flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
-            return redirect(url_for("identity_setup"))
-        legacy_student_no = student_no[0] + "0" + student_no[1:]
-        if query(
-            "SELECT id FROM users WHERE student_no IN (%s,%s) AND id<>%s",
-            (student_no, legacy_student_no, user["id"]),
-        ):
-            flash("이미 다른 계정에 등록된 학번입니다.", "warning")
-            return redirect(url_for("identity_setup"))
+            return identity_back()
+
+        graduation_year = None
+        if is_graduate:
+            student_no = None
+            try:
+                graduation_year = int(graduation_year_raw)
+            except ValueError:
+                graduation_year = 0
+            current_year = datetime.now(ZoneInfo("Asia/Seoul")).year
+            if graduation_year < 1950 or graduation_year > current_year:
+                flash("졸업 연도를 정확히 입력해 주세요.", "warning")
+                return identity_back()
+            if len(school_name) < 2 or len(school_name) > 80:
+                flash("현재 재학 중인 고등학교 이름을 정확히 입력해 주세요.", "warning")
+                return identity_back()
+        else:
+            if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
+                flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
+                return identity_back()
+            if len(school_name) < 2 or len(school_name) > 80:
+                flash("현재 재학 중인 학교 이름을 정확히 입력해 주세요.", "warning")
+                return identity_back()
+            legacy_student_no = student_no[0] + "0" + student_no[1:]
+            if query(
+                """SELECT id FROM users
+                   WHERE is_graduate=FALSE AND student_no IN (%s,%s) AND id<>%s""",
+                (student_no, legacy_student_no, user["id"]),
+            ):
+                flash("이미 다른 계정에 등록된 학번입니다.", "warning")
+                return identity_back()
+
+        new_role = user["role"]
+        if is_graduate and new_role == "user":
+            new_role = "graduate"
+        elif not is_graduate and new_role == "graduate":
+            new_role = "user"
 
         execute(
-            "UPDATE users SET real_name=%s, student_no=%s, school_name=%s WHERE id=%s",
-            (real_name, student_no, school_name, user["id"]),
+            """UPDATE users
+               SET real_name=%s, student_no=%s, school_name=%s,
+                   is_graduate=%s, graduation_year=%s, role=%s
+               WHERE id=%s""",
+            (
+                real_name,
+                student_no,
+                school_name,
+                is_graduate,
+                graduation_year,
+                new_role,
+                user["id"],
+            ),
         )
-        flash("이름, 학번, 학교 정보가 등록되었습니다.", "success")
+        flash("회원 정보가 등록되었습니다.", "success")
+        if next_url.startswith("/") and not next_url.startswith("//"):
+            return redirect(next_url)
         return redirect(url_for("index"))
 
-    return render_template("identity.html")
+    return render_template("identity.html", identity_user=user, next_url=next_url)
 
 
 @app.route("/logout")
@@ -3070,8 +3144,8 @@ def _admin_page_data(member_q=""):
         )
     else:
         users = query(
-            "SELECT id, username, real_name, student_no, school_name, role, account_status, created_at "
-            "FROM users ORDER BY created_at DESC LIMIT 100"
+            "SELECT id, username, real_name, student_no, school_name, role, account_status, "
+            "is_graduate, graduation_year, created_at FROM users ORDER BY created_at DESC LIMIT 100"
         )
     return reports, users
 
