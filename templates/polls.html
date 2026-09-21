@@ -13,6 +13,10 @@
       <input type="hidden" name="csrf" value="{{csrf}}">
       <label>질문<input name="question" maxlength="200" placeholder="예: 다음 학교생활 문서 중 먼저 보완할 항목은?" required></label>
       <label>선택지<textarea name="options" maxlength="1300" placeholder="한 줄에 선택지 하나씩 입력하세요.&#10;급식&#10;시간표&#10;동아리" required></textarea></label>
+      <label>제한시간
+        <input type="number" name="duration_hours" min="1" max="30" step="1" value="24" required>
+      </label>
+      <div class="field-help">최소 1시간, 최대 30시간까지 설정할 수 있습니다. 시간이 지나면 자동으로 종료됩니다.</div>
       <button type="submit">투표 만들기</button>
     </form>
   </section>
@@ -22,7 +26,7 @@
   {% for poll in polls %}
     <article class="poll-card">
       <div class="poll-head">
-        <div><h2>{{poll.question}}</h2><small>{{'진행 중' if poll.is_open else '종료됨'}} · 참여 {{poll.total_votes}}명{% if poll.creator %} · {{poll.creator}}{% endif %}</small></div>
+        <div><h2>{{poll.question}}</h2><small>{{'진행 중' if poll.is_open else '종료됨'}} · 참여 {{poll.total_votes}}명{% if poll.creator %} · {{poll.creator}}{% endif %}{% if poll.ends_text %} · 종료 {{poll.ends_text}}{% endif %}{% if poll.remaining_text %} · <b>{{poll.remaining_text}}</b>{% endif %}</small></div>
         {% if current_user and current_user.role in ['teacher', 'admin'] %}
         <form method="post" action="{{url_for('poll_toggle',poll_id=poll.id)}}">
           <input type="hidden" name="csrf" value="{{csrf}}">

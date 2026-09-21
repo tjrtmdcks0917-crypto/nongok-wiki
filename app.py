@@ -2460,8 +2460,12 @@ def profile_follow(username):
 
 @app.route("/polls")
 def polls():
+    execute(
+        """UPDATE polls SET is_open=FALSE
+           WHERE is_open=TRUE AND ends_at IS NOT NULL AND ends_at<=CURRENT_TIMESTAMP"""
+    )
     poll_rows = query(
-        """SELECT p.id, p.question, p.is_open, p.created_at,
+        """SELECT p.id, p.question, p.is_open, p.ends_at, p.created_at,
                   u.username AS creator
            FROM polls p
            LEFT JOIN users u ON u.id=p.created_by
@@ -2494,6 +2498,18 @@ def polls():
         poll["options"] = options
         poll["total_votes"] = total
         poll["voted_option"] = voted_option
+        ends_dt = _as_utc_datetime(poll.get("ends_at"))
+        poll["ends_text"] = ""
+        poll["remaining_text"] = ""
+        if ends_dt:
+            poll["ends_text"] = ends_dt.astimezone(ZoneInfo("Asia/Seoul")).strftime("%m월 %d일 %H:%M")
+            seconds_left = max(0, int((ends_dt - datetime.now(timezone.utc)).total_seconds()))
+            if seconds_left > 0 and poll["is_open"]:
+                hours, remainder = divmod(seconds_left, 3600)
+                minutes = remainder // 60
+                poll["remaining_text"] = f"{hours}시간 {minutes}분 남음" if hours else f"{minutes}분 남음"
+            else:
+                poll["remaining_text"] = "제한시간 종료"
         cards.append(poll)
     return render_template("polls.html", polls=cards)
 
@@ -2505,7 +2521,14 @@ def poll_create():
     raw_options = request.form.get("options", "")
     options = [line.strip() for line in raw_options.splitlines() if line.strip()]
     options = list(dict.fromkeys(options))
+    try:
+        duration_hours = int(request.form.get("duration_hours", "0"))
+    except ValueError:
+        duration_hours = 0
 
+    if duration_hours < 1 or duration_hours > 30:
+        flash("투표 제한시간은 1시간 이상 30시간 이하로 설정해 주세요.", "warning")
+        return redirect(url_for("polls"))
     if not question or len(question) > 200:
         flash("투표 질문은 1~200자로 입력해 주세요.", "warning")
         return redirect(url_for("polls"))
@@ -2517,9 +2540,11 @@ def poll_create():
         return redirect(url_for("polls"))
 
     user = current_user()
+    ends_at = (datetime.now(timezone.utc) + timedelta(hours=duration_hours)).replace(tzinfo=None)
     execute(
-        "INSERT INTO polls(question, created_by, is_open, created_at) VALUES (%s,%s,TRUE,CURRENT_TIMESTAMP)",
-        (question, user["id"]),
+        """INSERT INTO polls(question, created_by, is_open, ends_at, created_at)
+           VALUES (%s,%s,TRUE,%s,CURRENT_TIMESTAMP)""",
+        (question, user["id"], ends_at),
     )
     poll_id = query(
         "SELECT id FROM polls WHERE created_by=%s AND question=%s ORDER BY id DESC LIMIT 1",
@@ -2530,14 +2555,19 @@ def poll_create():
             "INSERT INTO poll_options(poll_id, option_text, sort_order) VALUES (%s,%s,%s)",
             (poll_id, option, index),
         )
-    flash("투표를 만들었습니다.", "success")
+    flash(f"투표를 만들었습니다. 제한시간은 {duration_hours}시간입니다.", "success")
     return redirect(url_for("polls"))
 
 @app.route("/polls/<int:poll_id>/vote", methods=["POST"])
 @require_login
 def poll_vote(poll_id):
     check_csrf()
-    poll_rows = query("SELECT id, is_open FROM polls WHERE id=%s", (poll_id,))
+    execute(
+        """UPDATE polls SET is_open=FALSE
+           WHERE id=%s AND is_open=TRUE AND ends_at IS NOT NULL AND ends_at<=CURRENT_TIMESTAMP""",
+        (poll_id,),
+    )
+    poll_rows = query("SELECT id, is_open, ends_at FROM polls WHERE id=%s", (poll_id,))
     if not poll_rows:
         abort(404)
     if not poll_rows[0]["is_open"]:
@@ -2569,10 +2599,14 @@ def poll_vote(poll_id):
 @require_teacher
 def poll_toggle(poll_id):
     check_csrf()
-    rows = query("SELECT is_open FROM polls WHERE id=%s", (poll_id,))
+    rows = query("SELECT is_open, ends_at FROM polls WHERE id=%s", (poll_id,))
     if not rows:
         abort(404)
     new_state = not bool(rows[0]["is_open"])
+    ends_dt = _as_utc_datetime(rows[0].get("ends_at"))
+    if new_state and ends_dt and ends_dt <= datetime.now(timezone.utc):
+        flash("제한시간이 지난 투표는 다시 열 수 없습니다.", "warning")
+        return redirect(url_for("polls"))
     execute("UPDATE polls SET is_open=%s WHERE id=%s", (new_state, poll_id))
     log_admin_action("투표 상태 변경", "poll", poll_id, "진행" if new_state else "마감")
     return redirect(url_for("polls"))

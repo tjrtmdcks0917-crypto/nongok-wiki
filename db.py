@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS polls (
     question VARCHAR(200) NOT NULL,
     created_by INTEGER,
     is_open BOOLEAN NOT NULL DEFAULT TRUE,
+    ends_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS poll_options (
@@ -214,7 +215,7 @@ BACKUP_TABLE_COLUMNS = {
     "reports": ["id", "page_id", "user_id", "reason", "status", "created_at"],
     "homepage_sections": ["section_key", "content", "updated_at"],
     "page_views": ["id", "page_id", "viewed_at"],
-    "polls": ["id", "question", "created_by", "is_open", "created_at"],
+    "polls": ["id", "question", "created_by", "is_open", "ends_at", "created_at"],
     "poll_options": ["id", "poll_id", "option_text", "sort_order"],
     "poll_votes": ["id", "poll_id", "option_id", "user_id", "created_at"],
     "gallery_posts": ["id", "user_id", "title", "body", "views", "deleted", "created_at"],
@@ -298,6 +299,7 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_graduate BOOLEAN NOT NULL DEFAULT FALSE")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS graduation_year INTEGER")
             conn.execute("ALTER TABLE gallery_posts ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0")
+            conn.execute("ALTER TABLE polls ADD COLUMN IF NOT EXISTS ends_at TIMESTAMP")
             conn.execute("UPDATE users SET role='graduate' WHERE is_graduate=TRUE AND role='user'")
             conn.execute("DROP INDEX IF EXISTS idx_users_student_no_unique")
             conn.execute(
@@ -333,6 +335,9 @@ def init_db():
             gallery_columns = {row[1] for row in conn.execute("PRAGMA table_info(gallery_posts)").fetchall()}
             if "views" not in gallery_columns:
                 conn.execute("ALTER TABLE gallery_posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0")
+            poll_columns = {row[1] for row in conn.execute("PRAGMA table_info(polls)").fetchall()}
+            if "ends_at" not in poll_columns:
+                conn.execute("ALTER TABLE polls ADD COLUMN ends_at TIMESTAMP")
             conn.execute("UPDATE users SET role='graduate' WHERE is_graduate=1 AND role='user'")
             conn.execute("DROP INDEX IF EXISTS idx_users_student_no_unique")
             conn.execute(
