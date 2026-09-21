@@ -812,6 +812,109 @@ def notify_all_users(notification_type, title, body="", target_url="", exclude_u
         )
 
 
+MEMBER_MENTION_PATTERN = re.compile(r"(?<![A-Za-z0-9가-힣_@])@([A-Za-z0-9가-힣_·ㆍ-]{2,30})")
+
+
+def _mention_lookup(token):
+    token = str(token or "").strip()
+    cache = getattr(g, "member_mention_cache", None)
+    if cache is None:
+        cache = {}
+        g.member_mention_cache = cache
+    if token in cache:
+        return cache[token]
+
+    rows = query(
+        """SELECT id, username, real_name, student_no
+           FROM users
+           WHERE account_status<>'withdrawn'
+             AND (username=%s OR student_no=%s OR real_name=%s)
+           ORDER BY id ASC
+           LIMIT 20""",
+        (token, token, token),
+    )
+    username_matches = [row for row in rows if row.get("username") == token]
+    student_matches = [row for row in rows if str(row.get("student_no") or "") == token]
+    if username_matches:
+        result = username_matches[:1]
+    elif student_matches:
+        result = student_matches[:1]
+    else:
+        result = [row for row in rows if str(row.get("real_name") or "") == token]
+    cache[token] = result
+    return result
+
+
+def _mentioned_users(text):
+    users = {}
+    for token in dict.fromkeys(MEMBER_MENTION_PATTERN.findall(str(text or ""))):
+        for row in _mention_lookup(token):
+            users[row["id"]] = row
+    return list(users.values())
+
+
+def _normalize_social_mentions(text):
+    text = str(text or "")
+
+    def replace(match):
+        token = match.group(1)
+        rows = _mention_lookup(token)
+        if rows and str(rows[0].get("student_no") or "") == token:
+            label = str(rows[0].get("real_name") or rows[0].get("username") or "").strip()
+            if label:
+                return "@" + label
+        return match.group(0)
+
+    return MEMBER_MENTION_PATTERN.sub(replace, text)
+
+
+def _render_social_text(text):
+    text = str(text or "")
+    out = []
+    last = 0
+    for match in MEMBER_MENTION_PATTERN.finditer(text):
+        out.append(str(escape(text[last:match.start()])))
+        token = match.group(1)
+        rows = _mention_lookup(token)
+        if not rows:
+            out.append(str(escape(match.group(0))))
+        else:
+            row = rows[0]
+            if row.get("username") == token:
+                href = url_for("user_profile", username=row["username"])
+                label = "@" + token
+            else:
+                person_name = str(row.get("real_name") or token).strip()
+                href = url_for("person_mentions", name=person_name)
+                label = "@" + person_name
+            out.append(
+                f'<a class="member-mention" href="{href}">{escape(label)}</a>'
+            )
+        last = match.end()
+    out.append(str(escape(text[last:])))
+    return "".join(out).replace("\n", "<br>")
+
+
+def _notify_member_mentions(text, actor, context_title, target_url, skip_user_ids=None):
+    skipped = set(skip_user_ids or ())
+    notified = set()
+    actor_id = actor.get("id") if actor else None
+    actor_name = str((actor or {}).get("real_name") or (actor or {}).get("username") or "회원")
+    for mentioned in _mentioned_users(text):
+        user_id = mentioned["id"]
+        if user_id == actor_id or user_id in skipped or user_id in notified:
+            continue
+        create_notification(
+            user_id,
+            "mention",
+            f"{actor_name}님이 회원님을 태그했습니다.",
+            str(context_title or "")[:300],
+            target_url,
+        )
+        notified.add(user_id)
+    return notified
+
+
 def _backup_json_value(value):
     if isinstance(value, memoryview):
         value = value.tobytes()
@@ -896,7 +999,20 @@ def _known_person_names():
 
     rows = query("SELECT title, content FROM wiki_pages WHERE deleted=FALSE")
     homepage_rows = query("SELECT content FROM homepage_sections")
+    member_rows = query(
+        """SELECT real_name FROM users
+           WHERE real_name IS NOT NULL AND account_status<>'withdrawn'"""
+    )
     names = set(HOME_OPERATOR_NAMES)
+
+    for member in member_rows:
+        candidate = str(member.get("real_name") or "").strip()
+        if (
+            candidate
+            and candidate not in PERSON_NAME_STOPWORDS
+            and re.fullmatch(r"[A-Za-z가-힣·ㆍ' -]{2,30}", candidate)
+        ):
+            names.add(candidate)
     role_pattern = "|".join(map(re.escape, PERSON_ROLE_WORDS))
 
     for row in rows:
@@ -2684,8 +2800,10 @@ def gallery_new():
     check_csrf()
     user = current_user()
 
-    title = request.form.get("title", "").strip()
-    body = request.form.get("body", "").strip()
+    raw_title = request.form.get("title", "").strip()
+    raw_body = request.form.get("body", "").strip()
+    title = _normalize_social_mentions(raw_title)
+    body = _normalize_social_mentions(raw_body)
     files = [f for f in request.files.getlist("images") if f and f.filename]
 
     if not title or len(title) > 100:
@@ -2733,6 +2851,13 @@ def gallery_new():
             (post_id, mime, data, index),
         )
 
+    _notify_member_mentions(
+        raw_title + "\n" + raw_body,
+        user,
+        f"논곡갤러리 게시물: {title}",
+        url_for("gallery_post", post_id=post_id),
+    )
+
     flash("논곡갤러리에 게시물을 올렸습니다.", "success")
     return redirect(url_for("gallery_post", post_id=post_id))
 
@@ -2740,7 +2865,8 @@ def gallery_new():
 @app.route("/gallery/<int:post_id>")
 def gallery_post(post_id):
     rows = query(
-        """SELECT p.id, p.user_id, p.title, p.body, p.created_at, p.views, u.username,
+        """SELECT p.id, p.user_id, p.title, p.body, p.created_at, p.views,
+                  u.username, u.real_name,
                   COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name
            FROM gallery_posts p JOIN users u ON u.id=p.user_id
            WHERE p.id=%s AND p.deleted=FALSE""",
@@ -2752,20 +2878,33 @@ def gallery_post(post_id):
     execute("UPDATE gallery_posts SET views=views+1 WHERE id=%s", (post_id,))
     post["views"] = int(post.get("views") or 0) + 1
     post["created_text"] = _gallery_time_text(post.get("created_at"))
+    post["title_html"] = _render_social_text(post.get("title"))
+    post["body_html"] = _render_social_text(post.get("body"))
     images = query(
         "SELECT id FROM gallery_images WHERE post_id=%s ORDER BY sort_order ASC, id ASC",
         (post_id,),
     )
     comments = query(
-        """SELECT c.id, c.user_id, c.body, c.created_at, u.username,
-                  COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name
-           FROM gallery_comments c JOIN users u ON u.id=c.user_id
+        """SELECT c.id, c.user_id, c.parent_id, c.body, c.created_at,
+                  u.username, u.real_name,
+                  COALESCE(NULLIF(u.real_name, ''), u.username) AS display_name,
+                  pc.user_id AS parent_user_id,
+                  pu.username AS parent_username,
+                  pu.real_name AS parent_real_name,
+                  COALESCE(NULLIF(pu.real_name, ''), pu.username) AS parent_display_name
+           FROM gallery_comments c
+           JOIN users u ON u.id=c.user_id
+           LEFT JOIN gallery_comments pc ON pc.id=c.parent_id
+           LEFT JOIN users pu ON pu.id=pc.user_id
            WHERE c.post_id=%s AND c.deleted=FALSE
-           ORDER BY c.created_at ASC, c.id ASC""",
+           ORDER BY COALESCE(c.parent_id,c.id) ASC,
+                    CASE WHEN c.parent_id IS NULL THEN 0 ELSE 1 END ASC,
+                    c.created_at ASC, c.id ASC""",
         (post_id,),
     )
     for comment in comments:
         comment["created_text"] = _gallery_time_text(comment.get("created_at"))
+        comment["body_html"] = _render_social_text(comment.get("body"))
     return render_template("gallery_post.html", post=post, images=images, comments=comments)
 
 
@@ -2800,24 +2939,71 @@ def gallery_comment(post_id):
     if not post_rows:
         abort(404)
     post = post_rows[0]
-    body = request.form.get("body", "").strip()
+    raw_body = request.form.get("body", "").strip()
+    body = _normalize_social_mentions(raw_body)
     if not body or len(body) > 1000:
         flash("댓글은 1~1000자로 입력해 주세요.", "warning")
         return redirect(url_for("gallery_post", post_id=post_id))
+
+    parent_id = None
+    parent = None
+    parent_raw = request.form.get("parent_id", "").strip()
+    if parent_raw:
+        try:
+            requested_parent_id = int(parent_raw)
+        except ValueError:
+            abort(400)
+        parent_rows = query(
+            """SELECT c.id, c.user_id, c.parent_id, u.username, u.real_name
+               FROM gallery_comments c
+               JOIN users u ON u.id=c.user_id
+               WHERE c.id=%s AND c.post_id=%s AND c.deleted=FALSE""",
+            (requested_parent_id, post_id),
+        )
+        if not parent_rows or parent_rows[0].get("parent_id") is not None:
+            abort(400)
+        parent = parent_rows[0]
+        parent_id = parent["id"]
+
     commenter = current_user()
     execute(
-        "INSERT INTO gallery_comments(post_id, user_id, body, deleted, created_at) VALUES (%s,%s,%s,FALSE,CURRENT_TIMESTAMP)",
-        (post_id, commenter["id"], body),
+        """INSERT INTO gallery_comments
+           (post_id, user_id, parent_id, body, deleted, created_at)
+           VALUES (%s,%s,%s,%s,FALSE,CURRENT_TIMESTAMP)""",
+        (post_id, commenter["id"], parent_id, body),
     )
-    if post["user_id"] != commenter["id"]:
+
+    target_url = url_for("gallery_post", post_id=post_id) + "#comments"
+    notified_ids = set()
+
+    if parent and parent["user_id"] != commenter["id"]:
+        create_notification(
+            parent["user_id"],
+            "gallery_reply",
+            f"내 댓글에 답글이 달렸습니다: {post['title']}",
+            f"@{commenter['username']} · {body[:180]}",
+            target_url,
+        )
+        notified_ids.add(parent["user_id"])
+
+    if post["user_id"] != commenter["id"] and post["user_id"] not in notified_ids:
         create_notification(
             post["user_id"],
             "gallery_comment",
             f"내 갤러리 글에 댓글이 달렸습니다: {post['title']}",
             f"@{commenter['username']} · {body[:180]}",
-            url_for("gallery_post", post_id=post_id) + "#comments",
+            target_url,
         )
-    return redirect(url_for("gallery_post", post_id=post_id) + "#comments")
+        notified_ids.add(post["user_id"])
+
+    _notify_member_mentions(
+        raw_body,
+        commenter,
+        f"논곡갤러리 댓글: {post['title']}",
+        target_url,
+        skip_user_ids=notified_ids,
+    )
+    return redirect(target_url)
 
 
 @app.route("/gallery/<int:post_id>/delete", methods=["POST"])
@@ -3206,7 +3392,7 @@ def admin():
         member_q=member_q,
         role_labels=ROLE_LABELS,
         can_manage_members=can_manage_members,
-        can_change_roles=role_at_least(actor, "teacher"),
+        can_change_roles=actor["role"] == "admin",
         can_review_official=can_review_official,
     )
 
@@ -3247,7 +3433,7 @@ def admin_reset_password(user_id):
         member_q=member_q,
         role_labels=ROLE_LABELS,
         can_manage_members=True,
-        can_change_roles=role_at_least(actor, "teacher"),
+        can_change_roles=actor["role"] == "admin",
         can_review_official=True,
     )
 
@@ -3279,7 +3465,7 @@ def admin_user_withdraw(user_id):
 
 
 @app.route("/admin/user/<int:user_id>/role", methods=["POST"])
-@require_teacher
+@require_admin
 def admin_user_role(user_id):
     check_csrf()
     new_role = request.form.get("role", "").strip()

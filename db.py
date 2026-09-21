@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS gallery_comments (
     id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     post_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
+    parent_id INTEGER,
     body TEXT NOT NULL,
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -201,6 +202,8 @@ CREATE INDEX IF NOT EXISTS idx_gallery_images_post_id
     ON gallery_images(post_id, id);
 CREATE INDEX IF NOT EXISTS idx_gallery_comments_post_deleted
     ON gallery_comments(post_id, deleted, id);
+CREATE INDEX IF NOT EXISTS idx_gallery_comments_parent_id
+    ON gallery_comments(parent_id, id);
 CREATE INDEX IF NOT EXISTS idx_site_visits_date_seen
     ON site_visits(visit_date, first_seen_at);
 """
@@ -220,7 +223,7 @@ BACKUP_TABLE_COLUMNS = {
     "poll_votes": ["id", "poll_id", "option_id", "user_id", "created_at"],
     "gallery_posts": ["id", "user_id", "title", "body", "views", "deleted", "created_at"],
     "gallery_images": ["id", "post_id", "mime_type", "image_data", "sort_order", "created_at"],
-    "gallery_comments": ["id", "post_id", "user_id", "body", "deleted", "created_at"],
+    "gallery_comments": ["id", "post_id", "user_id", "parent_id", "body", "deleted", "created_at"],
     "gallery_reads": ["user_id", "last_seen_post_id", "updated_at"],
     "follows": ["follower_id", "following_id", "created_at"],
     "school_space_posts": ["id", "scope_type", "grade", "class_no", "user_id", "title", "body", "is_pinned", "deleted", "created_at"],
@@ -300,6 +303,7 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS graduation_year INTEGER")
             conn.execute("ALTER TABLE gallery_posts ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0")
             conn.execute("ALTER TABLE polls ADD COLUMN IF NOT EXISTS ends_at TIMESTAMP")
+            conn.execute("ALTER TABLE gallery_comments ADD COLUMN IF NOT EXISTS parent_id INTEGER")
             conn.execute("UPDATE users SET role='graduate' WHERE is_graduate=TRUE AND role='user'")
             conn.execute("DROP INDEX IF EXISTS idx_users_student_no_unique")
             conn.execute(
@@ -338,6 +342,9 @@ def init_db():
             poll_columns = {row[1] for row in conn.execute("PRAGMA table_info(polls)").fetchall()}
             if "ends_at" not in poll_columns:
                 conn.execute("ALTER TABLE polls ADD COLUMN ends_at TIMESTAMP")
+            gallery_comment_columns = {row[1] for row in conn.execute("PRAGMA table_info(gallery_comments)").fetchall()}
+            if "parent_id" not in gallery_comment_columns:
+                conn.execute("ALTER TABLE gallery_comments ADD COLUMN parent_id INTEGER")
             conn.execute("UPDATE users SET role='graduate' WHERE is_graduate=1 AND role='user'")
             conn.execute("DROP INDEX IF EXISTS idx_users_student_no_unique")
             conn.execute(

@@ -21,6 +21,7 @@
       <input type="hidden" name="csrf" value="{{csrf}}">
       <label>제목<input name="title" maxlength="100" required placeholder="게시물 제목"></label>
       <label>내용<textarea name="body" maxlength="5000" required placeholder="학교생활과 관련된 내용을 자유롭게 작성해 주세요."></textarea></label>
+      <div class="field-help">@이름, @아이디 또는 @학번으로 친구를 태그하면 해당 회원에게 알림이 갑니다. 학번으로 태그해도 게시물에는 이름으로 표시됩니다.</div>
       <label>사진 <small>선택 · 최대 4장, 장당 3MB</small>
         <input type="file" name="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
       </label>

@@ -612,3 +612,17 @@
   .home-priority-notice-body{padding:19px 16px;font-size:18px;line-height:1.7}
   .home-priority-notice-admin{padding:0 16px 13px}
 }
+
+
+/* Gallery replies and member mentions */
+.member-mention{font-weight:700;text-decoration:none}
+.member-mention:hover{text-decoration:underline}
+.gallery-comment.is-reply{margin-left:38px;padding-left:14px;border-left:3px solid #e1e4e7}
+.gallery-reply-to{margin-top:6px!important;color:#777;font-size:12px}
+.gallery-reply-compose{margin-top:8px}
+.gallery-reply-compose>summary{display:inline-block;color:var(--link);font-size:12px;font-weight:700;cursor:pointer}
+.gallery-reply-compose .reply-form{margin:8px 0 2px}
+.gallery-reply-compose .reply-form textarea{min-height:64px}
+@media(max-width:700px){
+  .gallery-comment.is-reply{margin-left:18px;padding-left:10px}
+}
