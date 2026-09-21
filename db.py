@@ -202,8 +202,6 @@ CREATE INDEX IF NOT EXISTS idx_gallery_images_post_id
     ON gallery_images(post_id, id);
 CREATE INDEX IF NOT EXISTS idx_gallery_comments_post_deleted
     ON gallery_comments(post_id, deleted, id);
-CREATE INDEX IF NOT EXISTS idx_gallery_comments_parent_id
-    ON gallery_comments(parent_id, id);
 CREATE INDEX IF NOT EXISTS idx_site_visits_date_seen
     ON site_visits(visit_date, first_seen_at);
 """
@@ -304,6 +302,10 @@ def init_db():
             conn.execute("ALTER TABLE gallery_posts ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0")
             conn.execute("ALTER TABLE polls ADD COLUMN IF NOT EXISTS ends_at TIMESTAMP")
             conn.execute("ALTER TABLE gallery_comments ADD COLUMN IF NOT EXISTS parent_id INTEGER")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_gallery_comments_parent_id "
+                "ON gallery_comments(parent_id, id)"
+            )
             conn.execute("UPDATE users SET role='graduate' WHERE is_graduate=TRUE AND role='user'")
             conn.execute("DROP INDEX IF EXISTS idx_users_student_no_unique")
             conn.execute(
@@ -345,6 +347,10 @@ def init_db():
             gallery_comment_columns = {row[1] for row in conn.execute("PRAGMA table_info(gallery_comments)").fetchall()}
             if "parent_id" not in gallery_comment_columns:
                 conn.execute("ALTER TABLE gallery_comments ADD COLUMN parent_id INTEGER")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_gallery_comments_parent_id "
+                "ON gallery_comments(parent_id, id)"
+            )
             conn.execute("UPDATE users SET role='graduate' WHERE is_graduate=1 AND role='user'")
             conn.execute("DROP INDEX IF EXISTS idx_users_student_no_unique")
             conn.execute(
