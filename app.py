@@ -1510,6 +1510,7 @@ def index():
         key: _link_document_mentions(str(escape(value))).replace("\n", "<br>")
         for key, value in sections.items()
     }
+    sections_html["operators"] = sections_html.get("supporters", "")
 
     homepage_pages = query(
         "SELECT title FROM wiki_pages WHERE deleted=FALSE ORDER BY title ASC"
