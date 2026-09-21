@@ -6,7 +6,7 @@
   <div class="doc-title"><h1>투표</h1><div class="doc-tools"><a href="{{url_for('index')}}">대문</a></div></div>
   <div class="poll-guide">논곡위키에서 진행되는 투표입니다. 로그인한 사용자는 각 투표에 한 번만 참여할 수 있습니다.</div>
 
-  {% if current_user and current_user.role == 'admin' %}
+  {% if current_user and current_user.role in ['teacher', 'admin'] %}
   <section class="poll-create">
     <h2>새 투표 만들기</h2>
     <form method="post" action="{{url_for('poll_create')}}">
@@ -23,7 +23,7 @@
     <article class="poll-card">
       <div class="poll-head">
         <div><h2>{{poll.question}}</h2><small>{{'진행 중' if poll.is_open else '종료됨'}} · 참여 {{poll.total_votes}}명{% if poll.creator %} · {{poll.creator}}{% endif %}</small></div>
-        {% if current_user and current_user.role == 'admin' %}
+        {% if current_user and current_user.role in ['teacher', 'admin'] %}
         <form method="post" action="{{url_for('poll_toggle',poll_id=poll.id)}}">
           <input type="hidden" name="csrf" value="{{csrf}}">
           <button type="submit">{{'투표 종료' if poll.is_open else '다시 열기'}}</button>

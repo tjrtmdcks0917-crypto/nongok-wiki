@@ -722,10 +722,8 @@ def require_admin(fn):
 def can_manage_member(actor, target):
     if not actor or not target:
         return False
-    if actor.get("role") == "admin":
+    if role_at_least(actor, "teacher"):
         return target.get("role") != "admin"
-    if actor.get("role") == "teacher":
-        return target.get("role") in {"user", "graduate", "moderator"}
     return False
 
 
@@ -1862,9 +1860,9 @@ def edit(title):
             flash("제목과 내용을 입력해 주세요.", "warning")
             return redirect(request.url)
         user = current_user()
-        if new_title == "논곡위키:대문" and user["role"] != "admin":
+        if new_title == "논곡위키:대문" and not role_at_least(user, "teacher"):
             abort(403)
-        if page and page["title"] == "논곡위키:대문" and user["role"] != "admin":
+        if page and page["title"] == "논곡위키:대문" and not role_at_least(user, "teacher"):
             abort(403)
         if page and page["protected"] and not role_at_least(user, "teacher"):
             existing = query(
@@ -2412,8 +2410,8 @@ def profile_edit():
 def account_withdraw():
     check_csrf()
     user = current_user()
-    if user["role"] == "admin":
-        flash("최고관리자 계정은 직접 탈퇴할 수 없습니다.", "warning")
+    if role_at_least(user, "teacher"):
+        flash("교사 및 최고관리자 계정은 직접 탈퇴할 수 없습니다.", "warning")
         return redirect(url_for("profile_edit"))
 
     if request.form.get("confirm_withdraw", "").strip() != "탈퇴":
@@ -2500,7 +2498,7 @@ def polls():
     return render_template("polls.html", polls=cards)
 
 @app.route("/polls/create", methods=["POST"])
-@require_admin
+@require_teacher
 def poll_create():
     check_csrf()
     question = request.form.get("question", "").strip()
@@ -2568,7 +2566,7 @@ def poll_vote(poll_id):
     return redirect(url_for("polls"))
 
 @app.route("/polls/<int:poll_id>/toggle", methods=["POST"])
-@require_admin
+@require_teacher
 def poll_toggle(poll_id):
     check_csrf()
     rows = query("SELECT is_open FROM polls WHERE id=%s", (poll_id,))
@@ -3174,7 +3172,7 @@ def admin():
         member_q=member_q,
         role_labels=ROLE_LABELS,
         can_manage_members=can_manage_members,
-        can_change_roles=actor["role"] == "admin",
+        can_change_roles=role_at_least(actor, "teacher"),
         can_review_official=can_review_official,
     )
 
@@ -3215,7 +3213,7 @@ def admin_reset_password(user_id):
         member_q=member_q,
         role_labels=ROLE_LABELS,
         can_manage_members=True,
-        can_change_roles=actor["role"] == "admin",
+        can_change_roles=role_at_least(actor, "teacher"),
         can_review_official=True,
     )
 
@@ -3247,7 +3245,7 @@ def admin_user_withdraw(user_id):
 
 
 @app.route("/admin/user/<int:user_id>/role", methods=["POST"])
-@require_admin
+@require_teacher
 def admin_user_role(user_id):
     check_csrf()
     new_role = request.form.get("role", "").strip()
@@ -3347,7 +3345,7 @@ def admin_document_review(review_id, status):
 
 
 @app.route("/admin/backup/download")
-@require_admin
+@require_teacher
 def admin_backup_download():
     payload = _build_backup_payload()
     raw = json.dumps(
@@ -3391,7 +3389,7 @@ def protect(page_id):
     rows = query("SELECT title, protected FROM wiki_pages WHERE id=%s AND deleted=FALSE", (page_id,))
     if not rows:
         abort(404)
-    if rows[0]["title"] == "논곡위키:대문" and current_user()["role"] != "admin":
+    if rows[0]["title"] == "논곡위키:대문" and not role_at_least(current_user(), "teacher"):
         abort(403)
     new_protected = not bool(rows[0]["protected"])
     execute("UPDATE wiki_pages SET protected=%s WHERE id=%s", (new_protected, page_id))
@@ -3410,7 +3408,7 @@ def delete_page(page_id):
     rows = query("SELECT title FROM wiki_pages WHERE id=%s AND deleted=FALSE", (page_id,))
     if not rows:
         abort(404)
-    if rows[0]["title"] == "논곡위키:대문" and current_user()["role"] != "admin":
+    if rows[0]["title"] == "논곡위키:대문" and not role_at_least(current_user(), "teacher"):
         abort(403)
     execute("UPDATE wiki_pages SET deleted=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (page_id,))
     log_admin_action("문서 삭제", "wiki_page", page_id, rows[0]["title"])

@@ -4,7 +4,7 @@
 <section class="card">
   <h1>운영 관리</h1>
   <p>현재 권한: <b>{{role_labels.get(current_user.role,current_user.role)}}</b></p>
-  <p class="hint">최고관리자: 전체 관리 · 교사: 문서/회원 관리 · 학생관리자: 대문/공지/신고/갤러리 관리</p>
+  <p class="hint">최고관리자: 전체 관리 · 교사: 탈퇴 기능을 제외한 최고관리자 권한 · 학생관리자: 대문/공지/신고/갤러리 관리</p>
 
   <p><a href="{{url_for('edit_homepage_section',section_key='news')}}">📢 공지사항 작성/편집</a> · <a href="{{url_for('index')}}">🏠 대문 설정</a></p>
 
@@ -99,7 +99,7 @@
 </section>
 {% endif %}
 
-{% if current_user.role == 'admin' %}
+{% if current_user.role in ['teacher', 'admin'] %}
 <section class="card backup-admin-card">
   <h2>전체 백업</h2>
   <p class="hint">위키 문서, 회원, 권한, 갤러리 사진, 댓글, 공지, 투표, 알림, 학급·학년 글, 수정 검토, 운영 로그 등 사이트 데이터를 하나의 압축 백업 파일로 저장합니다.</p>
