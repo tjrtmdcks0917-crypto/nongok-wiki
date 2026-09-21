@@ -1501,7 +1501,7 @@ def index():
         "notice": "다른 사람의 연락처, 주소 등 사적인 개인정보는 보호해 주세요.\n친구를 공격하거나 괴롭히는 내용은 작성하지 말아 주세요.\n학교생활, 추억, 정보 등 다양한 내용을 자유롭게 작성해 주세요.",
         "news": "논곡위키 공개 베타 운영 중입니다.\n문서 편집과 토론 기능을 사용할 수 있습니다.",
         "feedback": "오류나 개선할 점은 문서 토론 또는 관리자에게 알려 주세요.",
-        "supporters": "아직 등록된 후원자가 없습니다.",
+        "supporters": "아직 등록된 운영자 정보가 없습니다.",
     }
     rows = query("SELECT section_key, content FROM homepage_sections")
     sections = defaults.copy()
@@ -1614,7 +1614,7 @@ def index():
 @app.route("/admin/homepage/<section_key>", methods=["GET", "POST"])
 @require_staff
 def edit_homepage_section(section_key):
-    labels = {"notice": "유의사항", "news": "공지사항", "feedback": "피드백", "supporters": "후원자"}
+    labels = {"notice": "유의사항", "news": "공지사항", "feedback": "피드백", "supporters": "운영자"}
     if section_key not in labels:
         abort(404)
     rows = query("SELECT content FROM homepage_sections WHERE section_key=%s", (section_key,))
