@@ -3200,7 +3200,7 @@ def register():
                 flash("현재 재학 중인 고등학교 이름을 정확히 입력해 주세요.", "warning")
                 return redirect(url_for("register"))
         elif not is_teacher_signup:
-            if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
+            if not re.fullmatch(r"[1-3](0[1-5])(0[1-9]|1[0-9]|2[0-9])", student_no):
                 flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
                 return redirect(url_for("register"))
             if len(school_name) < 2 or len(school_name) > 80:
@@ -3312,7 +3312,7 @@ def identity_setup():
                 flash("현재 재학 중인 고등학교 이름을 정확히 입력해 주세요.", "warning")
                 return identity_back()
         else:
-            if not re.fullmatch(r"[1-3](0[1-4])(0[1-9]|1[0-9]|2[0-9])", student_no):
+            if not re.fullmatch(r"[1-3](0[1-5])(0[1-9]|1[0-9]|2[0-9])", student_no):
                 flash("학번 형식이 올바르지 않습니다. 예: 10101 = 1학년 1반 1번", "warning")
                 return identity_back()
             if len(school_name) < 2 or len(school_name) > 80:
