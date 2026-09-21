@@ -212,7 +212,6 @@ function toggleHomeDocs(button){
 {% endif %}
 <h2 class="section" id="feedback">3. 피드백 {% if current_user and can_edit_homepage %}<a href="{{url_for('edit_homepage_section',section_key='feedback')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2><div>{{ sections_html.feedback|safe }}</div>
 <h2 class="section" id="operators">4. 운영자 {% if current_user and can_edit_homepage %}<a href="{{url_for('edit_homepage_section',section_key='supporters')}}" style="font-size:14px;font-weight:normal">[편집]</a>{% endif %}</h2>
-<div>{{ sections_html.operators|safe }}</div>
 
 <section class="home-operators">
   <table>
@@ -235,4 +234,6 @@ function toggleHomeDocs(button){
     </tbody>
   </table>
 </section>
+
+<div class="operator-description">{{ sections_html.operators|safe }}</div>
 </article>{% endblock %}
