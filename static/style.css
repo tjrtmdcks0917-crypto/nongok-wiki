@@ -634,3 +634,145 @@
 .gallery-card-author{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 13px 13px;font-size:12px}
 .gallery-card-author a{font-weight:700}
 .gallery-card-author span{color:#888;white-space:nowrap}
+
+
+/* Mobile-first usability pass: larger touch targets, no covered buttons, stable forms */
+button:disabled,input[type="submit"]:disabled{cursor:wait;opacity:.7}
+button.is-submitting,input[type="submit"].is-submitting{position:relative}
+
+@media(max-width:950px){
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{overflow-x:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+
+  /* A multi-row sticky header covered too much of a phone screen. */
+  .top{position:relative;top:auto;box-shadow:0 1px 3px #aaa}
+  .top-inner{padding:8px max(12px,env(safe-area-inset-right)) 9px max(12px,env(safe-area-inset-left));gap:8px 10px}
+  .nongok-header-logo{width:94px;height:34px}
+  .search{min-width:0;flex:1 1 160px}
+  .search input{min-width:0;height:40px;font-size:16px;padding:0 13px}
+  .search button{height:40px;min-width:46px;padding:0 12px}
+
+  .mobile-nav,.mobile-users{
+    width:100%;
+    justify-content:flex-start;
+    gap:7px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    white-space:nowrap;
+  }
+  .mobile-nav::-webkit-scrollbar,.mobile-users::-webkit-scrollbar{display:none}
+  .mobile-nav{padding:6px 0 2px}
+  .mobile-users{padding:8px 0 1px;border-top:1px solid #ffffff35}
+  .mobile-nav a,.mobile-users a{
+    flex:0 0 auto;
+    min-height:38px;
+    display:inline-flex;
+    align-items:center;
+    padding:7px 11px;
+    border-radius:8px;
+    font-size:13px;
+  }
+  .mobile-users a{border:1px solid #ffffff32}
+
+  .site-grid{padding:0}
+  .content{padding:14px 12px 40px}
+  .card,.document{max-width:100%;overflow-wrap:anywhere}
+  .card{padding-left:12px!important;padding-right:12px!important}
+  .doc-title{gap:10px;margin-bottom:14px}
+  .doc-title h1{font-size:25px;line-height:1.25;overflow-wrap:anywhere}
+  .doc-tools{gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .doc-tools>a,.doc-tools>button,.doc-tools>form button{
+    min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:7px 10px
+  }
+
+  /* iOS zooms inputs below 16px. Keep editing stable and full width. */
+  input,textarea,select{max-width:100%;font-size:16px!important;border-radius:8px}
+  textarea{line-height:1.55}
+  .editor{min-height:55vh;resize:vertical}
+  input[type="file"]{min-height:46px}
+
+  /* Primary creation forms get thumb-friendly actions. */
+  .gallery-compose form,
+  .gallery-comment-form,
+  .school-space-compose form,
+  .poll-create form,
+  .auth-form,
+  .card>form:not(.search):not(.inline-form){
+    max-width:100%;
+  }
+  .gallery-compose form>button[type="submit"],
+  .gallery-comment-form>button[type="submit"],
+  .school-space-compose form>button[type="submit"],
+  .poll-create form>button[type="submit"],
+  .poll-vote-form>button[type="submit"],
+  .auth-form>button[type="submit"],
+  .card>form:not(.search):not(.inline-form)>button[type="submit"]{
+    width:100%;
+    min-height:48px;
+    margin-top:12px;
+    font-size:16px;
+    font-weight:800;
+    border-radius:9px;
+    touch-action:manipulation;
+  }
+
+  /* Gallery composer and comments should never place the action off-screen. */
+  .gallery-compose{margin-left:0;margin-right:0}
+  .gallery-compose summary{min-height:48px;display:flex;align-items:center;padding:12px 14px}
+  .gallery-compose form{padding:12px}
+  .gallery-compose textarea{min-height:150px}
+  .gallery-identity{line-height:1.55}
+  .gallery-comment-form{display:flex;flex-direction:column;align-items:stretch;gap:8px}
+  .gallery-comment-form textarea{width:100%;min-height:100px}
+  .gallery-comment-form button{width:100%;height:auto;min-height:48px}
+  .gallery-comment>div{flex-wrap:wrap;align-items:center}
+  .gallery-comment .inline-form{margin-left:auto}
+  .gallery-reply-compose{width:100%;margin-top:8px}
+  .gallery-reply-compose>summary{
+    min-height:38px;display:inline-flex;align-items:center;padding:5px 9px;
+    border:1px solid #d7dadd;border-radius:7px;background:#fafafa
+  }
+  .gallery-reply-compose .reply-form{width:100%;margin-top:8px}
+  .gallery-comment.is-reply{margin-left:12px;padding-left:9px}
+
+  /* Images/files can make posts slow; make upload state visible immediately. */
+  form[data-submitting="1"]{pointer-events:none}
+  form[data-submitting="1"] textarea,
+  form[data-submitting="1"] input:not([type="hidden"]){background:#f7f7f7}
+  form[data-submitting="1"] button.is-submitting{
+    background:#6f8f34!important;color:#fff!important
+  }
+
+  /* Tables/admin controls should scroll instead of forcing the page wider. */
+  table{max-width:100%}
+  .admin-row{gap:8px}
+  .admin-row>div:last-child{display:flex;flex-wrap:wrap;gap:6px}
+  .admin-row form{margin:0}
+  .admin-row button{min-height:40px;margin:0}
+  .admin-member form[style*="display:flex"]{flex-wrap:wrap!important}
+  .admin-member form[style*="display:flex"] select{width:100%;min-height:44px}
+  .admin-member form[style*="display:flex"] button{width:100%;min-height:44px;margin:0}
+}
+
+@media(max-width:520px){
+  .content{padding:12px 10px 34px}
+  .auth-page{width:100%;margin:10px auto 34px}
+  .auth-card{padding:20px 14px}
+  .auth-head h1{font-size:25px}
+
+  /* Cards become a simple vertical feed on small phones. */
+  .gallery-grid{grid-template-columns:1fr;gap:10px}
+  .gallery-card{display:block!important}
+  .gallery-card-link{display:block}
+  .gallery-thumb{height:auto;aspect-ratio:16/9}
+  .gallery-card-body{padding:12px}
+  .gallery-card-author{padding:0 12px 12px}
+  .gallery-images{grid-template-columns:1fr}
+  .gallery-author{gap:6px 9px;font-size:12px}
+
+  .section{font-size:20px;margin-top:25px}
+  .flash{line-height:1.5}
+  footer{padding:0 12px calc(22px + env(safe-area-inset-bottom));margin-bottom:0}
+}
