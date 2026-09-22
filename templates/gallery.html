@@ -1,5 +1,80 @@
 {% extends "base.html" %}
-{% block title %}논곡갤러리 - 논곡위키{% endblock %}
+{% block title %}논곡갤러리 - 논곡위키<script>
+(function(){
+  const input = document.getElementById('galleryImages');
+  const status = document.getElementById('galleryImageStatus');
+  if (!input || !status || typeof DataTransfer === 'undefined') return;
+
+  function canvasBlob(canvas, type, quality) {
+    return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+  }
+
+  async function compressImage(file) {
+    if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
+    if (file.size < 450 * 1024) return file;
+
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+    } catch (_) {
+      return file;
+    }
+
+    const maxSide = 1600;
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1 && file.size < 900 * 1024) {
+      bitmap.close();
+      return file;
+    }
+
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', {alpha:false});
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    const blob = await canvasBlob(canvas, 'image/jpeg', 0.78);
+    if (!blob || blob.size >= file.size) return file;
+    const base = file.name.replace(/\.[^.]+$/, '') || 'photo';
+    return new File([blob], base + '.jpg', {type:'image/jpeg', lastModified:file.lastModified});
+  }
+
+  input.addEventListener('change', async function(){
+    const files = Array.from(input.files || []).slice(0, 4);
+    if (!files.length) {
+      status.textContent = '';
+      return;
+    }
+
+    input.disabled = true;
+    status.textContent = '사진을 업로드하기 좋게 줄이는 중…';
+    try {
+      const optimized = [];
+      for (let i = 0; i < files.length; i++) {
+        status.textContent = '사진 최적화 중… ' + (i + 1) + '/' + files.length;
+        optimized.push(await compressImage(files[i]));
+      }
+
+      const transfer = new DataTransfer();
+      optimized.forEach(file => transfer.items.add(file));
+      input.files = transfer.files;
+
+      const before = files.reduce((sum, file) => sum + file.size, 0);
+      const after = optimized.reduce((sum, file) => sum + file.size, 0);
+      const mb = n => (n / 1024 / 1024).toFixed(1);
+      status.textContent = '사진 준비 완료 · ' + mb(before) + 'MB → ' + mb(after) + 'MB';
+    } catch (_) {
+      status.textContent = '사진은 원본 상태로 업로드됩니다.';
+    } finally {
+      input.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}
 {% block meta_description %}논곡중학교 학교생활 사진과 게시물을 함께 올리고 댓글로 소통하는 논곡갤러리입니다.{% endblock %}
 {% block robots %}noindex,nofollow,noimageindex{% endblock %}
 {% block content %}
@@ -17,14 +92,15 @@
   {% if current_user %}
   <details class="gallery-compose">
     <summary>＋ 새 게시물 올리기</summary>
-    <form method="post" action="{{url_for('gallery_new')}}" enctype="multipart/form-data">
+    <form id="galleryUploadForm" method="post" action="{{url_for('gallery_new')}}" enctype="multipart/form-data">
       <input type="hidden" name="csrf" value="{{csrf}}">
       <label>제목<input name="title" maxlength="100" required placeholder="게시물 제목"></label>
       <label>내용<textarea name="body" maxlength="5000" required placeholder="학교생활과 관련된 내용을 자유롭게 작성해 주세요."></textarea></label>
       <div class="field-help">@이름, @아이디 또는 @학번으로 친구를 태그하면 해당 회원에게 알림이 갑니다. 학번으로 태그해도 게시물에는 이름으로 표시됩니다.</div>
       <label>사진 <small>선택 · 최대 4장, 장당 3MB</small>
-        <input type="file" name="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+        <input id="galleryImages" type="file" name="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
       </label>
+      <div id="galleryImageStatus" class="field-help" aria-live="polite"></div>
       <p class="gallery-identity">작성자: <b>{{current_user.real_name or current_user.username}}</b> · 이름은 게시물에 공개됩니다.</p>
       <button type="submit">게시물 올리기</button>
     </form>

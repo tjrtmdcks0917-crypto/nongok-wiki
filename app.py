@@ -17,7 +17,7 @@ from markupsafe import escape
 from werkzeug.security import check_password_hash, generate_password_hash
 from PIL import Image, ImageOps
 
-from db import init_db, query, execute, backup_rows, BACKUP_TABLE_COLUMNS
+from db import init_db, query, execute, backup_rows, BACKUP_TABLE_COLUMNS, create_gallery_post_with_images
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-secret-key")
@@ -2087,7 +2087,7 @@ def all_pages():
     return render_template("all_pages.html", pages=pages, page=page, total_pages=total_pages, total=total)
 
 def _sanitize_gallery_image(data):
-    """Validate and re-encode uploads so embedded EXIF/GPS metadata is removed."""
+    """Validate, resize and re-encode uploads while stripping EXIF/GPS metadata."""
     try:
         Image.MAX_IMAGE_PIXELS = 25_000_000
         with Image.open(BytesIO(data)) as image:
@@ -2097,25 +2097,23 @@ def _sanitize_gallery_image(data):
             if image.width < 1 or image.height < 1 or image.width * image.height > 25_000_000:
                 return None, None
 
+            # Gallery images are never displayed above this size. Resizing large
+            # phone photos here reduces CPU, DB size and image download time.
+            image.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
             output = BytesIO()
 
-            if source_format in {"JPEG", "JPG"}:
+            if source_format in {"JPEG", "JPG", "WEBP"}:
                 if image.mode != "RGB":
                     image = image.convert("RGB")
-                image.save(output, format="JPEG", quality=88, optimize=True)
+                image.save(output, format="JPEG", quality=82, optimize=False)
                 return "image/jpeg", output.getvalue()
 
-            if source_format == "WEBP":
-                if image.mode not in {"RGB", "RGBA"}:
-                    image = image.convert("RGBA")
-                image.save(output, format="WEBP", quality=88, method=4)
-                return "image/webp", output.getvalue()
-
-            # PNG and GIF are normalized to PNG. This also strips metadata.
+            # Keep transparency for PNG/GIF-derived images, but avoid the costly
+            # optimize pass that made cold/free Render instances noticeably slow.
             if source_format in {"PNG", "GIF"}:
                 if image.mode not in {"RGB", "RGBA"}:
                     image = image.convert("RGBA")
-                image.save(output, format="PNG", optimize=True)
+                image.save(output, format="PNG", optimize=False, compress_level=4)
                 return "image/png", output.getvalue()
     except Exception:
         return None, None
@@ -2865,25 +2863,12 @@ def gallery_new():
             return redirect(url_for("gallery"))
         images.append((mime, clean_data))
 
-    execute(
-        "INSERT INTO gallery_posts(user_id, title, body, deleted, created_at) VALUES (%s,%s,%s,FALSE,CURRENT_TIMESTAMP)",
-        (user["id"], title, body),
+    post_id = create_gallery_post_with_images(
+        user["id"],
+        title,
+        body,
+        images,
     )
-    post_rows = query(
-        """SELECT id FROM gallery_posts
-           WHERE user_id=%s AND title=%s AND body=%s AND deleted=FALSE
-           ORDER BY id DESC LIMIT 1""",
-        (user["id"], title, body),
-    )
-    if not post_rows:
-        abort(500)
-    post_id = post_rows[0]["id"]
-
-    for index, (mime, data) in enumerate(images):
-        execute(
-            "INSERT INTO gallery_images(post_id, mime_type, image_data, sort_order, created_at) VALUES (%s,%s,%s,%s,CURRENT_TIMESTAMP)",
-            (post_id, mime, data, index),
-        )
 
     _notify_member_mentions(
         raw_title + "\n" + raw_body,

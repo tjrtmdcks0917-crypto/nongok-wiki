@@ -60,6 +60,13 @@
   document.addEventListener('submit', function(event){
     const form = event.target;
     if (!(form instanceof HTMLFormElement)) return;
+    const galleryImages = form.querySelector('#galleryImages');
+    if (galleryImages && galleryImages.disabled) {
+      event.preventDefault();
+      const status = form.querySelector('#galleryImageStatus');
+      if (status) status.textContent = '사진 최적화가 끝난 뒤 다시 눌러 주세요.';
+      return;
+    }
     if (form.dataset.submitting === '1') {
       event.preventDefault();
       return;

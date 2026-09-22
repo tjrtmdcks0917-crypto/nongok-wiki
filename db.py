@@ -431,6 +431,42 @@ def execute(sql, params=()):
         except Exception:
             return None
 
+
+def create_gallery_post_with_images(user_id, title, body, images):
+    """Create a gallery post and all attached images in one DB transaction."""
+    with connection() as conn:
+        if USE_POSTGRES:
+            row = conn.execute(
+                """INSERT INTO gallery_posts(user_id,title,body,deleted,created_at)
+                   VALUES (%s,%s,%s,FALSE,CURRENT_TIMESTAMP)
+                   RETURNING id""",
+                (user_id, title, body),
+            ).fetchone()
+            post_id = row["id"]
+            for index, (mime_type, image_data) in enumerate(images):
+                conn.execute(
+                    """INSERT INTO gallery_images
+                       (post_id,mime_type,image_data,sort_order,created_at)
+                       VALUES (%s,%s,%s,%s,CURRENT_TIMESTAMP)""",
+                    (post_id, mime_type, image_data, index),
+                )
+        else:
+            cur = conn.execute(
+                """INSERT INTO gallery_posts(user_id,title,body,deleted,created_at)
+                   VALUES (?,?,?,0,CURRENT_TIMESTAMP)""",
+                (user_id, title, body),
+            )
+            post_id = cur.lastrowid
+            for index, (mime_type, image_data) in enumerate(images):
+                conn.execute(
+                    """INSERT INTO gallery_images
+                       (post_id,mime_type,image_data,sort_order,created_at)
+                       VALUES (?,?,?,?,CURRENT_TIMESTAMP)""",
+                    (post_id, mime_type, image_data, index),
+                )
+        return post_id
+
+
 def ensure_admin():
     username = os.environ.get("ADMIN_USERNAME", "admin").strip()
     password = os.environ.get("ADMIN_PASSWORD", "")
